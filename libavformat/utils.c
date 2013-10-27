@@ -1098,12 +1098,14 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
             if (pkt->dts != AV_NOPTS_VALUE) {
                 // got DTS from the stream, update reference timestamp
                 st->reference_dts = pkt->dts - pc->dts_ref_dts_delta * num / den;
-                pkt->pts = pkt->dts + pc->pts_dts_delta * num / den;
             } else if (st->reference_dts != AV_NOPTS_VALUE) {
                 // compute DTS based on reference timestamp
                 pkt->dts = st->reference_dts + pc->dts_ref_dts_delta * num / den;
-                pkt->pts = pkt->dts + pc->pts_dts_delta * num / den;
             }
+
+            if (st->reference_dts != AV_NOPTS_VALUE && pkt->pts == AV_NOPTS_VALUE)
+                pkt->pts = pkt->dts + pc->pts_dts_delta * num / den;
+
             if (pc->dts_sync_point > 0)
                 st->reference_dts = pkt->dts; // new reference
         }
@@ -1625,6 +1627,9 @@ int ff_add_index_entry(AVIndexEntry **index_entries,
         return -1;
 
     if(timestamp == AV_NOPTS_VALUE)
+        return AVERROR(EINVAL);
+
+    if (size < 0 || size > 0x3FFFFFFF)
         return AVERROR(EINVAL);
 
     if (is_relative(timestamp)) //FIXME this maintains previous behavior but we should shift by the correct offset once known
