@@ -2185,7 +2185,7 @@ static void intra_recon(AVCodecContext *ctx, ptrdiff_t y_off, ptrdiff_t uv_off)
                 int mode = b->uvmode;
                 LOCAL_ALIGNED_16(uint8_t, a_buf, [48]);
                 uint8_t *a = &a_buf[16], l[32];
-                int eob = b->uvtx > TX_8X8 ? AV_RN16A(&s->uveob[p][n]) : s->uveob[p][n];
+                int eob = b->skip ? 0 : b->uvtx > TX_8X8 ? AV_RN16A(&s->uveob[p][n]) : s->uveob[p][n];
 
                 mode = check_intra_mode(s, mode, &a, ptr_r, s->f->linesize[1],
                                         ptr, b->uv_stride, l,
