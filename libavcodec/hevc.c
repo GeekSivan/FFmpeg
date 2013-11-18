@@ -296,6 +296,22 @@ static int set_sps(HEVCContext *s, const HEVCSPS *sps)
     s->avctx->sample_aspect_ratio = sps->vui.sar;
     s->avctx->has_b_frames        = sps->temporal_layer[sps->max_sub_layers - 1].num_reorder_pics;
 
+    if (sps->vui.video_signal_type_present_flag)
+        s->avctx->color_range = sps->vui.video_full_range_flag ? AVCOL_RANGE_JPEG
+                                                               : AVCOL_RANGE_MPEG;
+    else
+        s->avctx->color_range = AVCOL_RANGE_MPEG;
+
+    if (sps->vui.colour_description_present_flag) {
+        s->avctx->color_primaries = sps->vui.colour_primaries;
+        s->avctx->color_trc       = sps->vui.transfer_characteristic;
+        s->avctx->colorspace      = sps->vui.matrix_coeffs;
+    } else {
+        s->avctx->color_primaries = AVCOL_PRI_UNSPECIFIED;
+        s->avctx->color_trc       = AVCOL_TRC_UNSPECIFIED;
+        s->avctx->colorspace      = AVCOL_SPC_UNSPECIFIED;
+    }
+
     ff_hevc_pred_init(&s->hpc,     sps->bit_depth);
     ff_hevc_dsp_init (&s->hevcdsp, sps->bit_depth);
     ff_videodsp_init (&s->vdsp,    sps->bit_depth);
@@ -1010,7 +1026,8 @@ static void luma_mc(HEVCContext *s, int16_t *dst, ptrdiff_t dststride,
         y_off >= pic_height - block_h - ff_hevc_qpel_extra_after[my]) {
         int offset = extra_top * srcstride + (extra_left << s->sps->pixel_shift);
 
-        s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, srcstride, src - offset, srcstride,
+        s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src - offset,
+                                 srcstride, srcstride,
                                  block_w + ff_hevc_qpel_extra[mx],
                                  block_h + ff_hevc_qpel_extra[my],
                                  x_off - extra_left, y_off - extra_top,
@@ -1061,7 +1078,8 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
         int offset1 = EPEL_EXTRA_BEFORE * (src1stride + (1 << s->sps->pixel_shift));
         int offset2 = EPEL_EXTRA_BEFORE * (src2stride + (1 << s->sps->pixel_shift));
 
-        s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src1stride, src1 - offset1, src1stride,
+        s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src1 - offset1,
+                                 src1stride, src1stride,
                                  block_w + EPEL_EXTRA, block_h + EPEL_EXTRA,
                                  x_off - EPEL_EXTRA_BEFORE,
                                  y_off - EPEL_EXTRA_BEFORE,
@@ -1071,7 +1089,8 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
         s->hevcdsp.put_hevc_epel[!!my][!!mx](dst1, dststride, src1, src1stride,
                                              block_w, block_h, mx, my, lc->mc_buffer);
 
-        s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src2stride, src2 - offset2, src2stride,
+        s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src2 - offset2,
+                                 src2stride, src2stride,
                                  block_w + EPEL_EXTRA, block_h + EPEL_EXTRA,
                                  x_off - EPEL_EXTRA_BEFORE,
                                  y_off - EPEL_EXTRA_BEFORE,

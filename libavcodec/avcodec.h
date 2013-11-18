@@ -37,6 +37,10 @@
 #include "libavutil/dict.h"
 #include "libavutil/frame.h"
 #include "libavutil/log.h"
+#if FF_API_FAST_MALLOC
+// to provide fast_*alloc
+#include "libavutil/mem.h"
+#endif
 #include "libavutil/pixfmt.h"
 #include "libavutil/rational.h"
 
@@ -105,7 +109,9 @@ enum AVCodecID {
     /* video codecs */
     AV_CODEC_ID_MPEG1VIDEO,
     AV_CODEC_ID_MPEG2VIDEO, ///< preferred ID for MPEG-1/2 video decoding
+#if FF_API_XVMC
     AV_CODEC_ID_MPEG2VIDEO_XVMC,
+#endif /* FF_API_XVMC */
     AV_CODEC_ID_H261,
     AV_CODEC_ID_H263,
     AV_CODEC_ID_RV10,
@@ -628,16 +634,26 @@ enum AVColorPrimaries{
     AVCOL_PRI_SMPTE170M   = 6, ///< also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC
     AVCOL_PRI_SMPTE240M   = 7, ///< functionally identical to above
     AVCOL_PRI_FILM        = 8,
+    AVCOL_PRI_BT2020      = 9, ///< ITU-R BT2020
     AVCOL_PRI_NB             , ///< Not part of ABI
 };
 
 enum AVColorTransferCharacteristic{
-    AVCOL_TRC_BT709       = 1, ///< also ITU-R BT1361
-    AVCOL_TRC_UNSPECIFIED = 2,
-    AVCOL_TRC_GAMMA22     = 4, ///< also ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM
-    AVCOL_TRC_GAMMA28     = 5, ///< also ITU-R BT470BG
-    AVCOL_TRC_SMPTE240M   = 7,
-    AVCOL_TRC_NB             , ///< Not part of ABI
+    AVCOL_TRC_BT709        =  1, ///< also ITU-R BT1361
+    AVCOL_TRC_UNSPECIFIED  =  2,
+    AVCOL_TRC_GAMMA22      =  4, ///< also ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM
+    AVCOL_TRC_GAMMA28      =  5, ///< also ITU-R BT470BG
+    AVCOL_TRC_SMPTE170M    =  6, ///< also ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
+    AVCOL_TRC_SMPTE240M    =  7,
+    AVCOL_TRC_LINEAR       =  8, ///< "Linear transfer characteristics"
+    AVCOL_TRC_LOG          =  9, ///< "Logarithmic transfer characteristic (100:1 range)"
+    AVCOL_TRC_LOG_SQRT     = 10, ///< "Logarithmic transfer characteristic (100 * Sqrt( 10 ) : 1 range)"
+    AVCOL_TRC_IEC61966_2_4 = 11, ///< IEC 61966-2-4
+    AVCOL_TRC_BT1361_ECG   = 12, ///< ITU-R BT1361 Extended Colour Gamut
+    AVCOL_TRC_IEC61966_2_1 = 13, ///< IEC 61966-2-1 (sRGB or sYCC)
+    AVCOL_TRC_BT2020_10    = 14, ///< ITU-R BT2020 for 10 bit system
+    AVCOL_TRC_BT2020_12    = 15, ///< ITU-R BT2020 for 12 bit system
+    AVCOL_TRC_NB               , ///< Not part of ABI
 };
 
 /**
@@ -679,7 +695,12 @@ typedef struct RcOverride{
     float quality_factor;
 } RcOverride;
 
+#if FF_API_MAX_BFRAMES
+/**
+ * @deprecated there is no libavcodec-wide limit on the number of B-frames
+ */
 #define FF_MAX_B_FRAMES 16
+#endif
 
 /* encoding support
    These flags can be passed in AVCodecContext.flags before initialization.
@@ -744,8 +765,10 @@ typedef struct RcOverride{
  */
 #define CODEC_CAP_DR1             0x0002
 #define CODEC_CAP_TRUNCATED       0x0008
+#if FF_API_XVMC
 /* Codec can export data for HW decoding (XvMC). */
 #define CODEC_CAP_HWACCEL         0x0010
+#endif /* FF_API_XVMC */
 /**
  * Encoder or decoder requires flushing with NULL input at the end in order to
  * give the complete and correct output.
@@ -802,12 +825,12 @@ typedef struct RcOverride{
  * Codec should fill in channel configuration and samplerate instead of container
  */
 #define CODEC_CAP_CHANNEL_CONF     0x0400
-
+#if FF_API_NEG_LINESIZES
 /**
- * Codec is able to deal with negative linesizes
+ * @deprecated no codecs use this capability
  */
 #define CODEC_CAP_NEG_LINESIZES    0x0800
-
+#endif
 /**
  * Codec supports frame-level multithreading.
  */
@@ -837,6 +860,7 @@ typedef struct RcOverride{
  */
 #define CODEC_CAP_LOSSLESS         0x80000000
 
+#if FF_API_MB_TYPE
 //The following defines may change, don't expect compatibility if you use them.
 #define MB_TYPE_INTRA4x4   0x0001
 #define MB_TYPE_INTRA16x16 0x0002 //FIXME H.264-specific
@@ -860,6 +884,7 @@ typedef struct RcOverride{
 #define MB_TYPE_QUANT      0x00010000
 #define MB_TYPE_CBP        0x00020000
 //Note bits 24-31 are reserved for codec specific use (h264 ref0, mpeg1 0mv, ...)
+#endif
 
 /**
  * Pan Scan area.
@@ -890,10 +915,12 @@ typedef struct AVPanScan{
     int16_t position[3][2];
 }AVPanScan;
 
+#if FF_API_QSCALE_TYPE
 #define FF_QSCALE_TYPE_MPEG1 0
 #define FF_QSCALE_TYPE_MPEG2 1
 #define FF_QSCALE_TYPE_H264  2
 #define FF_QSCALE_TYPE_VP56  3
+#endif
 
 #if FF_API_GET_BUFFER
 #define FF_BUFFER_TYPE_INTERNAL 1
@@ -1655,12 +1682,15 @@ typedef struct AVCodecContext {
 #define SLICE_FLAG_ALLOW_FIELD    0x0002 ///< allow draw_horiz_band() with field slices (MPEG2 field pics)
 #define SLICE_FLAG_ALLOW_PLANE    0x0004 ///< allow draw_horiz_band() with 1 component at a time (SVQ1)
 
+#if FF_API_XVMC
     /**
      * XVideo Motion Acceleration
      * - encoding: forbidden
      * - decoding: set by decoder
+     * @deprecated XvMC support is slated for removal.
      */
-    int xvmc_acceleration;
+    attribute_deprecated int xvmc_acceleration;
+#endif /* FF_API_XVMC */
 
     /**
      * macroblock decision mode
@@ -2579,7 +2609,9 @@ typedef struct AVCodecContext {
 #define FF_IDCT_SIMPLEVIS     18
 #define FF_IDCT_FAAN          20
 #define FF_IDCT_SIMPLENEON    22
+#if FF_API_ARCH_ALPHA
 #define FF_IDCT_SIMPLEALPHA   23
+#endif
 
     /**
      * bits per sample/pixel from the demuxer (needed for huffyuv).
@@ -2609,7 +2641,7 @@ typedef struct AVCodecContext {
     /**
      * the picture in the bitstream
      * - encoding: Set by libavcodec.
-     * - decoding: Set by libavcodec.
+     * - decoding: unused
      */
     AVFrame *coded_frame;
 
@@ -2681,13 +2713,13 @@ typedef struct AVCodecContext {
      */
     int (*execute2)(struct AVCodecContext *c, int (*func)(struct AVCodecContext *c2, void *arg, int jobnr, int threadnr), void *arg2, int *ret, int count);
 
+#if FF_API_THREAD_OPAQUE
     /**
-     * thread opaque
-     * Can be used by execute() to store some per AVCodecContext stuff.
-     * - encoding: set by execute()
-     * - decoding: set by execute()
+     * @deprecated this field should not be used from outside of lavc
      */
+    attribute_deprecated
     void *thread_opaque;
+#endif
 
     /**
      * noise vs. sse weight for the nsse comparsion function
@@ -2814,21 +2846,22 @@ typedef struct AVCodecContext {
     uint8_t *subtitle_header;
     int subtitle_header_size;
 
+#if FF_API_ERROR_RATE
     /**
-     * Simulates errors in the bitstream to test error concealment.
-     * - encoding: Set by user.
-     * - decoding: unused
+     * @deprecated use the 'error_rate' private AVOption of the mpegvideo
+     * encoders
      */
+    attribute_deprecated
     int error_rate;
+#endif
 
+#if FF_API_CODEC_PKT
     /**
-     * Current packet as passed into the decoder, to avoid having
-     * to pass the packet into every function. Currently only valid
-     * inside lavc and get/release_buffer callbacks.
-     * - decoding: set by avcodec_decode_*, read by get_buffer() for setting pkt_pts
-     * - encoding: unused
+     * @deprecated this field is not supposed to be accessed from outside lavc
      */
+    attribute_deprecated
     AVPacket *pkt;
+#endif
 
     /**
      * VBV delay coded in the last frame (in periods of a 27 MHz clock).
@@ -3330,14 +3363,13 @@ const AVClass *avcodec_get_subtitle_rect_class(void);
  */
 int avcodec_copy_context(AVCodecContext *dest, const AVCodecContext *src);
 
+#if FF_API_AVFRAME_LAVC
 /**
- * Allocate an AVFrame and set its fields to default values.  The resulting
- * struct must be freed using avcodec_free_frame().
- *
- * @return An AVFrame filled with default values or NULL on failure.
- * @see avcodec_get_frame_defaults
+ * @deprecated use av_frame_alloc()
  */
+attribute_deprecated
 AVFrame *avcodec_alloc_frame(void);
+#endif
 
 /**
  * Set the fields of the given AVFrame to default values.
@@ -4838,27 +4870,6 @@ void av_bitstream_filter_close(AVBitStreamFilterContext *bsf);
 AVBitStreamFilter *av_bitstream_filter_next(AVBitStreamFilter *f);
 
 /* memory */
-
-/**
- * Reallocate the given block if it is not large enough, otherwise do nothing.
- *
- * @see av_realloc
- */
-void *av_fast_realloc(void *ptr, unsigned int *size, size_t min_size);
-
-/**
- * Allocate a buffer, reusing the given one if large enough.
- *
- * Contrary to av_fast_realloc the current buffer contents might not be
- * preserved and on error the old buffer is freed, thus no special
- * handling to avoid memleaks is necessary.
- *
- * @param ptr pointer to pointer to already allocated buffer, overwritten with pointer to new buffer
- * @param size size of the buffer *ptr points to
- * @param min_size minimum size of *ptr buffer after returning, *ptr will be NULL and
- *                 *size 0 if an error occurred.
- */
-void av_fast_malloc(void *ptr, unsigned int *size, size_t min_size);
 
 /**
  * Same behaviour av_fast_malloc but the buffer has additional
