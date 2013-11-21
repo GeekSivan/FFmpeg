@@ -111,6 +111,7 @@ static HEVCFrame *alloc_frame(HEVCContext *s)
 
         frame->frame->top_field_first  = s->picture_struct == AV_PICTURE_STRUCTURE_TOP_FIELD;
         frame->frame->interlaced_frame = (s->picture_struct == AV_PICTURE_STRUCTURE_TOP_FIELD) || (s->picture_struct == AV_PICTURE_STRUCTURE_BOTTOM_FIELD);
+        frame->frame->display_picture_number = s->poc;
         return frame;
 fail:
         ff_hevc_unref_frame(s, frame, ~0);
@@ -184,7 +185,7 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
             int pixel_shift = !!(desc->comp[0].depth_minus1 > 7);
 
             ret = av_frame_ref(out, src);
-            ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
+            frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
             if (ret < 0)
                 return ret;
 
@@ -355,7 +356,7 @@ static HEVCFrame *generate_missing_ref(HEVCContext *s, int poc)
     frame->sequence = s->seq_decode;
     frame->flags    = 0;
 
-    if (s->threads_type == FF_THREAD_FRAME)
+    if (s->threads_type & FF_THREAD_FRAME)
         ff_thread_report_progress(&frame->tf, INT_MAX, 0);
 
     return frame;
