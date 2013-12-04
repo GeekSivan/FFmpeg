@@ -762,7 +762,7 @@ typedef struct HEVCLocalContext {
 
 typedef struct HEVCContext {
     const AVClass *c;  // needed by private avoptions
-    AVCodecContext *avctx;
+    AVCodecContext      *avctx;
 
     struct HEVCContext  *sList[MAX_NB_THREADS];
 

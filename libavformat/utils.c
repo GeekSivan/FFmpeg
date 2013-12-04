@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <stdint.h>
+
 #include "avformat.h"
 #include "avio_internal.h"
 #include "internal.h"
@@ -52,6 +54,8 @@
  * @file
  * various utility functions for use within FFmpeg
  */
+
+static int update_wrap_reference(AVFormatContext *s, AVStream *st, int stream_index, AVPacket *pkt);
 
 unsigned avformat_version(void)
 {
@@ -701,15 +705,23 @@ int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
             continue;
         }
 
-        if(!(s->flags & AVFMT_FLAG_KEEP_SIDE_DATA))
-            av_packet_merge_side_data(pkt);
-
         if(pkt->stream_index >= (unsigned)s->nb_streams){
             av_log(s, AV_LOG_ERROR, "Invalid stream index %d\n", pkt->stream_index);
             continue;
         }
 
         st= s->streams[pkt->stream_index];
+
+        if (update_wrap_reference(s, st, pkt->stream_index, pkt) && st->pts_wrap_behavior == AV_PTS_WRAP_SUB_OFFSET) {
+            // correct first time stamps to negative values
+            if (!is_relative(st->first_dts))
+                st->first_dts = wrap_timestamp(st, st->first_dts);
+            if (!is_relative(st->start_time))
+                st->start_time = wrap_timestamp(st, st->start_time);
+            if (!is_relative(st->cur_dts))
+                st->cur_dts = wrap_timestamp(st, st->cur_dts);
+        }
+
         pkt->dts = wrap_timestamp(st, pkt->dts);
         pkt->pts = wrap_timestamp(st, pkt->pts);
 
@@ -869,17 +881,25 @@ static AVPacketList *get_next_pkt(AVFormatContext *s, AVStream *st, AVPacketList
     return NULL;
 }
 
-static int update_wrap_reference(AVFormatContext *s, AVStream *st, int stream_index)
+static int update_wrap_reference(AVFormatContext *s, AVStream *st, int stream_index, AVPacket *pkt)
 {
+    int64_t ref = pkt->dts;
+
+    if (ref == AV_NOPTS_VALUE)
+        ref = pkt->pts;
+    if (ref == AV_NOPTS_VALUE)
+        return 0;
+    ref &= (1LL<<st->pts_wrap_bits)-1;
+
     if (s->correct_ts_overflow && st->pts_wrap_bits < 63 &&
-        st->pts_wrap_reference == AV_NOPTS_VALUE && st->first_dts != AV_NOPTS_VALUE) {
+        st->pts_wrap_reference == AV_NOPTS_VALUE) {
         int i;
 
         // reference time stamp should be 60 s before first time stamp
-        int64_t pts_wrap_reference = st->first_dts - av_rescale(60, st->time_base.den, st->time_base.num);
+        int64_t pts_wrap_reference = ref - av_rescale(60, st->time_base.den, st->time_base.num);
         // if first time stamp is not more than 1/8 and 60s before the wrap point, subtract rather than add wrap offset
-        int pts_wrap_behavior = (st->first_dts < (1LL<<st->pts_wrap_bits) - (1LL<<st->pts_wrap_bits-3)) ||
-            (st->first_dts < (1LL<<st->pts_wrap_bits) - av_rescale(60, st->time_base.den, st->time_base.num)) ?
+        int pts_wrap_behavior = (ref < (1LL<<st->pts_wrap_bits) - (1LL<<st->pts_wrap_bits-3)) ||
+            (ref < (1LL<<st->pts_wrap_bits) - av_rescale(60, st->time_base.den, st->time_base.num)) ?
             AV_PTS_WRAP_ADD_OFFSET : AV_PTS_WRAP_SUB_OFFSET;
 
         AVProgram *first_program = av_find_program_from_stream(s, NULL, stream_index);
@@ -970,15 +990,6 @@ static void update_initial_timestamps(AVFormatContext *s, int stream_index,
             if(pktl->pkt.dts == AV_NOPTS_VALUE)
                 pktl->pkt.dts= pts_buffer[0];
         }
-    }
-
-    if (update_wrap_reference(s, st, stream_index) && st->pts_wrap_behavior == AV_PTS_WRAP_SUB_OFFSET) {
-        // correct first time stamps to negative values
-        st->first_dts = wrap_timestamp(st, st->first_dts);
-        st->cur_dts = wrap_timestamp(st, st->cur_dts);
-        pkt->dts = wrap_timestamp(st, pkt->dts);
-        pkt->pts = wrap_timestamp(st, pkt->pts);
-        pts = wrap_timestamp(st, pts);
     }
 
     if (st->start_time == AV_NOPTS_VALUE)
@@ -1401,6 +1412,21 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
     if (!got_packet && s->parse_queue)
         ret = read_from_packet_buffer(&s->parse_queue, &s->parse_queue_end, pkt);
 
+    if (ret >= 0) {
+        AVStream *st = s->streams[pkt->stream_index];
+        if (st->skip_samples) {
+            uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);
+            if (p) {
+                AV_WL32(p, st->skip_samples);
+                av_log(s, AV_LOG_DEBUG, "demuxer injecting skip %d\n", st->skip_samples);
+            }
+            st->skip_samples = 0;
+        }
+    }
+
+    if(ret >= 0 && !(s->flags & AVFMT_FLAG_KEEP_SIDE_DATA))
+        av_packet_merge_side_data(pkt);
+
     if(s->debug & FF_FDEBUG_TS)
         av_log(s, AV_LOG_DEBUG, "read_frame_internal stream=%d, pts=%s, dts=%s, size=%d, duration=%d, flags=%d\n",
             pkt->stream_index,
@@ -1490,15 +1516,6 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
 return_packet:
 
     st = s->streams[pkt->stream_index];
-    if (st->skip_samples) {
-        uint8_t *p = av_packet_new_side_data(pkt, AV_PKT_DATA_SKIP_SAMPLES, 10);
-        if (p) {
-            AV_WL32(p, st->skip_samples);
-            av_log(s, AV_LOG_DEBUG, "demuxer injecting skip %d\n", st->skip_samples);
-        }
-        st->skip_samples = 0;
-    }
-
     if ((s->iformat->flags & AVFMT_GENERIC_INDEX) && pkt->flags & AV_PKT_FLAG_KEY) {
         ff_reduce_index(s, st->index);
         av_add_index_entry(st, pkt->pos, pkt->dts, 0, 0, AVINDEX_KEYFRAME);

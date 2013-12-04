@@ -230,7 +230,7 @@ static int parse_ptl(HEVCContext *s, PTL *ptl, int max_num_sub_layers)
     HEVCLocalContext *lc = s->HEVClc;
     GetBitContext *gb = &lc->gb;
     decode_profile_tier_level(s, &ptl->general_PTL);
-    
+
     for (i = 0; i < max_num_sub_layers - 1; i++) {
         ptl->sub_layer_profile_present_flag[i] = get_bits1(gb);
         ptl->sub_layer_level_present_flag[i]   = get_bits1(gb);
@@ -412,7 +412,8 @@ int ff_hevc_decode_nal_vps(HEVCContext *s)
             decode_hrd(s, common_inf_present, vps->vps_max_sub_layers);
         }
     }
-    get_bits1(gb); /* vps_extension_flag */
+
+    get_bits1(gb);
 
     av_buffer_unref(&s->vps_list[vps_id]);
     s->vps_list[vps_id] = vps_buf;

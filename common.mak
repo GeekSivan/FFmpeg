@@ -43,6 +43,7 @@ endef
 COMPILE_C = $(call COMPILE,CC)
 COMPILE_CXX = $(call COMPILE,CXX)
 COMPILE_S = $(call COMPILE,AS)
+COMPILE_HOSTC = $(call COMPILE,HOSTCC)
 
 %.o: %.c
 	$(COMPILE_C)
@@ -55,6 +56,9 @@ COMPILE_S = $(call COMPILE,AS)
 
 %.o: %.S
 	$(COMPILE_S)
+
+%_host.o: %.c
+	$(COMPILE_HOSTC)
 
 %.i: %.c
 	$(CC) $(CCFLAGS) $(CC_E) $<
@@ -113,7 +117,7 @@ checkheaders: $(HOBJS)
 alltools: $(TOOLS)
 
 $(HOSTOBJS): %.o: %.c
-	$(call COMPILE,HOSTCC)
+	$(COMPILE_HOSTC)
 
 $(HOSTPROGS): %$(HOSTEXESUF): %.o
 	$(HOSTLD) $(HOSTLDFLAGS) $(HOSTLD_O) $^ $(HOSTLIBS)
