@@ -772,6 +772,9 @@ typedef struct HEVCContext {
     uint8_t             threads_type;
     uint8_t             threads_number;
 
+    int                 width;
+    int                 height;
+
     uint8_t *cabac_state;
 
     /** 1 if the independent slice segment header was successfully parsed */
@@ -846,6 +849,7 @@ typedef struct HEVCContext {
     uint16_t seq_decode;
     uint16_t seq_output;
 
+    int enable_parallel_tiles;
     int wpp_err;
     int skipped_bytes;
     int *skipped_bytes_pos;
@@ -979,10 +983,6 @@ void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
                                            int log2_trafo_size,
                                            int slice_or_tiles_up_boundary,
                                            int slice_or_tiles_left_boundary);
-void ff_hevc_deblocking_boundary_strengths_h(HEVCContext *s, int x0, int y0,
-                                           int slice_up_boundary);
-void ff_hevc_deblocking_boundary_strengths_v(HEVCContext *s, int x0, int y0,
-                                           int slice_left_boundary);
 int ff_hevc_cu_qp_delta_sign_flag(HEVCContext *s);
 int ff_hevc_cu_qp_delta_abs(HEVCContext *s);
 void ff_hevc_hls_filter(HEVCContext *s, int x, int y);
