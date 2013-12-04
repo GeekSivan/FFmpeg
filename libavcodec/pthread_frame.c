@@ -563,8 +563,7 @@ void ff_frame_thread_free(AVCodecContext *avctx, int thread_count)
 
     for (i = 0; i < thread_count; i++) {
         PerThreadContext *p = &fctx->threads[i];
-        if (p->avctx->active_thread_type&FF_THREAD_SLICE)
-            ff_slice_thread_free(p->avctx);
+
         pthread_mutex_lock(&p->mutex);
         pthread_cond_signal(&p->input_cond);
         pthread_mutex_unlock(&p->mutex);
@@ -670,9 +669,6 @@ int ff_frame_thread_init(AVCodecContext *avctx)
         *copy->internal = *src->internal;
         copy->internal->thread_ctx_frame = p;
         copy->internal->pkt = &p->avpkt;
-
-        if (avctx->active_thread_type&FF_THREAD_SLICE)
-            ff_slice_thread_init(copy);
 
         if (!i) {
             src = copy;
