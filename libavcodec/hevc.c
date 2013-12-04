@@ -665,7 +665,13 @@ static int hls_slice_header(HEVCContext *s)
                 }
                 sh->entry_point_offset[i] = val + 1; // +1; // +1 to get the size
             }
-        }
+            if (s->threads_number > 1 && (s->pps->num_tile_rows > 1 || s->pps->num_tile_columns > 1)) {
+                s->enable_parallel_tiles = 0; // TODO: you can enable tiles in parallel here
+                s->threads_number = 1;
+            } else
+                s->enable_parallel_tiles = 0;
+        } else
+            s->enable_parallel_tiles = 0;
     }
 
     if (s->pps->slice_header_extension_present_flag) {
@@ -2236,8 +2242,6 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
             ctb_addr_ts = hls_slice_data(s);
         if (ctb_addr_ts >= (s->sps->ctb_width * s->sps->ctb_height)) {
             s->is_decoded = 1;
-            if (s->pps->tiles_enabled_flag && s->threads_number!=1)
-                tiles_filters(s);
             if ((s->pps->transquant_bypass_enable_flag ||
                  (s->sps->pcm.loop_filter_disable_flag && s->sps->pcm_enabled_flag)) &&
                 s->sps->sao_enabled)
@@ -2892,6 +2896,7 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
     if (ret < 0)
         return ret;
 
+    s->enable_parallel_tiles = 0;
     s->picture_struct = 0;
 
     if(avctx->active_thread_type & FF_THREAD_SLICE)
