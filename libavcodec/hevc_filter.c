@@ -60,7 +60,7 @@ static int chroma_tc(HEVCContext *s, int qp_y, int c_idx, int tc_offset)
     else
         offset = s->pps->cr_qp_offset;
 
-    qp_i = av_clip_c(qp_y + offset, 0, 57);
+    qp_i = av_clip(qp_y + offset, 0, 57);
     if (qp_i < 30)
         qp = qp_i;
     else if (qp_i > 43)
@@ -68,7 +68,7 @@ static int chroma_tc(HEVCContext *s, int qp_y, int c_idx, int tc_offset)
     else
         qp = qp_c[qp_i - 30];
 
-    idxt = av_clip_c(qp + DEFAULT_INTRA_TC_OFFSET + tc_offset, 0, 53);
+    idxt = av_clip(qp + DEFAULT_INTRA_TC_OFFSET + tc_offset, 0, 53);
     return tctable[idxt];
 }
 
@@ -153,8 +153,6 @@ static void copy_CTB(uint8_t *dst, uint8_t *src,
 
 static void sao_filter_CTB(HEVCContext *s, int x, int y)
 {
-    //  TODO: This should be easily parallelizable
-    //  TODO: skip CBs when (cu_transquant_bypass_flag || (pcm_loop_filter_disable_flag && pcm_flag))
     int c_idx = 0;
     int class = 1, class_index;
     int edges[4];  // 0 left 1 top 2 right 3 bottom
@@ -494,24 +492,24 @@ static int boundary_strength(HEVCContext *s, MvField *curr,
             if (s->ref->refPicList[0].list[curr->ref_idx[0]] == neigh_refPicList[0].list[neigh->ref_idx[0]]  &&
                 s->ref->refPicList[0].list[curr->ref_idx[0]] == s->ref->refPicList[1].list[curr->ref_idx[1]] &&
                 neigh_refPicList[0].list[neigh->ref_idx[0]] == neigh_refPicList[1].list[neigh->ref_idx[1]]) {
-                if ((abs(neigh->mv[0].x - curr->mv[0].x) >= 4 || abs(neigh->mv[0].y - curr->mv[0].y) >= 4 ||
-                     abs(neigh->mv[1].x - curr->mv[1].x) >= 4 || abs(neigh->mv[1].y - curr->mv[1].y) >= 4) &&
-                    (abs(neigh->mv[1].x - curr->mv[0].x) >= 4 || abs(neigh->mv[1].y - curr->mv[0].y) >= 4 ||
-                     abs(neigh->mv[0].x - curr->mv[1].x) >= 4 || abs(neigh->mv[0].y - curr->mv[1].y) >= 4))
+                if ((FFABS(neigh->mv[0].x - curr->mv[0].x) >= 4 || FFABS(neigh->mv[0].y - curr->mv[0].y) >= 4 ||
+                     FFABS(neigh->mv[1].x - curr->mv[1].x) >= 4 || FFABS(neigh->mv[1].y - curr->mv[1].y) >= 4) &&
+                    (FFABS(neigh->mv[1].x - curr->mv[0].x) >= 4 || FFABS(neigh->mv[1].y - curr->mv[0].y) >= 4 ||
+                     FFABS(neigh->mv[0].x - curr->mv[1].x) >= 4 || FFABS(neigh->mv[0].y - curr->mv[1].y) >= 4))
                     return 1;
                 else
                     return 0;
             } else if (neigh_refPicList[0].list[neigh->ref_idx[0]] == s->ref->refPicList[0].list[curr->ref_idx[0]] &&
                        neigh_refPicList[1].list[neigh->ref_idx[1]] == s->ref->refPicList[1].list[curr->ref_idx[1]]) {
-                if (abs(neigh->mv[0].x - curr->mv[0].x) >= 4 || abs(neigh->mv[0].y - curr->mv[0].y) >= 4 ||
-                    abs(neigh->mv[1].x - curr->mv[1].x) >= 4 || abs(neigh->mv[1].y - curr->mv[1].y) >= 4)
+                if (FFABS(neigh->mv[0].x - curr->mv[0].x) >= 4 || FFABS(neigh->mv[0].y - curr->mv[0].y) >= 4 ||
+                    FFABS(neigh->mv[1].x - curr->mv[1].x) >= 4 || FFABS(neigh->mv[1].y - curr->mv[1].y) >= 4)
                     return 1;
                 else
                     return 0;
             } else if (neigh_refPicList[1].list[neigh->ref_idx[1]] == s->ref->refPicList[0].list[curr->ref_idx[0]] &&
                        neigh_refPicList[0].list[neigh->ref_idx[0]] == s->ref->refPicList[1].list[curr->ref_idx[1]]) {
-                if (abs(neigh->mv[1].x - curr->mv[0].x) >= 4 || abs(neigh->mv[1].y - curr->mv[0].y) >= 4 ||
-                    abs(neigh->mv[0].x - curr->mv[1].x) >= 4 || abs(neigh->mv[0].y - curr->mv[1].y) >= 4)
+                if (FFABS(neigh->mv[1].x - curr->mv[0].x) >= 4 || FFABS(neigh->mv[1].y - curr->mv[0].y) >= 4 ||
+                    FFABS(neigh->mv[0].x - curr->mv[1].x) >= 4 || FFABS(neigh->mv[0].y - curr->mv[1].y) >= 4)
                     return 1;
                 else
                     return 0;
@@ -539,7 +537,7 @@ static int boundary_strength(HEVCContext *s, MvField *curr,
             }
 
             if (ref_A == ref_B) {
-                if (abs(A.x - B.x) >= 4 || abs(A.y - B.y) >= 4)
+                if (FFABS(A.x - B.x) >= 4 || FFABS(A.y - B.y) >= 4)
                     return 1;
                 else
                     return 0;
