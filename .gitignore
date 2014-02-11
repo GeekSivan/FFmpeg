@@ -34,6 +34,7 @@
 /doc/config.texi
 /doc/avoptions_codec.texi
 /doc/avoptions_format.texi
+/doc/examples/avio_reading
 /doc/examples/decoding_encoding
 /doc/examples/demuxing_decoding
 /doc/examples/filtering_audio
@@ -41,6 +42,7 @@
 /doc/examples/metadata
 /doc/examples/muxing
 /doc/examples/pc-uninstalled
+/doc/examples/remuxing
 /doc/examples/resampling_audio
 /doc/examples/scaling_video
 /doc/examples/transcode_aac

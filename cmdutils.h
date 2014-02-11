@@ -48,6 +48,7 @@ extern AVFormatContext *avformat_opts;
 extern struct SwsContext *sws_opts;
 extern AVDictionary *swr_opts;
 extern AVDictionary *format_opts, *codec_opts, *resample_opts;
+extern int hide_banner;
 
 /**
  * Register a program-specific cleanup routine.
@@ -98,7 +99,11 @@ int opt_max_alloc(void *optctx, const char *opt, const char *arg);
 
 int opt_codec_debug(void *optctx, const char *opt, const char *arg);
 
+#if CONFIG_OPENCL
 int opt_opencl(void *optctx, const char *opt, const char *arg);
+
+int opt_opencl_bench(void *optctx, const char *opt, const char *arg);
+#endif
 
 /**
  * Limit the execution time.

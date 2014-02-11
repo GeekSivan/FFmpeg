@@ -1403,6 +1403,13 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("H.265 / HEVC (High Efficiency Video Coding)"),
         .props     = AV_CODEC_PROP_LOSSY,
     },
+    {
+        .id        = AV_CODEC_ID_FIC,
+        .type      = AVMEDIA_TYPE_VIDEO,
+        .name      = "fic",
+        .long_name = NULL_IF_CONFIG_SMALL("Mirillis FIC"),
+        .props     = AV_CODEC_PROP_LOSSY,
+    },
 
     /* various PCM "codecs" */
     {
@@ -2621,6 +2628,12 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .type      = AVMEDIA_TYPE_DATA,
         .name      = "dvd_nav_packet",
         .long_name = NULL_IF_CONFIG_SMALL("DVD Nav packet"),
+    },
+    {
+        .id        = AV_CODEC_ID_TIMED_ID3,
+        .type      = AVMEDIA_TYPE_DATA,
+        .name      = "timed_id3",
+        .long_name = NULL_IF_CONFIG_SMALL("timed ID3 metadata"),
     },
 
 };

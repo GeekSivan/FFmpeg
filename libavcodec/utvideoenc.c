@@ -83,7 +83,10 @@ static av_cold int utvideo_encode_init(AVCodecContext *avctx)
             return AVERROR_INVALIDDATA;
         }
         c->planes        = 3;
-        avctx->codec_tag = MKTAG('U', 'L', 'Y', '0');
+        if (avctx->colorspace == AVCOL_SPC_BT709)
+            avctx->codec_tag = MKTAG('U', 'L', 'H', '0');
+        else
+            avctx->codec_tag = MKTAG('U', 'L', 'Y', '0');
         original_format  = UTVIDEO_420;
         break;
     case AV_PIX_FMT_YUV422P:
@@ -93,7 +96,10 @@ static av_cold int utvideo_encode_init(AVCodecContext *avctx)
             return AVERROR_INVALIDDATA;
         }
         c->planes        = 3;
-        avctx->codec_tag = MKTAG('U', 'L', 'Y', '2');
+        if (avctx->colorspace == AVCOL_SPC_BT709)
+            avctx->codec_tag = MKTAG('U', 'L', 'H', '2');
+        else
+            avctx->codec_tag = MKTAG('U', 'L', 'Y', '2');
         original_format  = UTVIDEO_422;
         break;
     default:
@@ -363,6 +369,7 @@ static int encode_plane(AVCodecContext *avctx, uint8_t *src,
     uint32_t offset = 0, slice_len = 0;
     int      i, sstart, send = 0;
     int      symbol;
+    int      ret;
 
     /* Do prediction / make planes */
     switch (c->frame_pred) {
@@ -429,7 +436,8 @@ static int encode_plane(AVCodecContext *avctx, uint8_t *src,
     }
 
     /* Calculate huffman lengths */
-    ff_huff_gen_len_table(lengths, counts);
+    if ((ret = ff_huff_gen_len_table(lengths, counts, 256)) < 0)
+        return ret;
 
     /*
      * Write the plane's header into the output packet:

@@ -1748,6 +1748,7 @@ static int decode_frame_adu(AVCodecContext *avctx, void *data,
     /* update codec info */
     avctx->sample_rate = s->sample_rate;
     avctx->channels    = s->nb_channels;
+    avctx->channel_layout = s->nb_channels == 1 ? AV_CH_LAYOUT_MONO : AV_CH_LAYOUT_STEREO;
     if (!avctx->bit_rate)
         avctx->bit_rate = s->bit_rate;
 
@@ -1933,8 +1934,10 @@ static int decode_frame_mp3on4(AVCodecContext *avctx, void *data,
         }
         header = (AV_RB32(buf) & 0x000fffff) | s->syncword; // patch header
 
-        if (ff_mpa_check_header(header) < 0) // Bad header, discard block
-            break;
+        if (ff_mpa_check_header(header) < 0) {
+            av_log(avctx, AV_LOG_ERROR, "Bad header, discard block\n");
+            return AVERROR_INVALIDDATA;
+        }
 
         avpriv_mpegaudio_decode_header((MPADecodeHeader *)m, header);
 
@@ -1950,14 +1953,23 @@ static int decode_frame_mp3on4(AVCodecContext *avctx, void *data,
         if (m->nb_channels > 1)
             outptr[1] = out_samples[s->coff[fr] + 1];
 
-        if ((ret = mp_decode_frame(m, outptr, buf, fsize)) < 0)
-            return ret;
+        if ((ret = mp_decode_frame(m, outptr, buf, fsize)) < 0) {
+            av_log(avctx, AV_LOG_ERROR, "failed to decode channel %d\n", ch);
+            memset(outptr[0], 0, MPA_FRAME_SIZE*sizeof(OUT_INT));
+            if (m->nb_channels > 1)
+                memset(outptr[1], 0, MPA_FRAME_SIZE*sizeof(OUT_INT));
+            ret = m->nb_channels * MPA_FRAME_SIZE*sizeof(OUT_INT);
+        }
 
         out_size += ret;
         buf      += fsize;
         len      -= fsize;
 
         avctx->bit_rate += m->bit_rate;
+    }
+    if (ch != avctx->channels) {
+        av_log(avctx, AV_LOG_ERROR, "failed to decode all channels\n");
+        return AVERROR_INVALIDDATA;
     }
 
     /* update codec info */

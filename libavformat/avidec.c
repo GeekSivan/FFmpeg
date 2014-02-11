@@ -350,6 +350,7 @@ static void avi_read_nikon(AVFormatContext *s, uint64_t end)
                 uint16_t size    = avio_rl16(s->pb);
                 const char *name = NULL;
                 char buffer[64]  = { 0 };
+                size = FFMIN(size, tag_end - avio_tell(s->pb));
                 size -= avio_read(s->pb, buffer,
                                   FFMIN(size, sizeof(buffer) - 1));
                 switch (tag) {
@@ -654,11 +655,8 @@ static int avi_read_header(AVFormatContext *s)
                             st->codec->extradata_size = esize - 10 * 4;
                         } else
                             st->codec->extradata_size =  size - 10 * 4;
-                        if (ff_alloc_extradata(st->codec, st->codec->extradata_size))
+                        if (ff_get_extradata(st->codec, pb, st->codec->extradata_size) < 0)
                             return AVERROR(ENOMEM);
-                        avio_read(pb,
-                                  st->codec->extradata,
-                                  st->codec->extradata_size);
                     }
 
                     // FIXME: check if the encoder really did this correctly
@@ -691,6 +689,8 @@ static int avi_read_header(AVFormatContext *s)
                     /* This is needed to get the pict type which is necessary
                      * for generating correct pts. */
                     st->need_parsing = AVSTREAM_PARSE_HEADERS;
+                    if (st->codec->codec_tag == MKTAG('V', 'S', 'S', 'H'))
+                        st->need_parsing = AVSTREAM_PARSE_FULL;
 
                     if (st->codec->codec_tag == 0 && st->codec->height > 0 &&
                         st->codec->extradata_size < 1U << 30) {
@@ -783,9 +783,8 @@ static int avi_read_header(AVFormatContext *s)
                 st = s->streams[stream_index];
 
                 if (size<(1<<30)) {
-                    if (ff_alloc_extradata(st->codec, size))
+                    if (ff_get_extradata(st->codec, pb, size) < 0)
                         return AVERROR(ENOMEM);
-                    avio_read(pb, st->codec->extradata, st->codec->extradata_size);
                 }
 
                 if (st->codec->extradata_size & 1) //FIXME check if the encoder really did this correctly

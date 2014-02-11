@@ -102,19 +102,19 @@
 
 /* NAL unit types */
 enum {
-    NAL_SLICE = 1,
-    NAL_DPA,
-    NAL_DPB,
-    NAL_DPC,
-    NAL_IDR_SLICE,
-    NAL_SEI,
-    NAL_SPS,
-    NAL_PPS,
-    NAL_AUD,
-    NAL_END_SEQUENCE,
-    NAL_END_STREAM,
-    NAL_FILLER_DATA,
-    NAL_SPS_EXT,
+    NAL_SLICE           = 1,
+    NAL_DPA             = 2,
+    NAL_DPB             = 3,
+    NAL_DPC             = 4,
+    NAL_IDR_SLICE       = 5,
+    NAL_SEI             = 6,
+    NAL_SPS             = 7,
+    NAL_PPS             = 8,
+    NAL_AUD             = 9,
+    NAL_END_SEQUENCE    = 10,
+    NAL_END_STREAM      = 11,
+    NAL_FILLER_DATA     = 12,
+    NAL_SPS_EXT         = 13,
     NAL_AUXILIARY_SLICE = 19,
     NAL_FF_IGNORE       = 0xff0f001,
 };
@@ -390,6 +390,8 @@ typedef struct H264Context {
      */
     PPS pps; // FIXME move to Picture perhaps? (->no) do we need that?
 
+    int au_pps_id; ///< pps_id of current access unit
+
     uint32_t dequant4_buffer[6][QP_MAX_NUM + 1][16]; // FIXME should these be moved down?
     uint32_t dequant8_buffer[6][QP_MAX_NUM + 1][64];
     uint32_t(*dequant4_coeff[6])[16];
@@ -617,6 +619,14 @@ typedef struct H264Context {
     int prev_interlaced_frame;
 
     /**
+     * frame_packing_arrangment SEI message
+     */
+    int sei_frame_packing_present;
+    int frame_packing_arrangement_type;
+    int content_interpretation_type;
+    int quincunx_subsampling;
+
+    /**
      * Bit set of clock types for fields/frames in picture timing SEI message.
      * For each found ct_type, appropriate bit is set (e.g., bit 1 for
      * interlaced).
@@ -687,8 +697,6 @@ typedef struct H264Context {
     int parse_last_mb;
     uint8_t *edge_emu_buffer;
     int16_t *dc_val_base;
-
-    uint8_t *visualization_buffer[3]; ///< temporary buffer vor MV visualization
 
     AVBufferPool *qscale_table_pool;
     AVBufferPool *mb_type_pool;

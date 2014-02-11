@@ -58,10 +58,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
-#if CONFIG_OPENCL
-#include "libavutil/opencl.h"
-#endif
-
 
 static int init_report(const char *env);
 
@@ -70,6 +66,7 @@ AVDictionary *swr_opts;
 AVDictionary *format_opts, *codec_opts, *resample_opts;
 
 static FILE *report_file;
+int hide_banner = 0;
 
 void init_opts(void)
 {
@@ -495,6 +492,9 @@ void parse_loglevel(int argc, char **argv, const OptionDef *options)
             fflush(report_file);
         }
     }
+    idx = locate_option(argc, argv, options, "hide_banner");
+    if (idx)
+        hide_banner = 1;
 }
 
 static const AVOption *opt_find(void *obj, const char *name, const char *unit,
@@ -985,26 +985,6 @@ int opt_timelimit(void *optctx, const char *opt, const char *arg)
     return 0;
 }
 
-#if CONFIG_OPENCL
-int opt_opencl(void *optctx, const char *opt, const char *arg)
-{
-    char *key, *value;
-    const char *opts = arg;
-    int ret = 0;
-    while (*opts) {
-        ret = av_opt_get_key_value(&opts, "=", ":", 0, &key, &value);
-        if (ret < 0)
-            return ret;
-        ret = av_opencl_set_option(key, value);
-        if (ret < 0)
-            return ret;
-        if (*opts)
-            opts++;
-    }
-    return ret;
-}
-#endif
-
 void print_error(const char *filename, int err)
 {
     char errbuf[128];
@@ -1107,7 +1087,7 @@ static void print_buildconf(int flags, int level)
 void show_banner(int argc, char **argv, const OptionDef *options)
 {
     int idx = locate_option(argc, argv, options, "version");
-    if (idx)
+    if (hide_banner || idx)
         return;
 
     print_program_info (INDENT|SHOW_COPYRIGHT, AV_LOG_INFO);

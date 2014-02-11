@@ -657,7 +657,6 @@ fail:
 static int seg_write_packet(AVFormatContext *s, AVPacket *pkt)
 {
     SegmentContext *seg = s->priv_data;
-    AVFormatContext *oc = seg->avf;
     AVStream *st = s->streams[pkt->stream_index];
     int64_t end_pts = INT64_MAX, offset;
     int start_frame = INT_MAX;
@@ -690,8 +689,6 @@ static int seg_write_packet(AVFormatContext *s, AVPacket *pkt)
         if ((ret = segment_start(s, seg->individual_header_trailer)) < 0)
             goto fail;
 
-        oc = seg->avf;
-
         seg->cur_entry.index = seg->segment_idx;
         seg->cur_entry.start_time = (double)pkt->pts * av_q2d(st->time_base);
         seg->cur_entry.start_pts = av_rescale_q(pkt->pts, st->time_base, AV_TIME_BASE_Q);
@@ -701,7 +698,7 @@ static int seg_write_packet(AVFormatContext *s, AVPacket *pkt)
     }
 
     if (seg->is_first_pkt) {
-        av_log(s, AV_LOG_DEBUG, "segment:'%s' starts with packet stream:%d pts:%s pts_time:%s frame:%d\n",
+        av_log(s, AV_LOG_VERBOSE, "segment:'%s' starts with packet stream:%d pts:%s pts_time:%s frame:%d\n",
                seg->avf->filename, pkt->stream_index,
                av_ts2str(pkt->pts), av_ts2timestr(pkt->pts, &st->time_base), seg->frame_count);
         seg->is_first_pkt = 0;
@@ -725,17 +722,11 @@ static int seg_write_packet(AVFormatContext *s, AVPacket *pkt)
            av_ts2str(pkt->pts), av_ts2timestr(pkt->pts, &st->time_base),
            av_ts2str(pkt->dts), av_ts2timestr(pkt->dts, &st->time_base));
 
-    ret = ff_write_chained(oc, pkt->stream_index, pkt, s);
+    ret = ff_write_chained(seg->avf, pkt->stream_index, pkt, s);
 
 fail:
     if (pkt->stream_index == seg->reference_stream_index)
         seg->frame_count++;
-
-    if (ret < 0) {
-        if (seg->list)
-            avio_close(seg->list_pb);
-        avformat_free_context(oc);
-    }
 
     return ret;
 }

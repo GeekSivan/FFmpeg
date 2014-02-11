@@ -216,6 +216,7 @@ typedef struct FFStream {
     struct FFStream *feed;   /* feed we are using (can be null if
                                 coming from file) */
     AVDictionary *in_opts;   /* input parameters */
+    AVDictionary *metadata;  /* metadata to set on the stream */
     AVInputFormat *ifmt;       /* if non NULL, force input format */
     AVOutputFormat *fmt;
     IPAddressACL *acl;
@@ -228,10 +229,6 @@ typedef struct FFStream {
     int feed_streams[MAX_STREAMS]; /* index of streams in the feed */
     char feed_filename[1024]; /* file name of the feed storage, or
                                  input file name for a stream */
-    char author[512];
-    char title[512];
-    char copyright[512];
-    char comment[512];
     pid_t pid;  /* Of ffmpeg process */
     time_t pid_start;  /* Of ffmpeg process */
     char **child_argv;
@@ -509,8 +506,8 @@ static void start_children(FFStream *feed)
                 char *slash;
                 int i;
 
-                /* replace "ffserver" with "ffmpeg" in the path of current program,
-                 * ignore user provided path */
+                /* replace "ffserver" with "ffmpeg" in the path of current
+                 * program. Ignore user provided path */
                 av_strlcpy(pathname, my_program_name, sizeof(pathname));
                 slash = strrchr(pathname, '/');
                 if (!slash)
@@ -631,17 +628,16 @@ static void start_multicast(void)
                 }
             }
 
-            /* change state to send data */
             rtp_c->state = HTTPSTATE_SEND_DATA;
         }
     }
 }
 
-/* main loop of the http server */
+/* main loop of the HTTP server */
 static int http_server(void)
 {
     int server_fd = 0, rtsp_server_fd = 0;
-    int ret, delay, delay1;
+    int ret, delay;
     struct pollfd *poll_table, *poll_entry;
     HTTPContext *c, *c_next;
 
@@ -705,18 +701,19 @@ static int http_server(void)
             case HTTPSTATE_SEND_DATA:
             case HTTPSTATE_SEND_DATA_TRAILER:
                 if (!c->is_packetized) {
-                    /* for TCP, we output as much as we can (may need to put a limit) */
+                    /* for TCP, we output as much as we can
+                     * (may need to put a limit) */
                     c->poll_entry = poll_entry;
                     poll_entry->fd = fd;
                     poll_entry->events = POLLOUT;
                     poll_entry++;
                 } else {
                     /* when ffserver is doing the timing, we work by
-                       looking at which packet need to be sent every
+                       looking at which packet needs to be sent every
                        10 ms */
-                    delay1 = 10; /* one tick wait XXX: 10 ms assumed */
-                    if (delay1 < delay)
-                        delay = delay1;
+                    /* one tick wait XXX: 10 ms assumed */
+                    if (delay > 10)
+                        delay = 10;
                 }
                 break;
             case HTTPSTATE_WAIT_REQUEST:
@@ -756,8 +753,8 @@ static int http_server(void)
         for(c = first_http_ctx; c != NULL; c = c_next) {
             c_next = c->next;
             if (handle_connection(c) < 0) {
-                /* close and free the connection */
                 log_connection(c);
+                /* close and free the connection */
                 close_connection(c);
             }
         }
@@ -1020,7 +1017,8 @@ static int handle_connection(HTTPContext *c)
                 /* if error, exit */
                 if (c->http_error)
                     return -1;
-                /* all the buffer was sent : synchronize to the incoming stream */
+                /* all the buffer was sent : synchronize to the incoming
+                 * stream */
                 c->state = HTTPSTATE_SEND_DATA_HEADER;
                 c->buffer_ptr = c->buffer_end = c->buffer;
             }
@@ -1031,7 +1029,7 @@ static int handle_connection(HTTPContext *c)
     case HTTPSTATE_SEND_DATA_HEADER:
     case HTTPSTATE_SEND_DATA_TRAILER:
         /* for packetized output, we consider we can always write (the
-           input streams sets the speed). It may be better to verify
+           input streams set the speed). It may be better to verify
            that we do not rely too much on the kernel queues */
         if (!c->is_packetized) {
             if (c->poll_entry->revents & (POLLERR | POLLHUP))
@@ -1461,7 +1459,7 @@ static int validate_acl(FFStream *stream, HTTPContext *c)
 }
 
 /* compute the real filename of a file by matching it without its
-   extensions to all the stream filenames */
+   extensions to all the stream's filenames */
 static void compute_real_filename(char *filename, int max_size)
 {
     char file1[1024];
@@ -1495,7 +1493,7 @@ enum RedirType {
     REDIR_SDP,
 };
 
-/* parse http request and prepare header */
+/* parse HTTP request and prepare header */
 static int http_parse_request(HTTPContext *c)
 {
     const char *p;
@@ -1866,7 +1864,7 @@ static int http_parse_request(HTTPContext *c)
         goto send_error;
     }
 
-    /* prepare http header */
+    /* prepare HTTP header */
     c->buffer[0] = 0;
     av_strlcatf(c->buffer, c->buffer_size, "HTTP/1.0 200 OK\r\n");
     mime_type = c->stream->fmt->mime_type;
@@ -2278,12 +2276,10 @@ static int http_prepare_data(HTTPContext *c)
     av_freep(&c->pb_buffer);
     switch(c->state) {
     case HTTPSTATE_SEND_DATA_HEADER:
-        memset(&c->fmt_ctx, 0, sizeof(c->fmt_ctx));
-        av_dict_set(&c->fmt_ctx.metadata, "author"   , c->stream->author   , 0);
-        av_dict_set(&c->fmt_ctx.metadata, "comment"  , c->stream->comment  , 0);
-        av_dict_set(&c->fmt_ctx.metadata, "copyright", c->stream->copyright, 0);
-        av_dict_set(&c->fmt_ctx.metadata, "title"    , c->stream->title    , 0);
-
+        ctx = avformat_alloc_context();
+        c->fmt_ctx = *ctx;
+        av_freep(&ctx);
+        av_dict_copy(&(c->fmt_ctx.metadata), c->stream->metadata, 0);
         c->fmt_ctx.streams = av_mallocz(sizeof(AVStream *) * c->stream->nb_streams);
 
         for(i=0;i<c->stream->nb_streams;i++) {
@@ -2455,8 +2451,9 @@ static int http_prepare_data(HTTPContext *c)
                     if (pkt.pts != AV_NOPTS_VALUE)
                         pkt.pts = av_rescale_q(pkt.pts, ist->time_base, ost->time_base);
                     pkt.duration = av_rescale_q(pkt.duration, ist->time_base, ost->time_base);
-                    if (av_write_frame(ctx, &pkt) < 0) {
-                        http_log("Error writing frame to output\n");
+                    if ((ret = av_write_frame(ctx, &pkt)) < 0) {
+                        http_log("Error writing frame to output for stream '%s': %s\n",
+                                 c->stream->filename, av_err2str(ret));
                         c->state = HTTPSTATE_SEND_DATA_TRAILER;
                     }
 
@@ -2640,7 +2637,7 @@ static int http_start_receive_data(HTTPContext *c)
     fd = open(c->stream->feed_filename, O_RDWR);
     if (fd < 0) {
         ret = AVERROR(errno);
-        http_log("Could not open feed file '%s':%s \n",
+        http_log("Could not open feed file '%s': %s\n",
                  c->stream->feed_filename, strerror(errno));
         return ret;
     }
@@ -2992,6 +2989,7 @@ static int prepare_sdp_description(FFStream *stream, uint8_t **pbuffer,
     AVFormatContext *avc;
     AVStream *avs = NULL;
     AVOutputFormat *rtp_format = av_guess_format("rtp", NULL, NULL);
+    AVDictionaryEntry *entry = av_dict_get(stream->metadata, "title", NULL, 0);
     int i;
 
     avc =  avformat_alloc_context();
@@ -3000,7 +2998,7 @@ static int prepare_sdp_description(FFStream *stream, uint8_t **pbuffer,
     }
     avc->oformat = rtp_format;
     av_dict_set(&avc->metadata, "title",
-               stream->title[0] ? stream->title : "No Title", 0);
+                entry ? entry->value : "No Title", 0);
     avc->nb_streams = stream->nb_streams;
     if (stream->is_multicast) {
         snprintf(avc->filename, 1024, "rtp://%s:%d?multicast=1?ttl=%d",
@@ -3512,7 +3510,8 @@ static int rtp_new_av_stream(HTTPContext *c,
              ipaddr, ntohs(dest_addr->sin_port),
              c->stream->filename, stream_index, c->protocol);
 
-    /* normally, no packets should be output here, but the packet size may be checked */
+    /* normally, no packets should be output here, but the packet size may
+     * be checked */
     if (ffio_open_dyn_packet_buf(&ctx->pb, max_packet_size) < 0) {
         /* XXX: close stream */
         goto fail;
@@ -3823,7 +3822,7 @@ static void build_feed_streams(void)
             }
         }
         if (avio_check(feed->feed_filename, AVIO_FLAG_WRITE) <= 0) {
-            AVFormatContext s1 = {0}, *s = &s1;
+            AVFormatContext *s = avformat_alloc_context();
 
             if (feed->readonly) {
                 http_log("Unable to create feed file '%s' as it is marked readonly\n",
@@ -3847,6 +3846,9 @@ static void build_feed_streams(void)
             /* XXX: need better api */
             av_freep(&s->priv_data);
             avio_close(s->pb);
+            s->streams = NULL;
+            s->nb_streams = 0;
+            avformat_free_context(s);
         }
         /* get feed size and write index */
         fd = open(feed->feed_filename, O_RDONLY);
@@ -4050,12 +4052,12 @@ static AVOutputFormat *ffserver_guess_format(const char *short_name, const char 
     return fmt;
 }
 
-static void report_config_error(const char *filename, int line_num, int *errors, const char *fmt, ...)
+static void report_config_error(const char *filename, int line_num, int log_level, int *errors, const char *fmt, ...)
 {
     va_list vl;
     va_start(vl, fmt);
-    fprintf(stderr, "%s:%d: ", filename, line_num);
-    vfprintf(stderr, fmt, vl);
+    av_log(NULL, log_level, "%s:%d: ", filename, line_num);
+    av_vlog(NULL, log_level, fmt, vl);
     va_end(vl);
 
     (*errors)++;
@@ -4066,9 +4068,9 @@ static int parse_ffconfig(const char *filename)
     FILE *f;
     char line[1024];
     char cmd[64];
-    char arg[1024];
+    char arg[1024], arg2[1024];
     const char *p;
-    int val, errors, line_num;
+    int val, errors, warnings, line_num;
     FFStream **last_stream, *stream, *redirect;
     FFStream **last_feed, *feed, *s;
     AVCodecContext audio_enc, video_enc;
@@ -4082,7 +4084,7 @@ static int parse_ffconfig(const char *filename)
         return ret;
     }
 
-    errors = 0;
+    errors = warnings = 0;
     line_num = 0;
     first_stream = NULL;
     last_stream = &first_stream;
@@ -4093,8 +4095,9 @@ static int parse_ffconfig(const char *filename)
     redirect = NULL;
     audio_id = AV_CODEC_ID_NONE;
     video_id = AV_CODEC_ID_NONE;
+#define ERROR(...)   report_config_error(filename, line_num, AV_LOG_ERROR,   &errors,   __VA_ARGS__)
+#define WARNING(...) report_config_error(filename, line_num, AV_LOG_WARNING, &warnings, __VA_ARGS__)
 
-#define ERROR(...) report_config_error(filename, line_num, &errors, __VA_ARGS__)
     for(;;) {
         if (fgets(line, sizeof(line), f) == NULL)
             break;
@@ -4120,7 +4123,7 @@ static int parse_ffconfig(const char *filename)
                 ERROR("%s:%d: Invalid host/IP address: %s\n", arg);
             }
         } else if (!av_strcasecmp(cmd, "NoDaemon")) {
-            // do nothing here, its the default now
+            WARNING("NoDaemon option has no effect, you should remove it\n");
         } else if (!av_strcasecmp(cmd, "RTSPPort")) {
             get_arg(arg, sizeof(arg), &p);
             val = atoi(arg);
@@ -4242,9 +4245,8 @@ static int parse_ffconfig(const char *filename)
                 if (!arg[0]) {
                     feed->truncate = 1;
                 } else {
-                    av_log(NULL, AV_LOG_WARNING,
-                           "Truncate N syntax in configuration file is deprecated, "
-                           "use Truncate alone with no arguments\n");
+                    WARNING("Truncate N syntax in configuration file is deprecated, "
+                            "use Truncate alone with no arguments\n");
                     feed->truncate = strtod(arg, NULL);
                 }
             }
@@ -4366,18 +4368,36 @@ static int parse_ffconfig(const char *filename)
             } else {
                 ERROR("FaviconURL only permitted for status streams\n");
             }
-        } else if (!av_strcasecmp(cmd, "Author")) {
-            if (stream)
-                get_arg(stream->author, sizeof(stream->author), &p);
-        } else if (!av_strcasecmp(cmd, "Comment")) {
-            if (stream)
-                get_arg(stream->comment, sizeof(stream->comment), &p);
-        } else if (!av_strcasecmp(cmd, "Copyright")) {
-            if (stream)
-                get_arg(stream->copyright, sizeof(stream->copyright), &p);
-        } else if (!av_strcasecmp(cmd, "Title")) {
-            if (stream)
-                get_arg(stream->title, sizeof(stream->title), &p);
+        } else if (!av_strcasecmp(cmd, "Author")    ||
+                   !av_strcasecmp(cmd, "Comment")   ||
+                   !av_strcasecmp(cmd, "Copyright") ||
+                   !av_strcasecmp(cmd, "Title")) {
+            get_arg(arg, sizeof(arg), &p);
+
+            if (stream) {
+                char key[32];
+                int i, ret;
+
+                for (i = 0; i < strlen(cmd); i++)
+                    key[i] = av_tolower(cmd[i]);
+                key[i] = 0;
+                WARNING("'%s' option in configuration file is deprecated, "
+                        "use 'Metadata %s VALUE' instead\n", cmd, key);
+                if ((ret = av_dict_set(&stream->metadata, key, arg, 0)) < 0) {
+                    ERROR("Could not set metadata '%s' to value '%s': %s\n",
+                          key, arg, av_err2str(ret));
+                }
+            }
+        } else if (!av_strcasecmp(cmd, "Metadata")) {
+            get_arg(arg, sizeof(arg), &p);
+            get_arg(arg2, sizeof(arg2), &p);
+            if (stream) {
+                int ret;
+                if ((ret = av_dict_set(&stream->metadata, arg, arg2, 0)) < 0) {
+                    ERROR("Could not set metadata '%s' to value '%s': %s\n",
+                          arg, arg2, av_err2str(ret));
+                }
+            }
         } else if (!av_strcasecmp(cmd, "Preroll")) {
             get_arg(arg, sizeof(arg), &p);
             if (stream)
@@ -4500,7 +4520,6 @@ static int parse_ffconfig(const char *filename)
             }
         } else if (!av_strcasecmp(cmd, "AVOptionVideo") ||
                    !av_strcasecmp(cmd, "AVOptionAudio")) {
-            char arg2[1024];
             AVCodecContext *avctx;
             int type;
             get_arg(arg, sizeof(arg), &p);

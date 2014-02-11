@@ -438,6 +438,7 @@ static const AVCodecTag mp4_audio_types[] = {
 int ff_mp4_read_dec_config_descr(AVFormatContext *fc, AVStream *st, AVIOContext *pb)
 {
     int len, tag;
+    int ret;
     int object_type_id = avio_r8(pb);
     avio_r8(pb); /* stream type */
     avio_rb24(pb); /* buffer size db */
@@ -457,11 +458,10 @@ int ff_mp4_read_dec_config_descr(AVFormatContext *fc, AVStream *st, AVIOContext 
         if (!len || (uint64_t)len > (1<<30))
             return -1;
         av_free(st->codec->extradata);
-        if (ff_alloc_extradata(st->codec, len))
-            return AVERROR(ENOMEM);
-        avio_read(pb, st->codec->extradata, len);
+        if ((ret = ff_get_extradata(st->codec, pb, len)) < 0)
+            return ret;
         if (st->codec->codec_id == AV_CODEC_ID_AAC) {
-            MPEG4AudioConfig cfg;
+            MPEG4AudioConfig cfg = {0};
             avpriv_mpeg4audio_get_config(&cfg, st->codec->extradata,
                                          st->codec->extradata_size * 8, 1);
             st->codec->channels = cfg.channels;
@@ -574,3 +574,12 @@ void ff_mov_write_chan(AVIOContext *pb, int64_t channel_layout)
     avio_wb32(pb, 0);              // mNumberChannelDescriptions
 }
 
+const struct AVCodecTag *avformat_get_mov_video_tags(void)
+{
+    return ff_codec_movvideo_tags;
+}
+
+const struct AVCodecTag *avformat_get_mov_audio_tags(void)
+{
+    return ff_codec_movaudio_tags;
+}
