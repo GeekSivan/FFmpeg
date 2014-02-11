@@ -123,16 +123,18 @@ static int isDiffMER(HEVCContext *s, int xN, int yN, int xP, int yP)
 // check if the mv's and refidx are the same between A and B
 static int compareMVrefidx(struct MvField A, struct MvField B)
 {
-    if (A.pred_flag[0] && A.pred_flag[1] && B.pred_flag[0] && B.pred_flag[1])
-        return MATCH(ref_idx[0]) && MATCH(mv[0].x) && MATCH(mv[0].y) &&
-               MATCH(ref_idx[1]) && MATCH(mv[1].x) && MATCH(mv[1].y);
-
-    if (A.pred_flag[0] && !A.pred_flag[1] && B.pred_flag[0] && !B.pred_flag[1])
-        return MATCH(ref_idx[0]) && MATCH(mv[0].x) && MATCH(mv[0].y);
-
-    if (!A.pred_flag[0] && A.pred_flag[1] && !B.pred_flag[0] && B.pred_flag[1])
-        return MATCH(ref_idx[1]) && MATCH(mv[1].x) && MATCH(mv[1].y);
-
+    int a_pf = A.pred_flag[0] + A.pred_flag[1];
+    int b_pf = B.pred_flag[0] + B.pred_flag[1];
+    if (a_pf == b_pf) {
+        if (a_pf == 2) {
+            return MATCH(ref_idx[0]) && MATCH(mv[0].x) && MATCH(mv[0].y) &&
+                   MATCH(ref_idx[1]) && MATCH(mv[1].x) && MATCH(mv[1].y);
+        } else if (A.pred_flag[0] && B.pred_flag[0]) {
+            return MATCH(ref_idx[0]) && MATCH(mv[0].x) && MATCH(mv[0].y);
+        } else if (A.pred_flag[1] && B.pred_flag[1]) {
+            return MATCH(ref_idx[1]) && MATCH(mv[1].x) && MATCH(mv[1].y);
+        }
+    }
     return 0;
 }
 
@@ -140,13 +142,13 @@ static av_always_inline void mv_scale(Mv *dst, Mv *src, int td, int tb)
 {
     int tx, scale_factor;
 
-    td = av_clip_int8_c(td);
-    tb = av_clip_int8_c(tb);
+    td = av_clip_int8(td);
+    tb = av_clip_int8(tb);
     tx = (0x4000 + abs(td / 2)) / td;
-    scale_factor = av_clip_c((tb * tx + 32) >> 6, -4096, 4095);
-    dst->x = av_clip_int16_c((scale_factor * src->x + 127 +
+    scale_factor = av_clip((tb * tx + 32) >> 6, -4096, 4095);
+    dst->x = av_clip_int16((scale_factor * src->x + 127 +
                              (scale_factor * src->x < 0)) >> 8);
-    dst->y = av_clip_int16_c((scale_factor * src->y + 127 +
+    dst->y = av_clip_int16((scale_factor * src->y + 127 +
                              (scale_factor * src->y < 0)) >> 8);
 }
 
@@ -168,10 +170,7 @@ static int check_mvset(Mv *mvLXCol, Mv *mvCol,
     col_poc_diff = colPic - refPicList_col[listCol].list[refidxCol];
     cur_poc_diff = poc    - refPicList[X].list[refIdxLx];
 
-    if (!col_poc_diff)
-        col_poc_diff = 1;  // error resilience
-
-    if (cur_lt || col_poc_diff == cur_poc_diff) {
+    if (cur_lt || col_poc_diff == cur_poc_diff || !col_poc_diff) {
         mvLXCol->x = mvCol->x;
         mvLXCol->y = mvCol->y;
     } else {
@@ -193,17 +192,14 @@ static int derive_temporal_colocated_mvs(HEVCContext *s, MvField temp_col,
 {
     RefPicList *refPicList = s->ref->refPicList;
 
-    if (temp_col.is_intra) {
-        mvLXCol->x = 0;
-        mvLXCol->y = 0;
+    if (!temp_col.pred_flag[0] && !temp_col.pred_flag[1])
         return 0;
-    }
 
-    if (temp_col.pred_flag[0] == 0)
+    if (!temp_col.pred_flag[0])
         return CHECK_MVSET(1);
-    else if (temp_col.pred_flag[0] == 1 && temp_col.pred_flag[1] == 0)
+    else if (temp_col.pred_flag[0] && !temp_col.pred_flag[1])
         return CHECK_MVSET(0);
-    else if (temp_col.pred_flag[0] == 1 && temp_col.pred_flag[1] == 1) {
+    else if (temp_col.pred_flag[0] && temp_col.pred_flag[1]) {
         int check_diffpicount = 0;
         int i = 0;
         for (i = 0; i < refPicList[0].nb_refs; i++) {
