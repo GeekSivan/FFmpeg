@@ -192,9 +192,8 @@ static int derive_temporal_colocated_mvs(HEVCContext *s, MvField temp_col,
 {
     RefPicList *refPicList = s->ref->refPicList;
 
-    if (temp_col.is_intra) {
+    if (!temp_col.pred_flag[0] && !temp_col.pred_flag[1])
         return 0;
-    }
 
     if (!temp_col.pred_flag[0])
         return CHECK_MVSET(1);
@@ -582,7 +581,7 @@ static int mv_mp_mode_mx(HEVCContext *s, int x, int y, int pred_flag_index,
 
     RefPicList *refPicList = s->ref->refPicList;
 
-    if (TAB_MVF(x, y).pred_flag[pred_flag_index] == 1 &&
+    if (TAB_MVF(x, y).pred_flag[pred_flag_index] &&
         refPicList[pred_flag_index].list[TAB_MVF(x, y).ref_idx[pred_flag_index]] == refPicList[ref_idx_curr].list[ref_idx]) {
         *mv = TAB_MVF(x, y).mv[pred_flag_index];
         return 1;
@@ -597,18 +596,20 @@ static int mv_mp_mode_mx_lt(HEVCContext *s, int x, int y, int pred_flag_index,
     int min_pu_width = s->sps->min_pu_width;
 
     RefPicList *refPicList = s->ref->refPicList;
-    int currIsLongTerm     = refPicList[ref_idx_curr].isLongTerm[ref_idx];
 
-    int colIsLongTerm =
-        refPicList[pred_flag_index].isLongTerm[(TAB_MVF(x, y).ref_idx[pred_flag_index])];
+    if (TAB_MVF(x, y).pred_flag[pred_flag_index]) {
+        int currIsLongTerm     = refPicList[ref_idx_curr].isLongTerm[ref_idx];
 
-    if (TAB_MVF(x, y).pred_flag[pred_flag_index] &&
-        colIsLongTerm == currIsLongTerm) {
-        *mv = TAB_MVF(x, y).mv[pred_flag_index];
-        if (!currIsLongTerm)
-            dist_scale(s, mv, min_pu_width, x, y,
-                       pred_flag_index, ref_idx_curr, ref_idx);
-        return 1;
+        int colIsLongTerm =
+            refPicList[pred_flag_index].isLongTerm[(TAB_MVF(x, y).ref_idx[pred_flag_index])];
+
+        if (colIsLongTerm == currIsLongTerm) {
+            *mv = TAB_MVF(x, y).mv[pred_flag_index];
+            if (!currIsLongTerm)
+                dist_scale(s, mv, min_pu_width, x, y,
+                           pred_flag_index, ref_idx_curr, ref_idx);
+            return 1;
+        }
     }
     return 0;
 }
@@ -809,10 +810,5 @@ void ff_hevc_luma_mv_mvp_mode(HEVCContext *s, int x0, int y0, int nPbW,
             mvpcand_list[numMVPCandLX++] = mv_col;
     }
 
-    // insert zero motion vectors when the number of available candidates are less than 2
-    while (numMVPCandLX < 2)
-        mvpcand_list[numMVPCandLX++] = (Mv){ 0, 0 };
-
-    mv->mv[LX].x = mvpcand_list[mvp_lx_flag].x;
-    mv->mv[LX].y = mvpcand_list[mvp_lx_flag].y;
+    mv->mv[LX] = mvpcand_list[mvp_lx_flag];
 }
