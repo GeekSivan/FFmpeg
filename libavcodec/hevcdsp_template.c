@@ -877,17 +877,17 @@ static void FUNC(put_hevc_qpel_hv)(int16_t *dst,
     int16_t tmp_array[(MAX_PB_SIZE + 7) * MAX_PB_SIZE];
     int16_t *tmp = tmp_array;
 
-    src -= ff_hevc_qpel_extra_before[my] * srcstride;
+    src -= QPEL_EXTRA_BEFORE * srcstride;
     filter    = ff_hevc_qpel_filters[mx - 1];
 
-    for (y = 0; y < height + ff_hevc_qpel_extra[my]; y++) {
+    for (y = 0; y < height + QPEL_EXTRA; y++) {
         for (x = 0; x < width; x++)
             tmp[x] = QPEL_FILTER(src, 1) >> (BIT_DEPTH - 8);
         src += srcstride;
         tmp += MAX_PB_SIZE;
     }
 
-    tmp = tmp_array + ff_hevc_qpel_extra_before[my] * MAX_PB_SIZE;
+    tmp = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;
 
     filter    = ff_hevc_qpel_filters[my - 1];
     for (y = 0; y < height; y++) {
