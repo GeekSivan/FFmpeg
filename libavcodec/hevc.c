@@ -1101,7 +1101,7 @@ static void luma_mc(HEVCContext *s, int16_t *dst, ptrdiff_t dststride,
         srcstride = edge_emu_stride;
     }
     s->hevcdsp.put_hevc_qpel[my][mx](dst, dststride, src, srcstride, block_w,
-                                     block_h, lc->mc_buffer);
+                                     block_h);
 }
 
 /**
@@ -1159,7 +1159,7 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
         src1 = lc->edge_emu_buffer + buf_offset1;
         src1stride = edge_emu_stride;
         s->hevcdsp.put_hevc_epel[!!my][!!mx](dst1, dststride, src1, src1stride,
-                                             block_w, block_h, mx, my, lc->mc_buffer);
+                                             block_w, block_h, mx, my);
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src2 - offset2,
                                  edge_emu_stride, src2stride,
@@ -1171,15 +1171,12 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
         src2stride = edge_emu_stride;
 
         s->hevcdsp.put_hevc_epel[!!my][!!mx](dst2, dststride, src2, src2stride,
-                                             block_w, block_h, mx, my,
-                                             lc->mc_buffer);
+                                             block_w, block_h, mx, my);
     } else {
         s->hevcdsp.put_hevc_epel[!!my][!!mx](dst1, dststride, src1, src1stride,
-                                             block_w, block_h, mx, my,
-                                             lc->mc_buffer);
+                                             block_w, block_h, mx, my);
         s->hevcdsp.put_hevc_epel[!!my][!!mx](dst2, dststride, src2, src2stride,
-                                             block_w, block_h, mx, my,
-                                             lc->mc_buffer);
+                                             block_w, block_h, mx, my);
     }
 }
 
