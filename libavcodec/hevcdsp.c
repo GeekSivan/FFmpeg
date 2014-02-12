@@ -139,14 +139,14 @@ void ff_hevc_dsp_init(HEVCDSPContext *hevcdsp, int bit_depth)
 
 #undef EPEL_FUNCS
 #define EPEL_FUNCS(depth)                                                     \
-    PEL_FUNC(put_hevc_epel, 0, 0, put_hevc_epel_pixels, depth);               \
+    PEL_FUNC(put_hevc_epel, 0, 0, put_hevc_pel_pixels, depth);                \
     PEL_FUNC(put_hevc_epel, 0, 1, put_hevc_epel_h, depth);                    \
     PEL_FUNC(put_hevc_epel, 1, 0, put_hevc_epel_v, depth);                    \
     PEL_FUNC(put_hevc_epel, 1, 1, put_hevc_epel_hv, depth)
 
 #undef QPEL_FUNCS
 #define QPEL_FUNCS(depth)                                                     \
-    PEL_FUNC(put_hevc_qpel, 0, 0, put_hevc_qpel_pixels, depth);               \
+    PEL_FUNC(put_hevc_qpel, 0, 0, put_hevc_pel_pixels, depth);                \
     PEL_FUNC(put_hevc_qpel, 0, 1, put_hevc_qpel_h, depth);                    \
     PEL_FUNC(put_hevc_qpel, 1, 0, put_hevc_qpel_v, depth);                    \
     PEL_FUNC(put_hevc_qpel, 1, 1, put_hevc_qpel_hv, depth)
