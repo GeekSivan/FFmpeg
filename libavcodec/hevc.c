@@ -38,10 +38,6 @@
 #include "golomb.h"
 #include "hevc.h"
 
-const uint8_t ff_hevc_qpel_extra_before[4] = { 0, 3, 3, 2 };
-const uint8_t ff_hevc_qpel_extra_after[4]  = { 0, 3, 4, 4 };
-const uint8_t ff_hevc_qpel_extra[4]        = { 0, 6, 7, 6 };
-
 /**
  * NOTE: Each function hls_foo correspond to the function foo in the
  * specification (HLS stands for High Level Syntax).
@@ -1076,26 +1072,23 @@ static void luma_mc(HEVCContext *s, int16_t *dst, ptrdiff_t dststride,
 
     int mx         = mv->x & 3;
     int my         = mv->y & 3;
-    int extra_left = ff_hevc_qpel_extra_before[mx];
-    int extra_top  = ff_hevc_qpel_extra_before[my];
 
     x_off += mv->x >> 2;
     y_off += mv->y >> 2;
     src   += y_off * srcstride + (x_off << s->sps->pixel_shift);
 
-    if (x_off < extra_left || y_off < extra_top ||
-        x_off >= pic_width - block_w - ff_hevc_qpel_extra_after[mx] ||
-        y_off >= pic_height - block_h - ff_hevc_qpel_extra_after[my]) {
+    if (x_off < QPEL_EXTRA_BEFORE || y_off < QPEL_EXTRA_AFTER ||
+        x_off >= pic_width - block_w - QPEL_EXTRA_AFTER ||
+        y_off >= pic_height - block_h - QPEL_EXTRA_AFTER) {
         const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset = extra_top * srcstride + (extra_left << s->sps->pixel_shift);
-        int buf_offset = extra_top *
-                         edge_emu_stride + (extra_left << s->sps->pixel_shift);
+        int offset     = QPEL_EXTRA_BEFORE * srcstride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
+        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src - offset,
                                  edge_emu_stride, srcstride,
-                                 block_w + ff_hevc_qpel_extra[mx],
-                                 block_h + ff_hevc_qpel_extra[my],
-                                 x_off - extra_left, y_off - extra_top,
+                                 block_w + QPEL_EXTRA,
+                                 block_h + QPEL_EXTRA,
+                                 x_off - QPEL_EXTRA_BEFORE, y_off - QPEL_EXTRA_BEFORE,
                                  pic_width, pic_height);
         src = lc->edge_emu_buffer + buf_offset;
         srcstride = edge_emu_stride;
