@@ -36,10 +36,11 @@ PEL_PROTOTYPE_ASM(name, D)
 #define PEL_PROTOTYPE(name, D) \
 PEL_PROTOTYPE_SSE(name, D)
 #endif
+
+///////////////////////////////////////////////////////////////////////////////
 //IDCT functions
-
+///////////////////////////////////////////////////////////////////////////////
 void ff_hevc_transform_skip_8_sse(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
-
 
 void ff_hevc_transform_4x4_luma_add_8_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
 void ff_hevc_transform_4x4_luma_add_10_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
@@ -53,7 +54,9 @@ void ff_hevc_transform_16x16_add_10_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff
 void ff_hevc_transform_32x32_add_8_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
 void ff_hevc_transform_32x32_add_10_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
 
+///////////////////////////////////////////////////////////////////////////////
 // MC functions
+///////////////////////////////////////////////////////////////////////////////
 void ff_hevc_put_unweighted_pred2_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
 void ff_hevc_put_unweighted_pred4_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
 void ff_hevc_put_unweighted_pred8_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
@@ -139,7 +142,6 @@ PEL_PROTOTYPE(qpel_v8 , 10);
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions
 ///////////////////////////////////////////////////////////////////////////////
-
 void ff_hevc_sao_edge_filter_0_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
 void ff_hevc_sao_edge_filter_1_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
 void ff_hevc_sao_edge_filter_2_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);

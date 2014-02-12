@@ -39,67 +39,63 @@ typedef struct SAOParams {
 } SAOParams;
 
 typedef struct HEVCDSPContext {
-    void (*put_pcm)(uint8_t *dst, ptrdiff_t stride, int size,
+    void (*put_pcm)(uint8_t *_dst, ptrdiff_t _stride, int size,
                     GetBitContext *gb, int pcm_bit_depth);
 
-    void (*transquant_bypass[4])(uint8_t *dst, int16_t *coeffs,
-                                 ptrdiff_t stride);
+    void (*transquant_bypass[4])(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
 
     void (*transform_skip)(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
-    void (*transform_4x4_luma_add)(uint8_t *dst, int16_t *coeffs,
-                                   ptrdiff_t stride);
-    void (*transform_add[4])(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 
-    void (*sao_band_filter[4])(uint8_t *dst, uint8_t *src, ptrdiff_t stride,
-                               struct SAOParams *sao, int *borders,
-                               int width, int height, int c_idx);
-    void (*sao_edge_filter[4])(uint8_t *dst, uint8_t *src, ptrdiff_t stride,
-                               struct SAOParams *sao, int *borders, int width,
-                               int height, int c_idx, uint8_t vert_edge,
-                               uint8_t horiz_edge, uint8_t diag_edge);
+    void (*transform_4x4_luma_add)(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 
-    void (*put_hevc_qpel[5][2][2])(int16_t *dst, ptrdiff_t dststride, uint8_t *src,
-                                ptrdiff_t srcstride, int width, int height,
-                                int mx, int my);
-    void (*put_hevc_epel[5][2][2])(int16_t *dst, ptrdiff_t dststride, uint8_t *src,
-                                ptrdiff_t srcstride, int width, int height,
-                                int mx, int my);
+    void (*transform_add[4])(uint8_t *dst, int16_t *coeffs, ptrdiff_t _stride);
 
-    void (*put_unweighted_pred[6])(uint8_t *dst, ptrdiff_t dststride, int16_t *src,
-                                ptrdiff_t srcstride, int width, int height);
-    void (*put_weighted_pred_avg[6])(uint8_t *dst, ptrdiff_t dststride,
-                                  int16_t *src1, int16_t *src2,
+    void (*sao_band_filter[4])( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao, int *borders, int width, int height, int c_idx);
+
+    void (*sao_edge_filter[4])(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride,  struct SAOParams *sao, int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
+
+
+    void (*put_hevc_qpel[5][2][2])(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+                                int width, int height, int mx, int my);
+
+    void (*put_hevc_qpel_v_14[5])(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+                                int width, int height, int mx, int my);
+
+    void (*put_hevc_qpel_hv)(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+                                int width, int height, int mx, int my, void *s, ptrdiff_t idx);
+
+    void (*put_hevc_epel[5][2][2])(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+                                int width, int height, int mx, int my);
+
+    void (*put_hevc_epel_v_14[5])(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+                                    int width, int height, int mx, int my);
+
+    void (*put_hevc_epel_hv)(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+                                int width, int height, int mx, int my, void *s, ptrdiff_t idx);
+
+    void (*put_unweighted_pred[6])(uint8_t *dst, ptrdiff_t dststride, int16_t *src, ptrdiff_t srcstride,
+                                int width, int height);
+
+    void (*put_weighted_pred_avg[6])(uint8_t *dst, ptrdiff_t dststride, int16_t *src1, int16_t *src2,
                                   ptrdiff_t srcstride, int width, int height);
-    void (*weighted_pred[6])(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,
-                          uint8_t *dst, ptrdiff_t dststride, int16_t *src,
-                          ptrdiff_t srcstride, int width, int height);
-    void (*weighted_pred_avg[6])(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,
-                              int16_t ol0Flag, int16_t ol1Flag, uint8_t *dst,
-                              ptrdiff_t dststride, int16_t *src1, int16_t *src2,
-                              ptrdiff_t srcstride, int width, int height);
+    void (*weighted_pred[6])(uint8_t denom, int16_t wlxFlag, int16_t olxFlag, uint8_t *dst, ptrdiff_t dststride, int16_t *src,
+                                  ptrdiff_t srcstride, int width, int height);
+    void (*weighted_pred_avg[6])(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag, int16_t ol0Flag, int16_t ol1Flag,
+                                   uint8_t *dst, ptrdiff_t dststride, int16_t *src1, int16_t *src2,
+                                   ptrdiff_t srcstride, int width, int height);
 
-    void (*hevc_h_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
-                                    int *beta, int *tc,
-                                    uint8_t *no_p, uint8_t *no_q);
-    void (*hevc_v_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
-                                    int *beta, int *tc,
-                                    uint8_t *no_p, uint8_t *no_q);
-    void (*hevc_h_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
-                                      int *tc, uint8_t *no_p, uint8_t *no_q);
-    void (*hevc_v_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
-                                      int *tc, uint8_t *no_p, uint8_t *no_q);
-    void (*hevc_h_loop_filter_luma_c)(uint8_t *pix, ptrdiff_t stride,
-                                      int *beta, int *tc,
-                                      uint8_t *no_p, uint8_t *no_q);
-    void (*hevc_v_loop_filter_luma_c)(uint8_t *pix, ptrdiff_t stride,
-                                      int *beta, int *tc,
-                                      uint8_t *no_p, uint8_t *no_q);
-    void (*hevc_h_loop_filter_chroma_c)(uint8_t *pix, ptrdiff_t stride,
-                                        int *tc, uint8_t *no_p,
-                                        uint8_t *no_q);
-    void (*hevc_v_loop_filter_chroma_c)(uint8_t *pix, ptrdiff_t stride,
-                                        int *tc, uint8_t *no_p,
-                                        uint8_t *no_q);
+    void (*hevc_h_loop_filter_luma)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_v_loop_filter_luma)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_h_loop_filter_chroma)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_v_loop_filter_chroma)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_h_loop_filter_luma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_v_loop_filter_luma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_h_loop_filter_chroma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_v_loop_filter_chroma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+
+    void (*upsample_base_layer_frame)  (struct AVFrame *FrameEL, struct AVFrame *FrameBL, short *Buffer[3], const int32_t enabled_up_sample_filter_luma[16][8], const int32_t enabled_up_sample_filter_chroma[16][4], struct HEVCWindow *Enhscal, struct UpsamplInf *up_info, int channel);
+    void (*upsample_v_base_layer_frame)(struct AVFrame *FrameEL, struct AVFrame *FrameBL, short *Buffer[3], const int32_t enabled_up_sample_filter_luma[16][8], const int32_t enabled_up_sample_filter_chroma[16][4], struct HEVCWindow *Enhscal, struct UpsamplInf *up_info, int channel);
+    void (*upsample_h_base_layer_frame)(struct AVFrame *FrameEL, struct AVFrame *FrameBL, short *Buffer[3], const int32_t enabled_up_sample_filter_luma[16][8], const int32_t enabled_up_sample_filter_chroma[16][4], struct HEVCWindow *Enhscal, struct UpsamplInf *up_info, int channel);
 } HEVCDSPContext;
 
 void ff_hevc_dsp_init(HEVCDSPContext *hpc, int bit_depth);
