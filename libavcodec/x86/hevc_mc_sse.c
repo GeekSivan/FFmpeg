@@ -502,14 +502,24 @@ void ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _sse (                          \
     c3 = _mm_unpacklo_epi16(_mm_set1_epi16(filter[4]), _mm_set1_epi16(filter[5])); \
     c4 = _mm_unpacklo_epi16(_mm_set1_epi16(filter[6]), _mm_set1_epi16(filter[7]))
 
-#define QPEL_LOAD_LO_8(src, srcstride)                                         \
+#define QPEL_LOAD_LO4_8(src, srcstride)                                        \
     x1 = _mm_loadl_epi64((__m128i *) &src[x - 3 * srcstride]);                 \
     x2 = _mm_loadl_epi64((__m128i *) &src[x - 2 * srcstride]);                 \
     x3 = _mm_loadl_epi64((__m128i *) &src[x - 1 * srcstride]);                 \
     x4 = _mm_loadl_epi64((__m128i *) &src[x                ]);                 \
     x1 = _mm_unpacklo_epi8(x1, x2);                                            \
     x2 = _mm_unpacklo_epi8(x3, x4)
-#define QPEL_LOAD_LO_10(src, srcstride)                                        \
+#define QPEL_LOAD_LO8_8(src, srcstride) QPEL_LOAD_LO4_8(src, srcstride)
+#define QPEL_LOAD_LO4_10(src, srcstride)                                       \
+    x1 = _mm_loadl_epi64((__m128i *) &src[x - 3 * srcstride]);                 \
+    x2 = _mm_loadl_epi64((__m128i *) &src[x - 2 * srcstride]);                 \
+    x3 = _mm_loadl_epi64((__m128i *) &src[x - 1 * srcstride]);                 \
+    x4 = _mm_loadl_epi64((__m128i *) &src[x                ]);                 \
+    t1 = _mm_unpackhi_epi16(x1, x2);                                           \
+    x1 = _mm_unpacklo_epi16(x1, x2);                                           \
+    t2 = _mm_unpackhi_epi16(x3, x4);                                           \
+    x2 = _mm_unpacklo_epi16(x3, x4)
+#define QPEL_LOAD_LO8_10(src, srcstride)                                       \
     x1 = _mm_loadu_si128((__m128i *) &src[x - 3 * srcstride]);                 \
     x2 = _mm_loadu_si128((__m128i *) &src[x - 2 * srcstride]);                 \
     x3 = _mm_loadu_si128((__m128i *) &src[x - 1 * srcstride]);                 \
@@ -518,14 +528,24 @@ void ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _sse (                          \
     x1 = _mm_unpacklo_epi16(x1, x2);                                           \
     t2 = _mm_unpackhi_epi16(x3, x4);                                           \
     x2 = _mm_unpacklo_epi16(x3, x4)
-#define QPEL_LOAD_HI_8(src, srcstride)                                         \
+#define QPEL_LOAD_HI4_8(src, srcstride)                                        \
     x1 = _mm_loadl_epi64((__m128i *) &src[x +     srcstride]);                 \
     x2 = _mm_loadl_epi64((__m128i *) &src[x + 2 * srcstride]);                 \
     x3 = _mm_loadl_epi64((__m128i *) &src[x + 3 * srcstride]);                 \
     x4 = _mm_loadl_epi64((__m128i *) &src[x + 4 * srcstride]);                 \
     x1 = _mm_unpacklo_epi8(x1, x2);                                            \
     x2 = _mm_unpacklo_epi8(x3, x4)
-#define QPEL_LOAD_HI_10(src, srcstride)                                        \
+#define QPEL_LOAD_HI8_8(src, srcstride) QPEL_LOAD_HI4_8(src, srcstride)
+#define QPEL_LOAD_HI4_10(src, srcstride)                                       \
+    x1 = _mm_loadl_epi64((__m128i *) &src[x +     srcstride]);                 \
+    x2 = _mm_loadl_epi64((__m128i *) &src[x + 2 * srcstride]);                 \
+    x3 = _mm_loadl_epi64((__m128i *) &src[x + 3 * srcstride]);                 \
+    x4 = _mm_loadl_epi64((__m128i *) &src[x + 4 * srcstride]);                 \
+    t1 = _mm_unpackhi_epi16(x1, x2);                                           \
+    x1 = _mm_unpacklo_epi16(x1, x2);                                           \
+    t2 = _mm_unpackhi_epi16(x3, x4);                                           \
+    x2 = _mm_unpacklo_epi16(x3, x4)
+#define QPEL_LOAD_HI8_10(src, srcstride)                                       \
     x1 = _mm_loadu_si128((__m128i *) &src[x +     srcstride]);                 \
     x2 = _mm_loadu_si128((__m128i *) &src[x + 2 * srcstride]);                 \
     x3 = _mm_loadu_si128((__m128i *) &src[x + 3 * srcstride]);                 \
@@ -586,9 +606,9 @@ void ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _sse (                          \
     QPEL_FILTER_ ## D(filter_h);                                               \
     for (y = 0; y < height; y++) {                                             \
         for (x = 0; x < width; x += H) {                                       \
-            QPEL_LOAD_LO_ ## D(src, 1);                                        \
+            QPEL_LOAD_LO ## H ## _ ## D(src, 1);                               \
             QPEL_COMPUTE ## H ## _ ## D(r1, r2, c1, c2);                       \
-            QPEL_LOAD_HI_ ## D(src, 1);                                        \
+            QPEL_LOAD_HI ## H ## _ ## D(src, 1);                               \
             QPEL_COMPUTE ## H ## _ ## D(r3, r4, c3, c4);                       \
             QPEL_MERGE ## H ## _ ## D();                                       \
             PEL_STORE ## H(dst);                                               \
@@ -615,9 +635,9 @@ void ff_hevc_put_hevc_qpel_v ## V ## _ ## D ## _sse (                          \
     QPEL_FILTER_ ## D(filter_v);                                               \
     for (y = 0; y < height; y++) {                                             \
         for (x = 0; x < width; x += V) {                                       \
-            QPEL_LOAD_LO_ ## D(src, srcstride);                                \
+            QPEL_LOAD_LO ## V ## _ ## D(src, srcstride);                       \
             QPEL_COMPUTE ## V ## _ ## D(r1, r2, c1, c2);                       \
-            QPEL_LOAD_HI_ ## D(src, srcstride);                                 \
+            QPEL_LOAD_HI ## V ## _ ## D(src, srcstride);                       \
             QPEL_COMPUTE ## V ## _ ## D(r3, r4, c3, c4);                       \
             QPEL_MERGE ## V ## _ ## D();                                       \
             PEL_STORE ## V(dst);                                               \
@@ -648,9 +668,9 @@ void ff_hevc_put_hevc_qpel_hv ## H ## _ ## D ## _sse (                         \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
     for (y = 0; y < height + QPEL_EXTRA; y++) {                                \
         for (x = 0; x < width; x += H) {                                       \
-            QPEL_LOAD_LO_ ## D(src, 1);                                        \
+            QPEL_LOAD_LO ## H ## _ ## D(src, 1);                               \
             QPEL_COMPUTE ## H ## _ ## D(r1, r2, c1, c2);                       \
-            QPEL_LOAD_HI_ ## D(src, 1);                                        \
+            QPEL_LOAD_HI ## H ## _ ## D(src, 1);                               \
             QPEL_COMPUTE ## H ## _ ## D(r3, r4, c3, c4);                       \
             QPEL_MERGE ## H ## _ ## D();                                       \
             PEL_STORE ## H(tmp);                                               \
@@ -658,15 +678,15 @@ void ff_hevc_put_hevc_qpel_hv ## H ## _ ## D ## _sse (                         \
         src += srcstride;                                                      \
         tmp += MAX_PB_SIZE;                                                    \
     }                                                                          \
-    shift = 14 - 8;                                                            \
-    tmp      = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                    \
+    shift  = 14 - 8;                                                           \
+    tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
     filter = ff_hevc_qpel_filters[my - 1];                                     \
-    QPEL_FILTER_10(filter);                                                 \
+    QPEL_FILTER_10(filter);                                                    \
     for (y = 0; y < height; y++) {                                             \
         for (x = 0; x < width; x += H) {                                       \
-            QPEL_LOAD_LO_10(tmp, MAX_PB_SIZE);                                 \
+            QPEL_LOAD_LO ## H ## _10(tmp, MAX_PB_SIZE);                        \
             QPEL_COMPUTE ## H ## _10(r1, r2, c1, c2);                          \
-            QPEL_LOAD_HI_10(tmp, MAX_PB_SIZE);                                 \
+            QPEL_LOAD_HI ## H ## _10(tmp, MAX_PB_SIZE);                        \
             QPEL_COMPUTE ## H ## _10(r3, r4, c3, c4);                          \
             QPEL_MERGE ## H ## _10();                                          \
             PEL_STORE ## H(dst);                                               \
@@ -890,3 +910,4 @@ PUT_HEVC_QPEL_HV(  8,  8)
 
 PUT_HEVC_QPEL_HV(  4, 10)
 PUT_HEVC_QPEL_HV(  8, 10)
+
