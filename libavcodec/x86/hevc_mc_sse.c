@@ -49,13 +49,6 @@
     c3 = _mm_unpacklo_epi8(_mm_set1_epi8(filter[4]), _mm_set1_epi8(filter[5]));\
     c4 = _mm_unpacklo_epi8(_mm_set1_epi8(filter[6]), _mm_set1_epi8(filter[7]))
 
-#define QPEL_H_FILTER_10(filter)                                               \
-    __m128i r0 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_10[mx - 1]);    \
-    c1 = _mm_unpacklo_epi16(_mm_set1_epi16(filter[0]), _mm_set1_epi16(filter[1]));\
-    c2 = _mm_unpacklo_epi16(_mm_set1_epi16(filter[2]), _mm_set1_epi16(filter[3]));\
-    c3 = _mm_unpacklo_epi16(_mm_set1_epi16(filter[4]), _mm_set1_epi16(filter[5]));\
-    c4 = _mm_unpacklo_epi16(_mm_set1_epi16(filter[6]), _mm_set1_epi16(filter[7]))
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////

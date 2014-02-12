@@ -549,7 +549,6 @@ void ff_hevc_luma_mv_merge_mode(HEVCContext *s, int x0, int y0, int nPbW,
     if (mergecand_list[merge_idx].pred_flag[0] == 1 &&
         mergecand_list[merge_idx].pred_flag[1] == 1 &&
         (nPbW2 + nPbH2) == 12) {
-        mergecand_list[merge_idx].ref_idx[1]   = -1;
         mergecand_list[merge_idx].pred_flag[1] = 0;
     }
 
@@ -655,8 +654,8 @@ void ff_hevc_luma_mv_mvp_mode(HEVCContext *s, int x0, int y0, int nPbW,
     int xB2_pu = 0, yB2_pu = 0;
     int is_available_b2 = 0;
     Mv mvpcand_list[2] = { { 0 } };
-    Mv mxA = { 0 };
-    Mv mxB = { 0 };
+    Mv mxA;
+    Mv mxB;
     int ref_idx_curr = 0;
     int ref_idx = 0;
     int pred_flag_index_l0;
