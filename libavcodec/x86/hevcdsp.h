@@ -8,6 +8,34 @@ struct HEVCWindow;
 
 // #define OPTI_ASM
 
+#define PEL_LINK_ASM(dst, idx1, idx2, idx3, name, D) \
+dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _sse4
+#define PEL_LINK_SSE(dst, idx1, idx2, idx3, name, D) \
+dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _sse
+
+#ifdef OPTI_ASM
+#define PEL_LINK(dst, idx1, idx2, idx3, name, D) \
+PEL_LINK_ASM(dst, idx1, idx2, idx3, name, D)
+#else
+#define PEL_LINK(dst, idx1, idx2, idx3, name, D) \
+PEL_LINK_SSE(dst, idx1, idx2, idx3, name, D)
+#endif
+
+
+#define PEL_PROTOTYPE_ASM(name, D) \
+void ff_hevc_put_hevc_ ## name ## _ ## D ## _sse4(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride,int width, int height, int mx, int my)
+
+#define PEL_PROTOTYPE_SSE(name, D) \
+void ff_hevc_put_hevc_ ## name ## _ ## D ## _sse(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int width, int height, int mx, int my)
+
+
+#ifdef OPTI_ASM
+#define PEL_PROTOTYPE(name, D) \
+PEL_PROTOTYPE_ASM(name, D)
+#else
+#define PEL_PROTOTYPE(name, D) \
+PEL_PROTOTYPE_SSE(name, D)
+#endif
 //IDCT functions
 
 void ff_hevc_transform_skip_8_sse(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
@@ -25,5 +53,87 @@ void ff_hevc_transform_16x16_add_10_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff
 void ff_hevc_transform_32x32_add_8_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
 void ff_hevc_transform_32x32_add_10_sse4(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride);
 
+// MC functions
+void ff_hevc_put_unweighted_pred2_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_unweighted_pred4_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_unweighted_pred8_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_unweighted_pred16_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_weighted_pred2_8_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred4_8_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred8_8_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred16_8_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_put_weighted_pred_avg2_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_weighted_pred_avg4_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_weighted_pred_avg8_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_weighted_pred_avg16_8_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_weighted_pred_avg2_8_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred_avg4_8_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred_avg8_8_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred_avg16_8_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_put_unweighted_pred2_10_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_unweighted_pred4_10_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_unweighted_pred8_10_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_weighted_pred2_10_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred4_10_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred8_10_sse(uint8_t denom, int16_t wlxFlag, int16_t olxFlag,uint8_t *_dst, ptrdiff_t _dststride,int16_t *src, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_put_weighted_pred_avg2_10_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_weighted_pred_avg4_10_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_put_weighted_pred_avg8_10_sse(uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+
+void ff_hevc_weighted_pred_avg2_10_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred_avg4_10_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+void ff_hevc_weighted_pred_avg8_10_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
+
+///////////////////////////////////////////////////////////////////////////////
+//
+///////////////////////////////////////////////////////////////////////////////
+PEL_PROTOTYPE(pel_pixels2 ,  8);
+PEL_PROTOTYPE(pel_pixels4 ,  8);
+PEL_PROTOTYPE(pel_pixels8 ,  8);
+PEL_PROTOTYPE(pel_pixels16,  8);
+
+PEL_PROTOTYPE(pel_pixels2 , 10);
+PEL_PROTOTYPE(pel_pixels4 , 10);
+PEL_PROTOTYPE(pel_pixels8 , 10);
+
+///////////////////////////////////////////////////////////////////////////////
+//
+///////////////////////////////////////////////////////////////////////////////
+PEL_PROTOTYPE(epel_h2 ,  8);
+PEL_PROTOTYPE(epel_h4 ,  8);
+PEL_PROTOTYPE(epel_h8 ,  8);
+
+PEL_PROTOTYPE(epel_h2 , 10);
+PEL_PROTOTYPE(epel_h4 , 10);
+PEL_PROTOTYPE(epel_h8 , 10);
+
+PEL_PROTOTYPE(epel_v2 ,  8);
+PEL_PROTOTYPE(epel_v4 ,  8);
+PEL_PROTOTYPE(epel_v8 ,  8);
+
+PEL_PROTOTYPE(epel_v2 , 10);
+PEL_PROTOTYPE(epel_v4 , 10);
+PEL_PROTOTYPE(epel_v8 , 10);
+
+///////////////////////////////////////////////////////////////////////////////
+//
+///////////////////////////////////////////////////////////////////////////////
+PEL_PROTOTYPE(qpel_h4 ,  8);
+PEL_PROTOTYPE(qpel_h8 ,  8);
+
+PEL_PROTOTYPE(qpel_h4 , 10);
+PEL_PROTOTYPE(qpel_h8 , 10);
+
+PEL_PROTOTYPE(qpel_v4 ,  8);
+PEL_PROTOTYPE(qpel_v8 ,  8);
+
+PEL_PROTOTYPE(qpel_v4 , 10);
+PEL_PROTOTYPE(qpel_v8 , 10);
 
 #endif // AVCODEC_X86_HEVCDSP_H
