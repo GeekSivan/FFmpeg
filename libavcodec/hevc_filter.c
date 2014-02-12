@@ -550,9 +550,7 @@ static int boundary_strength(HEVCContext *s, MvField *curr,
 }
 
 void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
-                                           int log2_trafo_size,
-                                           int slice_or_tiles_up_boundary,
-                                           int slice_or_tiles_left_boundary)
+                                           int log2_trafo_size)
 {
     HEVCLocalContext *lc = s->HEVClc;
     MvField *tab_mvf     = s->ref->tab_mvf;
@@ -672,6 +670,65 @@ void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
     }
 }
 
+void ff_hevc_deblocking_boundary_strengths_h(HEVCContext *s, int x0, int y0, int slice_up_boundary)
+{
+    MvField *tab_mvf        = s->ref->tab_mvf;
+    int log2_min_pu_size    = s->sps->log2_min_pu_size;
+    int log2_min_tu_size    = s->sps->log2_min_tb_size;
+    int pic_width_in_min_pu = s->sps->width >> log2_min_pu_size;
+    int pic_width_in_min_tu = s->sps->width >> log2_min_tu_size;
+    int bs;
+    if (y0 > 0 && (y0 & 7) == 0) {
+        int yp_pu = (y0 - 1) >> log2_min_pu_size;
+        int yq_pu =  y0      >> log2_min_pu_size;
+        int yp_tu = (y0 - 1) >> log2_min_tu_size;
+        int yq_tu =  y0      >> log2_min_tu_size;
+        int x_pu  =  x0      >> log2_min_pu_size;
+        int x_tu  =  x0      >> log2_min_tu_size;
+        MvField *top  = &tab_mvf[yp_pu * pic_width_in_min_pu + x_pu];
+        MvField *curr = &tab_mvf[yq_pu * pic_width_in_min_pu + x_pu];
+        uint8_t top_cbf_luma  = s->cbf_luma[yp_tu * pic_width_in_min_tu + x_tu];
+        uint8_t curr_cbf_luma = s->cbf_luma[yq_tu * pic_width_in_min_tu + x_tu];
+        RefPicList* top_refPicList = ff_hevc_get_ref_list(s, s->ref, x0, y0 - 1);
+
+        bs = boundary_strength(s, curr, curr_cbf_luma, top, top_cbf_luma, top_refPicList, 1);
+        if ((slice_up_boundary & 1) && (y0 % (1 << s->sps->log2_ctb_size)) == 0)
+            bs = 0;
+        if (s->sh.disable_deblocking_filter_flag == 1)
+            bs = 0;
+        s->horizontal_bs[(x0 + y0 * s->bs_width) >> 2] =  bs;
+    }
+}
+void ff_hevc_deblocking_boundary_strengths_v(HEVCContext *s, int x0, int y0, int slice_left_boundary)
+{
+    MvField *tab_mvf        = s->ref->tab_mvf;
+    int log2_min_pu_size    = s->sps->log2_min_pu_size;
+    int log2_min_tu_size    = s->sps->log2_min_tb_size;
+    int pic_width_in_min_pu = s->sps->width >> log2_min_pu_size;
+    int pic_width_in_min_tu = s->sps->width >> log2_min_tu_size;
+    int bs;
+    // bs for vertical TU boundaries
+    if (x0 > 0 && (x0 & 7) == 0) {
+        int xp_pu = (x0 - 1) >> log2_min_pu_size;
+        int xq_pu =  x0      >> log2_min_pu_size;
+        int xp_tu = (x0 - 1) >> log2_min_tu_size;
+        int xq_tu =  x0      >> log2_min_tu_size;
+        int y_pu  =  y0      >> log2_min_pu_size;
+        int y_tu  =  y0      >> log2_min_tu_size;
+        MvField *left = &tab_mvf[y_pu * pic_width_in_min_pu + xp_pu];
+        MvField *curr = &tab_mvf[y_pu * pic_width_in_min_pu + xq_pu];
+        uint8_t left_cbf_luma = s->cbf_luma[y_tu * pic_width_in_min_tu + xp_tu];
+        uint8_t curr_cbf_luma = s->cbf_luma[y_tu * pic_width_in_min_tu + xq_tu];
+        RefPicList* left_refPicList = ff_hevc_get_ref_list(s, s->ref, x0 - 1, y0);
+
+        bs = boundary_strength(s, curr, curr_cbf_luma, left, left_cbf_luma, left_refPicList, 1);
+        if ((slice_left_boundary & 1) && (x0 % (1 << s->sps->log2_ctb_size)) == 0)
+            bs = 0;
+        if (s->sh.disable_deblocking_filter_flag == 1)
+            bs = 0;
+        s->vertical_bs[(x0 >> 3) + (y0 >> 2) * s->bs_width] =  bs;
+    }
+}
 #undef LUMA
 #undef CB
 #undef CR
