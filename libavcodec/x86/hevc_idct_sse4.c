@@ -256,7 +256,7 @@ DECLARE_ALIGNED(16, static const int16_t, transform32x32[8][16][8] )=
 #define shift_1st 7
 #define add_1st (1 << (shift_1st - 1))
 
-#if 1
+#if 0
 static void transpose_8x8(__m128i *array, int stride) {
 
     __m128i *p_input  = (__m128i*)array;
@@ -356,7 +356,7 @@ void ff_hevc_transform_skip_8_sse(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _str
     *((uint32_t *)(dst)) = _mm_extract_epi32(r3, 3);
 }
 
-#if 0
+#if 1
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
