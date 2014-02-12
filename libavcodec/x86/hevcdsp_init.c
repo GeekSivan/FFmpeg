@@ -150,6 +150,15 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     PEL_LINK(c->put_hevc_epel, 4, 1, 0, epel_v8, 8);
 
                     c->transform_skip     = ff_hevc_transform_skip_8_sse;
+                    c->sao_edge_filter[0] = ff_hevc_sao_edge_filter_0_8_sse;
+                    c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
+                    c->sao_edge_filter[2] = ff_hevc_sao_edge_filter_2_8_sse;
+                    c->sao_edge_filter[3] = ff_hevc_sao_edge_filter_3_8_sse;
+
+                    c->sao_band_filter[0] = ff_hevc_sao_band_filter_0_8_sse;
+                    c->sao_band_filter[1] = ff_hevc_sao_band_filter_1_8_sse;
+                    c->sao_band_filter[2] = ff_hevc_sao_band_filter_2_8_sse;
+                    c->sao_band_filter[3] = ff_hevc_sao_band_filter_3_8_sse;
 
                 }
                 if (EXTERNAL_AVX(mm_flags)) {

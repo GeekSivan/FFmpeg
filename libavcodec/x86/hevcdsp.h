@@ -91,7 +91,7 @@ void ff_hevc_weighted_pred_avg4_10_sse(uint8_t denom, int16_t wl0Flag, int16_t w
 void ff_hevc_weighted_pred_avg8_10_sse(uint8_t denom, int16_t wl0Flag, int16_t wl1Flag,int16_t ol0Flag, int16_t ol1Flag, uint8_t *_dst, ptrdiff_t _dststride,int16_t *src1, int16_t *src2, ptrdiff_t srcstride,int width, int height);
 
 ///////////////////////////////////////////////////////////////////////////////
-//
+// QPEL_PIXELS EPEL_PIXELS
 ///////////////////////////////////////////////////////////////////////////////
 PEL_PROTOTYPE(pel_pixels2 ,  8);
 PEL_PROTOTYPE(pel_pixels4 ,  8);
@@ -103,7 +103,7 @@ PEL_PROTOTYPE(pel_pixels4 , 10);
 PEL_PROTOTYPE(pel_pixels8 , 10);
 
 ///////////////////////////////////////////////////////////////////////////////
-//
+// EPEL
 ///////////////////////////////////////////////////////////////////////////////
 PEL_PROTOTYPE(epel_h2 ,  8);
 PEL_PROTOTYPE(epel_h4 ,  8);
@@ -122,7 +122,7 @@ PEL_PROTOTYPE(epel_v4 , 10);
 PEL_PROTOTYPE(epel_v8 , 10);
 
 ///////////////////////////////////////////////////////////////////////////////
-//
+// QPEL
 ///////////////////////////////////////////////////////////////////////////////
 PEL_PROTOTYPE(qpel_h4 ,  8);
 PEL_PROTOTYPE(qpel_h8 ,  8);
@@ -135,5 +135,19 @@ PEL_PROTOTYPE(qpel_v8 ,  8);
 
 PEL_PROTOTYPE(qpel_v4 , 10);
 PEL_PROTOTYPE(qpel_v8 , 10);
+
+///////////////////////////////////////////////////////////////////////////////
+// SAO functions
+///////////////////////////////////////////////////////////////////////////////
+
+void ff_hevc_sao_edge_filter_0_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
+void ff_hevc_sao_edge_filter_1_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
+void ff_hevc_sao_edge_filter_2_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
+void ff_hevc_sao_edge_filter_3_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t vert_edge, uint8_t horiz_edge, uint8_t diag_edge);
+
+void ff_hevc_sao_band_filter_0_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao, int *borders, int width, int height, int c_idx);
+void ff_hevc_sao_band_filter_1_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao, int *borders, int width, int height, int c_idx);
+void ff_hevc_sao_band_filter_2_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao, int *borders, int width, int height, int c_idx);
+void ff_hevc_sao_band_filter_3_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao, int *borders, int width, int height, int c_idx);
 
 #endif // AVCODEC_X86_HEVCDSP_H
