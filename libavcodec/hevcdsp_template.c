@@ -809,7 +809,7 @@ static void FUNC(put_hevc_epel_hv)(int16_t *dst, ptrdiff_t dststride,
     pixel *src = (pixel *)_src;
     ptrdiff_t srcstride = _srcstride / sizeof(pixel);
     const int8_t *filter = ff_hevc_epel_filters[mx - 1];
-    int16_t tmp_array[(MAX_PB_SIZE + 3) * MAX_PB_SIZE];
+    int16_t tmp_array[(MAX_PB_SIZE + EPEL_EXTRA) * MAX_PB_SIZE];
     int16_t *tmp = tmp_array;
 
     src -= EPEL_EXTRA_BEFORE * srcstride;

@@ -124,6 +124,13 @@ PEL_PROTOTYPE(epel_v2 , 10);
 PEL_PROTOTYPE(epel_v4 , 10);
 PEL_PROTOTYPE(epel_v8 , 10);
 
+PEL_PROTOTYPE(epel_hv2,  8);
+PEL_PROTOTYPE(epel_hv4,  8);
+PEL_PROTOTYPE(epel_hv8,  8);
+
+PEL_PROTOTYPE(epel_hv2, 10);
+PEL_PROTOTYPE(epel_hv4, 10);
+PEL_PROTOTYPE(epel_hv8, 10);
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL
 ///////////////////////////////////////////////////////////////////////////////
@@ -139,6 +146,13 @@ PEL_PROTOTYPE(qpel_v8 ,  8);
 PEL_PROTOTYPE(qpel_v4 , 10);
 PEL_PROTOTYPE(qpel_v8 , 10);
 
+PEL_PROTOTYPE(qpel_hv2,  8);
+PEL_PROTOTYPE(qpel_hv4,  8);
+PEL_PROTOTYPE(qpel_hv8,  8);
+
+PEL_PROTOTYPE(qpel_hv2, 10);
+PEL_PROTOTYPE(qpel_hv4, 10);
+PEL_PROTOTYPE(qpel_hv8, 10);
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions
 ///////////////////////////////////////////////////////////////////////////////
