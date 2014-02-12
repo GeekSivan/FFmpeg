@@ -1101,7 +1101,7 @@ static void luma_mc(HEVCContext *s, int16_t *dst, ptrdiff_t dststride,
         srcstride = edge_emu_stride;
     }
     s->hevcdsp.put_hevc_qpel[my][mx](dst, dststride, src, srcstride, block_w,
-                                     block_h);
+                                     block_h, mx, my);
 }
 
 /**

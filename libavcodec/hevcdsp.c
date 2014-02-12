@@ -89,14 +89,20 @@ static const int8_t transform[32][32] = {
       90, -90,  88, -85,  82, -78,  73, -67,  61, -54,  46, -38,  31, -22,  13,  -4 },
 };
 
-DECLARE_ALIGNED(16, const int8_t, ff_hevc_epel_filters[7][16]) = {
-    { -2, 58, 10, -2, -2, 58, 10, -2, -2, 58, 10, -2, -2, 58, 10, -2 },
-    { -4, 54, 16, -2, -4, 54, 16, -2, -4, 54, 16, -2, -4, 54, 16, -2 },
-    { -6, 46, 28, -4, -6, 46, 28, -4, -6, 46, 28, -4, -6, 46, 28, -4 },
-    { -4, 36, 36, -4, -4, 36, 36, -4, -4, 36, 36, -4, -4, 36, 36, -4 },
-    { -4, 28, 46, -6, -4, 28, 46, -6, -4, 28, 46, -6, -4, 28, 46, -6 },
-    { -2, 16, 54, -4, -2, 16, 54, -4, -2, 16, 54, -4, -2, 16, 54, -4 },
-    { -2, 10, 58, -2, -2, 10, 58, -2, -2, 10, 58, -2, -2, 10, 58, -2 },
+DECLARE_ALIGNED(16, const int8_t, ff_hevc_epel_filters[7][4]) = {
+    { -2, 58, 10, -2},
+    { -4, 54, 16, -2},
+    { -6, 46, 28, -4},
+    { -4, 36, 36, -4},
+    { -4, 28, 46, -6},
+    { -2, 16, 54, -4},
+    { -2, 10, 58, -2},
+};
+
+DECLARE_ALIGNED(16, const int8_t, ff_hevc_qpel_filters[3][16]) = {
+    { -1,  4,-10, 58, 17, -5,  1,  0, -1,  4,-10, 58, 17, -5,  1,  0},
+    { -1,  4,-11, 40, 40,-11,  4, -1, -1,  4,-11, 40, 40,-11,  4, -1},
+    {  0,  1, -5, 17, 58,-10,  4, -1,  0,  1, -5, 17, 58,-10,  4, -1}
 };
 
 #define BIT_DEPTH 8
@@ -140,21 +146,21 @@ void ff_hevc_dsp_init(HEVCDSPContext *hevcdsp, int bit_depth)
     hevcdsp->sao_edge_filter[3] = FUNC(sao_edge_filter_3, depth);           \
                                                                             \
     hevcdsp->put_hevc_qpel[0][0] = FUNC(put_hevc_qpel_pixels, depth);       \
-    hevcdsp->put_hevc_qpel[0][1] = FUNC(put_hevc_qpel_h1, depth);           \
-    hevcdsp->put_hevc_qpel[0][2] = FUNC(put_hevc_qpel_h2, depth);           \
-    hevcdsp->put_hevc_qpel[0][3] = FUNC(put_hevc_qpel_h3, depth);           \
-    hevcdsp->put_hevc_qpel[1][0] = FUNC(put_hevc_qpel_v1, depth);           \
-    hevcdsp->put_hevc_qpel[1][1] = FUNC(put_hevc_qpel_h1v1, depth);         \
-    hevcdsp->put_hevc_qpel[1][2] = FUNC(put_hevc_qpel_h2v1, depth);         \
-    hevcdsp->put_hevc_qpel[1][3] = FUNC(put_hevc_qpel_h3v1, depth);         \
-    hevcdsp->put_hevc_qpel[2][0] = FUNC(put_hevc_qpel_v2, depth);           \
-    hevcdsp->put_hevc_qpel[2][1] = FUNC(put_hevc_qpel_h1v2, depth);         \
-    hevcdsp->put_hevc_qpel[2][2] = FUNC(put_hevc_qpel_h2v2, depth);         \
-    hevcdsp->put_hevc_qpel[2][3] = FUNC(put_hevc_qpel_h3v2, depth);         \
-    hevcdsp->put_hevc_qpel[3][0] = FUNC(put_hevc_qpel_v3, depth);           \
-    hevcdsp->put_hevc_qpel[3][1] = FUNC(put_hevc_qpel_h1v3, depth);         \
-    hevcdsp->put_hevc_qpel[3][2] = FUNC(put_hevc_qpel_h2v3, depth);         \
-    hevcdsp->put_hevc_qpel[3][3] = FUNC(put_hevc_qpel_h3v3, depth);         \
+    hevcdsp->put_hevc_qpel[0][1] = FUNC(put_hevc_qpel_h, depth);           \
+    hevcdsp->put_hevc_qpel[0][2] = FUNC(put_hevc_qpel_h, depth);           \
+    hevcdsp->put_hevc_qpel[0][3] = FUNC(put_hevc_qpel_h, depth);           \
+    hevcdsp->put_hevc_qpel[1][0] = FUNC(put_hevc_qpel_v, depth);           \
+    hevcdsp->put_hevc_qpel[1][1] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[1][2] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[1][3] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[2][0] = FUNC(put_hevc_qpel_v, depth);           \
+    hevcdsp->put_hevc_qpel[2][1] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[2][2] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[2][3] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[3][0] = FUNC(put_hevc_qpel_v, depth);           \
+    hevcdsp->put_hevc_qpel[3][1] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[3][2] = FUNC(put_hevc_qpel_hv, depth);         \
+    hevcdsp->put_hevc_qpel[3][3] = FUNC(put_hevc_qpel_hv, depth);         \
                                                                             \
     hevcdsp->put_hevc_epel[0][0] = FUNC(put_hevc_epel_pixels, depth);       \
     hevcdsp->put_hevc_epel[0][1] = FUNC(put_hevc_epel_h, depth);            \

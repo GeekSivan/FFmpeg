@@ -59,7 +59,8 @@ typedef struct HEVCDSPContext {
                                uint8_t horiz_edge, uint8_t diag_edge);
 
     void (*put_hevc_qpel[4][4])(int16_t *dst, ptrdiff_t dststride, uint8_t *src,
-                                ptrdiff_t srcstride, int width, int height);
+                                ptrdiff_t srcstride, int width, int height,
+                                int mx, int my);
     void (*put_hevc_epel[2][2])(int16_t *dst, ptrdiff_t dststride, uint8_t *src,
                                 ptrdiff_t srcstride, int width, int height,
                                 int mx, int my);
@@ -103,7 +104,8 @@ typedef struct HEVCDSPContext {
 
 void ff_hevc_dsp_init(HEVCDSPContext *hpc, int bit_depth);
 
-extern const int8_t ff_hevc_epel_filters[7][16];
+extern const int8_t ff_hevc_epel_filters[7][4];
+extern const int8_t ff_hevc_qpel_filters[3][16];
 
 void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth);
 void ff_hevcdsp_init_arm(HEVCDSPContext *c, const int bit_depth);
