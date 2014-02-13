@@ -106,10 +106,10 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     __m128i bshuffleb1_4 = _mm_set_epi8(12,11,11,10,10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4); \
     __m128i bshuffleb1_6 = _mm_set_epi8(14,13,13,12,12,11,11,10,10, 9, 9, 8, 8, 7, 7, 6); \
     __m128i r0           = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters[idx]);\
-    c1 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][0]);        \
-    c2 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][1]);        \
-    c3 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][2]);        \
-    c4 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][3])
+    c1 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][0]);         \
+    c2 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][1]);         \
+    c3 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][2]);         \
+    c4 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][3])
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -386,11 +386,11 @@ void ff_hevc_put_hevc_pel_pixels ## H ## _ ## D ## _sse (                      \
     uint16_t *src       = ((uint16_t*) _src) - 1;                              \
     ptrdiff_t srcstride = _srcstride >> 1
 #define EPEL_FILTER_8(idx)                                                     \
-    f1 = _mm_loadu_si128((__m128i *) ff_hevc_epel_filters_sse[idx][0]);        \
-    f2 = _mm_loadu_si128((__m128i *) ff_hevc_epel_filters_sse[idx][1])
+    f1 = _mm_load_si128((__m128i *) ff_hevc_epel_filters_sse[idx][0]);         \
+    f2 = _mm_load_si128((__m128i *) ff_hevc_epel_filters_sse[idx][1])
 #define EPEL_FILTER_10(idx)                                                    \
-    f1 = _mm_loadu_si128((__m128i *) ff_hevc_epel_filters_sse_10[idx][0]);     \
-    f2 = _mm_loadu_si128((__m128i *) ff_hevc_epel_filters_sse_10[idx][1])
+    f1 = _mm_load_si128((__m128i *) ff_hevc_epel_filters_sse_10[idx][0]);      \
+    f2 = _mm_load_si128((__m128i *) ff_hevc_epel_filters_sse_10[idx][1])
 
 #define EPEL_LOAD_8(src, stride)                                               \
     x1 = _mm_loadl_epi64((__m128i *) &src[x]);                                 \
@@ -574,15 +574,15 @@ void ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _sse (                          \
 // ff_hevc_put_hevc_qpel_hX_X_sse
 ////////////////////////////////////////////////////////////////////////////////
 #define QPEL_FILTER_8(idx)                                                     \
-    c1 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][0]);        \
-    c2 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][1]);        \
-    c3 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][2]);        \
-    c4 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][3])
+    c1 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][0]);         \
+    c2 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][1]);         \
+    c3 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][2]);         \
+    c4 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[idx][3])
 #define QPEL_FILTER_10(idx)                                                    \
-    c1 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][0]);     \
-    c2 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][1]);     \
-    c3 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][2]);     \
-    c4 = _mm_loadu_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][3])
+    c1 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][0]);      \
+    c2 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][1]);      \
+    c3 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][2]);      \
+    c4 = _mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse_10[idx][3])
 
 #define QPEL_LOAD_LO4_8(src, srcstride)                                        \
     x1 = _mm_loadl_epi64((__m128i *) &src[x - 3 * srcstride]);                 \
