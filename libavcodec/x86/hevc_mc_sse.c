@@ -195,10 +195,10 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
 
 #define WEIGHTED_INIT_0_8()                                                    \
     const int dststride = _dststride;                                          \
-    uint8_t *dst = (uint8_t *) _dst;
+    uint8_t *dst = (uint8_t *) _dst
 
 #define WEIGHTED_INIT_0_10()                                                   \
-    const int dststride = _dststride / 2;                                      \
+    const int dststride = _dststride >> 1;                                     \
     uint16_t *dst = (uint16_t *) _dst
 
 #define WEIGHTED_INIT_1(H, D)                                                  \
@@ -206,7 +206,8 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     const __m128i add   = _mm_set1_epi32(olxFlag << (D - 8));                  \
     const __m128i add2  = _mm_set1_epi32(1 << (shift2-1));                     \
     const __m128i m1    = _mm_set1_epi16(wlxFlag);                             \
-    __m128i s1, s2, s3
+    __m128i s1, s2, s3;                                                        \
+    WEIGHTED_INIT_0_ ## D()
 
 #define WEIGHTED_INIT_2(H, D)                                                  \
     const int shift2 = 14 + 1 - D;                                             \
@@ -221,7 +222,8 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     const __m128i m1 = _mm_set1_epi16(wlxFlag);                                \
     const __m128i m2 = _mm_set1_epi16(wl1Flag);                                \
     const __m128i m3 = _mm_set1_epi32((o0 + o1 + 1) << log2Wd);                \
-    __m128i s1, s2, s3, s4, s5, s6
+    __m128i s1, s2, s3, s4, s5, s6;                                            \
+    WEIGHTED_INIT_0_ ## D()
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -231,7 +233,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     reg1 = _mm_srai_epi16(_mm_adds_epi16(reg1, m1), shift2)
 
 #define WEIGHTED_COMPUTE_0_10(reg1)                                            \
-    reg1 = _mm_srai_epi16(_mm_adds_epi16(reg1, m1), shift2);                   \
+    WEIGHTED_COMPUTE_0_8(reg1);                                                \
     reg1 = _mm_max_epi16(reg1, _mm_setzero_si128());                           \
     reg1 = _mm_min_epi16(reg1, _mm_set1_epi16(0x03ff))
 
@@ -245,7 +247,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     WEIGHTED_COMPUTE_0_ ## D(r1);                                              \
     WEIGHTED_COMPUTE_0_ ## D(r2)
 
-#define WEIGHTED_COMPUTE_1(reg1)                                               \
+#define WEIGHTED_COMPUTE_1_8(reg1)                                             \
     s1   = _mm_mullo_epi16(reg1, m1);                                          \
     s2   = _mm_mulhi_epi16(reg1, m1);                                          \
     s3   = _mm_unpackhi_epi16(s1, s2);                                         \
@@ -255,42 +257,29 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     reg1 = _mm_add_epi32(reg1, add);                                           \
     s3   = _mm_add_epi32(s3  , add);                                           \
     reg1 = _mm_packus_epi32(reg1, s3)
-
 #define WEIGHTED_COMPUTE_1_10(reg1)                                            \
-    s1   = _mm_mullo_epi16(reg1, m1);                                          \
-    s2   = _mm_mulhi_epi16(reg1, m1);                                          \
-    s3   = _mm_unpackhi_epi16(s1, s2);                                         \
-    reg1 = _mm_unpacklo_epi16(s1, s2);                                         \
-    reg1 = _mm_srai_epi32(_mm_add_epi32(reg1, add2), shift2);                  \
-    s3   = _mm_srai_epi32(_mm_add_epi32(s3  , add2), shift2);                  \
-    reg1 = _mm_add_epi32(reg1, add);                                           \
+    WEIGHTED_COMPUTE_1_8(reg1);                                                \
     reg1 = _mm_max_epi16(reg1, _mm_setzero_si128());                           \
-    reg1 = _mm_min_epi16(reg1, _mm_set1_epi16(0x03ff));                        \
-    s3   = _mm_add_epi32(s3  , add);                                           \
-    s3   = _mm_max_epi16(s3, _mm_setzero_si128());                             \
-    s3   = _mm_min_epi16(s3, _mm_set1_epi16(0x03ff));                          \
-    reg1 = _mm_packus_epi32(reg1, s3)
+    reg1 = _mm_min_epi16(reg1, _mm_set1_epi16(0x03ff))
 
-#define WEIGHTED_COMPUTE2_1()                                                  \
-    WEIGHTED_COMPUTE_1(r1)
-#define WEIGHTED_COMPUTE4_1()                                                  \
-    WEIGHTED_COMPUTE_1(r1)
-#define WEIGHTED_COMPUTE4_1()                                                  \
-    WEIGHTED_COMPUTE_1(r1)
-#define WEIGHTED_COMPUTE8_1()                                                  \
-    WEIGHTED_COMPUTE_1(r1)
-#define WEIGHTED_COMPUTE16_1()                                                 \
-    WEIGHTED_COMPUTE_1(r1);                                                    \
-    WEIGHTED_COMPUTE_1(r2)
+#define WEIGHTED_COMPUTE2_1(D)                                                 \
+    WEIGHTED_COMPUTE_1_ ## D(r1)
+#define WEIGHTED_COMPUTE4_1(D)                                                 \
+    WEIGHTED_COMPUTE_1_ ## D(r1)
+#define WEIGHTED_COMPUTE4_1(D)                                                 \
+    WEIGHTED_COMPUTE_1_ ## D(r1)
+#define WEIGHTED_COMPUTE8_1(D)                                                 \
+    WEIGHTED_COMPUTE_1_ ## D(r1)
+#define WEIGHTED_COMPUTE16_1(D)                                                \
+    WEIGHTED_COMPUTE_1_ ## D(r1);                                              \
+    WEIGHTED_COMPUTE_1_ ## D(r2)
 
 #define WEIGHTED_COMPUTE_2_8(reg1, reg2)                                       \
     reg1 = _mm_adds_epi16(reg1, m1);                                           \
     reg1 = _mm_adds_epi16(reg1, reg2);                                         \
     reg2 = _mm_srai_epi16(reg1, shift2)
 #define WEIGHTED_COMPUTE_2_10(reg1, reg2)                                      \
-    reg1 = _mm_adds_epi16(reg1, m1);                                           \
-    reg1 = _mm_adds_epi16(reg1, reg2);                                         \
-    reg2 = _mm_srai_epi16(reg1, shift2);                                       \
+    WEIGHTED_COMPUTE_2_8(reg1, reg2);                                          \
     reg2 = _mm_max_epi16(reg2, _mm_setzero_si128());                           \
     reg2 = _mm_min_epi16(reg2, _mm_set1_epi16(0x03ff))
 
@@ -308,7 +297,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     WEIGHTED_COMPUTE_2_ ## D(r3, r1);                                          \
     WEIGHTED_COMPUTE_2_ ## D(r4, r2)
 
-#define WEIGHTED_COMPUTE_3(reg1, reg2)                                         \
+#define WEIGHTED_COMPUTE_3_8(reg1, reg2)                                       \
     s1   = _mm_mullo_epi16(reg1, m1);                                          \
     s2   = _mm_mulhi_epi16(reg1, m1);                                          \
     s3   = _mm_mullo_epi16(reg2, m2);                                          \
@@ -322,19 +311,24 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
     reg1 = _mm_srai_epi32(_mm_add_epi32(reg1, m3), shift2);                    \
     reg2 = _mm_srai_epi32(_mm_add_epi32(reg2, m3), shift2);                    \
     reg2 = _mm_packus_epi32(reg2, reg1)
-#define WEIGHTED_COMPUTE2_3()                                                  \
+#define WEIGHTED_COMPUTE_3_10(reg1, reg2)                                      \
+    WEIGHTED_COMPUTE_3_8(reg1, reg2);                                          \
+    reg2 = _mm_max_epi16(reg2, _mm_setzero_si128());                           \
+    reg2 = _mm_min_epi16(reg2, _mm_set1_epi16(0x03ff))
+
+#define WEIGHTED_COMPUTE2_3(D)                                                 \
     WEIGHTED_LOAD2_1();                                                        \
-    WEIGHTED_COMPUTE_3(r3, r1)
-#define WEIGHTED_COMPUTE4_3()                                                  \
+    WEIGHTED_COMPUTE_3_ ## D(r3, r1)
+#define WEIGHTED_COMPUTE4_3(D)                                                 \
     WEIGHTED_LOAD4_1();                                                        \
-    WEIGHTED_COMPUTE_3(r3, r1)
-#define WEIGHTED_COMPUTE8_3()                                                  \
+    WEIGHTED_COMPUTE_3_ ## D(r3, r1)
+#define WEIGHTED_COMPUTE8_3(D)                                                 \
     WEIGHTED_LOAD8_1();                                                        \
-    WEIGHTED_COMPUTE_3(r3, r1)
-#define WEIGHTED_COMPUTE16_3()                                                 \
+    WEIGHTED_COMPUTE_3_ ## D(r3, r1)
+#define WEIGHTED_COMPUTE16_3(D)                                                \
     WEIGHTED_LOAD16_1();                                                       \
-    WEIGHTED_COMPUTE_3(r3, r1);                                                \
-    WEIGHTED_COMPUTE_3(r4, r2)
+    WEIGHTED_COMPUTE_3_ ## D(r3, r1);                                          \
+    WEIGHTED_COMPUTE_3_ ## D(r4, r2)
 
 ////////////////////////////////////////////////////////////////////////////////
 // ff_hevc_put_hevc_mc_pixelsX_X_sse
@@ -909,17 +903,16 @@ PUT_WEIGHTED_PRED_AVG(8, 10)
 void ff_hevc_weighted_pred ## H ## _ ## D ##_sse(                              \
                                     uint8_t denom,                             \
                                     int16_t wlxFlag, int16_t olxFlag,          \
-                                    uint8_t *dst, ptrdiff_t dststride,         \
+                                    uint8_t *_dst, ptrdiff_t _dststride,       \
                                     int16_t *src, ptrdiff_t srcstride,         \
                                     int width, int height) {                   \
     int x, y;                                                                  \
     __m128i r1, r2;                                                            \
     WEIGHTED_INIT_1(H, D);                                                     \
     for (y = 0; y < height; y++) {                                             \
-        _mm_prefetch((char *)src, _MM_HINT_T0);                                \
         for (x = 0; x < width; x += H) {                                       \
             WEIGHTED_LOAD ## H();                                              \
-            WEIGHTED_COMPUTE ## H ## _1();                                     \
+            WEIGHTED_COMPUTE ## H ## _1(D);                                    \
             WEIGHTED_STORE ## H ## _ ## D();                                   \
         }                                                                      \
         dst += dststride;                                                      \
@@ -943,7 +936,7 @@ void ff_hevc_weighted_pred_avg ## H ## _ ## D ##_sse(                          \
                                     uint8_t denom,                             \
                                     int16_t wlxFlag, int16_t wl1Flag,          \
                                     int16_t olxFlag, int16_t ol1Flag,          \
-                                    uint8_t *dst, ptrdiff_t dststride,         \
+                                    uint8_t *_dst, ptrdiff_t _dststride,       \
                                     int16_t *src1, int16_t *src,               \
                                     ptrdiff_t srcstride,                       \
                                     int width, int height) {                   \
@@ -951,10 +944,9 @@ void ff_hevc_weighted_pred_avg ## H ## _ ## D ##_sse(                          \
     __m128i r1, r2, r3, r4;                                                    \
     WEIGHTED_INIT_3(H, D);                                                     \
     for (y = 0; y < height; y++) {                                             \
-        _mm_prefetch((char *)src, _MM_HINT_T0);                                \
         for (x = 0; x < width; x += H) {                                       \
             WEIGHTED_LOAD ## H();                                              \
-            WEIGHTED_COMPUTE ## H ## _3();                                     \
+            WEIGHTED_COMPUTE ## H ## _3(D);                                    \
             WEIGHTED_STORE ## H ## _ ## D();                                   \
         }                                                                      \
         dst  += dststride;                                                     \
@@ -970,6 +962,7 @@ WEIGHTED_PRED_AVG(16, 8)
 WEIGHTED_PRED_AVG(2, 10)
 WEIGHTED_PRED_AVG(4, 10)
 WEIGHTED_PRED_AVG(8, 10)
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
