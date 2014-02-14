@@ -1026,3 +1026,94 @@ PUT_HEVC_QPEL_HV(  8,  8)
 PUT_HEVC_QPEL_HV_10(  4, 10)
 PUT_HEVC_QPEL_HV_10(  8, 10)
 
+
+#if 0
+void ff_hevc_put_hevc_qpel_hv8_8_sse (
+        int16_t *_dst, ptrdiff_t dststride,
+        uint8_t *_src, ptrdiff_t _srcstride,
+        int width, int height,
+        int mx, int my) {
+    int x, y;
+    int shift;
+    __m128i x0, x1, x2, x3, x4;
+    __m128i y1, y2, y3;
+    __m128i r1, r2, r3, r4, r5, r6, r7;
+    __m128i t1, t2, t3;
+    uint8_t  *src, *src2;
+    int16_t  *dst;
+    ptrdiff_t srcstride = _srcstride;
+    DECLARE_ALIGNED(16, const uint8_t, bshuffleb1[4][16]) = {
+        {0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8},
+        {2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9,10},
+        {4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9,10,10,11,11,12},
+        {6, 7, 7, 8, 8, 9, 9,10,10,11,11,12,12,13,13,14}
+    };
+    src    = (uint8_t*) _src - 3 * srcstride;
+    src2   = src;
+    dst    = _dst;
+    shift  = 14 - 8;
+
+#define QPEL_H(dst, offset)                                                    \
+    x1  = _mm_loadu_si128((__m128i *) &src[x - 3 + offset]);                   \
+    x4  = _mm_shuffle_epi8(x1,_mm_load_si128((__m128i *) bshuffleb1[3]));      \
+    x3  = _mm_shuffle_epi8(x1,_mm_load_si128((__m128i *) bshuffleb1[2]));      \
+    x2  = _mm_shuffle_epi8(x1,_mm_load_si128((__m128i *) bshuffleb1[1]));      \
+    x1  = _mm_shuffle_epi8(x1,_mm_load_si128((__m128i *) bshuffleb1[0]));      \
+    x4  = _mm_maddubs_epi16(x4,_mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[mx - 1][3]));\
+    x3  = _mm_maddubs_epi16(x3,_mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[mx - 1][2]));\
+    x2  = _mm_maddubs_epi16(x2,_mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[mx - 1][1]));\
+    x1  = _mm_maddubs_epi16(x1,_mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse[mx - 1][0]));\
+    x3  = _mm_add_epi16(x3, x4);                                               \
+    x1  = _mm_add_epi16(x1, x2);                                               \
+    dst = _mm_add_epi16(x1, x3)
+
+#define QPEL_V(dst1, dst2, src1, src2, f1)                                     \
+    dst2 = _mm_unpackhi_epi16(src1, src2);                                     \
+    dst1 = _mm_unpacklo_epi16(src1, src2);                                     \
+    dst2 = _mm_madd_epi16(dst2,_mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse_10[my - 1][f1]));\
+    dst1 = _mm_madd_epi16(dst1,_mm_load_si128((__m128i *) ff_hevc_qpel_filters_sse_10[my - 1][f1]))
+
+    for (x = 0; x < width; x += 8) {
+        QPEL_H(r1,             0);
+        QPEL_H(r2,     srcstride);
+        QPEL_H(r3, 2 * srcstride);
+        QPEL_H(r4, 3 * srcstride);
+        QPEL_H(r5, 4 * srcstride);
+        QPEL_H(r6, 5 * srcstride);
+        QPEL_H(r7, 6 * srcstride);
+
+        for (y = 0; y < height; y++) {
+            QPEL_H(x1, 7 * srcstride);
+
+            QPEL_V(y1, t1, r1, r2, 0);
+            QPEL_V(y2, t2, r3, r4, 1);
+            t1 = _mm_add_epi32(t1, t2);
+            y1 = _mm_add_epi32(y1, y2);
+            QPEL_V(y2, t2, r5, r6, 2);
+            QPEL_V(y3, t3, r7, x1, 3);
+            t2 = _mm_add_epi32(t2, t3);
+            y2 = _mm_add_epi32(y2, y3);
+
+            t1 = _mm_add_epi32(t1, t2);
+            y1 = _mm_add_epi32(y1, y2);
+            t1 = _mm_srai_epi32(t1, shift);
+            y1 = _mm_srai_epi32(y1, shift);
+            t1 = _mm_packs_epi32(y1, t1);
+
+            _mm_store_si128((__m128i *) &dst[x], t1);
+            src += srcstride;
+            dst += dststride;
+
+            r1 = r2;
+            r2 = r3;
+            r3 = r4;
+            r4 = r5;
+            r5 = r6;
+            r6 = r7;
+            r7 = x1;
+        }
+        src = src2;
+        dst = _dst;
+    }
+}
+#endif
