@@ -28,7 +28,6 @@
 #include "cabac_functions.h"
 #include "golomb.h"
 #include "hevc.h"
-
 #include "bit_depth_template.c"
 
 #define LUMA 0
@@ -605,7 +604,6 @@ void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
                 int y_tu      = (y0 + i) >> log2_min_tu_size;
                 MvField *left = &tab_mvf[y_pu * min_pu_width + xp_pu];
                 MvField *curr = &tab_mvf[y_pu * min_pu_width + xq_pu];
-
                 uint8_t left_cbf_luma = s->cbf_luma[y_tu * min_tu_width + xp_tu];
                 uint8_t curr_cbf_luma = s->cbf_luma[y_tu * min_tu_width + xq_tu];
 
