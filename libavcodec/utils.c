@@ -1312,8 +1312,10 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
             goto free_and_end;
         }
     }
-    if (!HAVE_THREADS && !(codec->capabilities & CODEC_CAP_AUTO_THREADS))
-        avctx->thread_count = 1;
+    if (!HAVE_THREADS && !(codec->capabilities & CODEC_CAP_AUTO_THREADS)) {
+        avctx->thread_count       = 1;
+        avctx->thread_count_frame = 1;
+    }
 
     if (avctx->codec->max_lowres < avctx->lowres || avctx->lowres < 0) {
         av_log(avctx, AV_LOG_ERROR, "The maximum value for lowres supported by the decoder is %d\n",
@@ -2591,7 +2593,7 @@ av_cold int avcodec_close(AVCodecContext *avctx)
             ff_frame_thread_encoder_free(avctx);
             ff_lock_avcodec(avctx);
         }
-        if (HAVE_THREADS && avctx->internal->thread_ctx)
+        if (HAVE_THREADS && (avctx->internal->thread_ctx || avctx->internal->thread_ctx_frame))
             ff_thread_free(avctx);
         if (avctx->codec && avctx->codec->close)
             avctx->codec->close(avctx);

@@ -288,5 +288,6 @@ int ff_alloc_entries(AVCodecContext *avctx, int count)
 void ff_reset_entries(AVCodecContext *avctx)
 {
     SliceThreadContext *p = avctx->internal->thread_ctx;
-    memset(p->entries, 0, p->entries_count * sizeof(int));
+    if (p)
+        memset(p->entries, 0, p->entries_count * sizeof(int));
 }

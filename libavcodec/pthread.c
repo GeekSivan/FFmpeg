@@ -45,19 +45,33 @@
  */
 static void validate_thread_parameters(AVCodecContext *avctx)
 {
-    int frame_threading_supported = (avctx->codec->capabilities & CODEC_CAP_FRAME_THREADS)
-                                && !(avctx->flags & CODEC_FLAG_TRUNCATED)
-                                && !(avctx->flags & CODEC_FLAG_LOW_DELAY)
-                                && !(avctx->flags2 & CODEC_FLAG2_CHUNKS);
+    int frame_threading_supported      = (avctx->codec->capabilities & CODEC_CAP_FRAME_THREADS)
+                                        && !(avctx->flags  & CODEC_FLAG_TRUNCATED)
+                                        && !(avctx->flags  & CODEC_FLAG_LOW_DELAY)
+                                        && !(avctx->flags2 & CODEC_FLAG2_CHUNKS  );
+    int slice_threading_supported      = (avctx->codec->capabilities & CODEC_CAP_SLICE_THREADS);
+    int frameslice_threading_supported = slice_threading_supported && frame_threading_supported;
+
     if (avctx->thread_count == 1) {
         avctx->active_thread_type = 0;
-    } else if (frame_threading_supported && (avctx->thread_type & FF_THREAD_FRAME)) {
+        avctx->thread_count_frame = 1;
+    } else if (frame_threading_supported     && (avctx->thread_type & FF_THREAD_FRAME)) {
         avctx->active_thread_type = FF_THREAD_FRAME;
-    } else if (avctx->codec->capabilities & CODEC_CAP_SLICE_THREADS &&
-               avctx->thread_type & FF_THREAD_SLICE) {
+        avctx->thread_count_frame = avctx->thread_count;
+        avctx->thread_count       = 1;
+    } else if (slice_threading_supported     && (avctx->thread_type & FF_THREAD_SLICE)) {
         avctx->active_thread_type = FF_THREAD_SLICE;
+        avctx->thread_count_frame = 1;
+    } else if(frameslice_threading_supported && (avctx->thread_type & FF_THREAD_FRAME_SLICE)) {
+        avctx->thread_count        = avctx->thread_count ? avctx->thread_count : av_cpu_count()>>1;
+        avctx->thread_count_frame  = FFMIN((av_cpu_count() / avctx->thread_count) + 1, MAX_AUTO_THREADS);
+        if (avctx->thread_count_frame > 1)
+            avctx->active_thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
+        else
+            avctx->active_thread_type  = FF_THREAD_SLICE;
     } else if (!(avctx->codec->capabilities & CODEC_CAP_AUTO_THREADS)) {
         avctx->thread_count       = 1;
+        avctx->thread_count_frame = 1;
         avctx->active_thread_type = 0;
     }
 
@@ -69,20 +83,25 @@ static void validate_thread_parameters(AVCodecContext *avctx)
 
 int ff_thread_init(AVCodecContext *avctx)
 {
+    int ret = 0;
+
     validate_thread_parameters(avctx);
+    if (avctx->active_thread_type&FF_THREAD_FRAME)
+        ret = ff_frame_thread_init(avctx);
+    else if (avctx->active_thread_type&FF_THREAD_SLICE)
+        ret = ff_slice_thread_init(avctx);
+    av_log(avctx, AV_LOG_INFO, "nb threads_frame = %d, nb threads_slice %d, thread_type = %s%s \n",
+           avctx->thread_count_frame, avctx->thread_count,
+           (avctx->active_thread_type == 0 ? "null" : (avctx->active_thread_type & FF_THREAD_FRAME ? "frame" : "")),
+           (avctx->active_thread_type & FF_THREAD_SLICE ? "slice" : ""));
 
-    if (avctx->active_thread_type&FF_THREAD_SLICE)
-        return ff_slice_thread_init(avctx);
-    else if (avctx->active_thread_type&FF_THREAD_FRAME)
-        return ff_frame_thread_init(avctx);
-
-    return 0;
+    return ret;
 }
 
 void ff_thread_free(AVCodecContext *avctx)
 {
     if (avctx->active_thread_type&FF_THREAD_FRAME)
-        ff_frame_thread_free(avctx, avctx->thread_count);
+        ff_frame_thread_free(avctx, avctx->thread_count_frame);
     else
         ff_slice_thread_free(avctx);
 }

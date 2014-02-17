@@ -2867,6 +2867,11 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
     ff_dsputil_init(&s->dsp, avctx);
 
     s->context_initialized = 1;
+    s->threads_type        = avctx->active_thread_type;
+    if(avctx->active_thread_type & FF_THREAD_SLICE)
+        s->threads_number  = avctx->thread_count;
+    else
+        s->threads_number  = 1;
 
     return 0;
 
@@ -3026,11 +3031,6 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
     s->enable_parallel_tiles = 0;
     s->picture_struct = 0;
 
-    if(avctx->active_thread_type & FF_THREAD_SLICE)
-        s->threads_number = avctx->thread_count;
-    else
-        s->threads_number = 1;
-
     if (avctx->extradata_size > 0 && avctx->extradata) {
         ret = hevc_decode_extradata(s);
         if (ret < 0) {
@@ -3038,12 +3038,6 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
             return ret;
         }
     }
-
-    if((avctx->active_thread_type & FF_THREAD_FRAME) && avctx->thread_count > 1)
-            s->threads_type = FF_THREAD_FRAME;
-        else
-            s->threads_type = FF_THREAD_SLICE;
-
     return 0;
 }
 

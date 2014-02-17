@@ -116,6 +116,8 @@ typedef struct AVCodecInternal {
      * Number of audio samples to skip at the start of the next decoded frame
      */
     int skip_samples;
+
+    void *thread_ctx_frame;
 } AVCodecInternal;
 
 struct AVCodecDefault {

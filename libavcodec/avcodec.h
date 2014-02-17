@@ -2683,8 +2683,9 @@ typedef struct AVCodecContext {
      * - decoding: Set by user, otherwise the default is used.
      */
     int thread_type;
-#define FF_THREAD_FRAME   1 ///< Decode more than one frame at once
-#define FF_THREAD_SLICE   2 ///< Decode more than one part of a single frame at once
+#define FF_THREAD_FRAME         1 ///< Decode more than one frame at once
+#define FF_THREAD_SLICE         2 ///< Decode more than one part of a single frame at once
+#define FF_THREAD_FRAME_SLICE   4 ///< Decode more than one part of a single frame at once at more than one frame at once
 
     /**
      * Which multithreading methods are in use by the codec.
@@ -2988,6 +2989,19 @@ typedef struct AVCodecContext {
 #define FF_DEBUG_VIS_MV_B_FOR  0x00000002 //visualize forward predicted MVs of B frames
 #define FF_DEBUG_VIS_MV_B_BACK 0x00000004 //visualize backward predicted MVs of B frames
 #endif
+    /**
+     * thread count for opaque2
+     * is used to decide how many independent tasks should be passed to execute()
+     * - encoding: Set by user.
+     * - decoding: Set by user.
+     */
+    int thread_count_frame;
+
+    /**
+     *  The decoded picture at layer n for SHVC decoder
+     *  this frame is used by the layer (n+1) as refernce frame for inter-layer predictions 
+     */
+    void* BL_frame;
 } AVCodecContext;
 
 AVRational av_codec_get_pkt_timebase         (const AVCodecContext *avctx);
