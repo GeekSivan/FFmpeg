@@ -1178,7 +1178,7 @@ static void hevc_await_progress(HEVCContext *s, HEVCFrame *ref,
 {
     int y = (mv->y >> 2) + y0 + height + 9;
 
-    if (s->threads_type == FF_THREAD_FRAME )
+    if (s->threads_type & FF_THREAD_FRAME )
         ff_thread_await_progress(&ref->tf, y, 0);
 }
 
@@ -2251,7 +2251,7 @@ static int hevc_frame_start(HEVCContext *s)
     return 0;
 
 fail:
-    if (s->ref && s->threads_type == FF_THREAD_FRAME)
+    if (s->ref && (s->threads_type & FF_THREAD_FRAME))
         ff_thread_report_progress(&s->ref->tf, INT_MAX, 0);
     s->ref = NULL;
     return ret;
@@ -2612,7 +2612,7 @@ static int decode_nal_units(HEVCContext *s, const uint8_t *buf, int length)
     }
 
 fail:
-    if (s->ref && s->threads_type == FF_THREAD_FRAME)
+    if (s->ref && (s->threads_type & FF_THREAD_FRAME))
         ff_thread_report_progress(&s->ref->tf, INT_MAX, 0);
 
     return ret;
