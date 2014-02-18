@@ -1185,7 +1185,7 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
                            (((x) >> s->sps->hshift[c_idx]) << s->sps->pixel_shift)]
     HEVCLocalContext *lc = s->HEVClc;
     int merge_idx = 0;
-    struct MvField current_mv;
+    struct MvField current_mv = {{{ 0 }}};
 
     int min_pu_width = s->sps->min_pu_width;
 
@@ -1519,6 +1519,12 @@ static int luma_intra_pred_mode(HEVCContext *s, int x0, int y0, int pu_size,
             tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].is_intra     = 1;
             tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].pred_flag[0] = 0;
             tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].pred_flag[1] = 0;
+            tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].ref_idx[0]   = 0;
+            tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].ref_idx[1]   = 0;
+            tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].mv[0].x      = 0;
+            tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].mv[0].y      = 0;
+            tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].mv[1].x      = 0;
+            tab_mvf[(y_pu + j) * min_pu_width + x_pu + i].mv[1].y      = 0;
         }
     }
 
