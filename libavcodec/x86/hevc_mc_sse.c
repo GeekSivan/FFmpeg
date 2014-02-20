@@ -904,6 +904,33 @@ WEIGHTED_PRED_AVG(8, 10)
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+
+
+static PUT_HEVC_EPEL_V(  2, 14)
+static PUT_HEVC_EPEL_V(  4, 14)
+static PUT_HEVC_EPEL_V(  8, 14)
+
+
+
+
+static PUT_HEVC_QPEL_V(  4, 14)
+static PUT_HEVC_QPEL_V(  8, 14)
+
+// ff_hevc_put_hevc_qpel_hX_X_X_sse
+PUT_HEVC_QPEL_H(  4,  8)
+PUT_HEVC_QPEL_H(  8,  8)
+
+PUT_HEVC_QPEL_H_10(  4, 10)
+PUT_HEVC_QPEL_H_10(  8, 10)
+
+// ff_hevc_put_hevc_qpel_hvX_X_sse
+PUT_HEVC_QPEL_HV(  4,  8)
+PUT_HEVC_QPEL_HV(  8,  8)
+
+PUT_HEVC_QPEL_HV(  4, 10)
+PUT_HEVC_QPEL_HV(  8, 10)
+
+#ifndef OPTI_ASM
 // ff_hevc_put_hevc_mc_pixelsX_X_sse
 PUT_HEVC_PEL_PIXELS(  2, 8)
 PUT_HEVC_PEL_PIXELS(  4, 8)
@@ -931,11 +958,6 @@ PUT_HEVC_EPEL_V(  8,  8)
 PUT_HEVC_EPEL_V(  2, 10)
 PUT_HEVC_EPEL_V(  4, 10)
 PUT_HEVC_EPEL_V(  8, 10)
-
-static PUT_HEVC_EPEL_V(  2, 14)
-static PUT_HEVC_EPEL_V(  4, 14)
-static PUT_HEVC_EPEL_V(  8, 14)
-
 // ff_hevc_put_hevc_epel_hvX_X_sse
 PUT_HEVC_EPEL_HV(  2,  8)
 PUT_HEVC_EPEL_HV(  4,  8)
@@ -945,26 +967,10 @@ PUT_HEVC_EPEL_HV(  2, 10)
 PUT_HEVC_EPEL_HV(  4, 10)
 PUT_HEVC_EPEL_HV(  8, 10)
 
-// ff_hevc_put_hevc_qpel_hX_X_X_sse
-PUT_HEVC_QPEL_H(  4,  8)
-PUT_HEVC_QPEL_H(  8,  8)
-
-PUT_HEVC_QPEL_H_10(  4, 10)
-PUT_HEVC_QPEL_H_10(  8, 10)
-
 // ff_hevc_put_hevc_qpel_vX_X_X_sse
 PUT_HEVC_QPEL_V(  4,  8)
 PUT_HEVC_QPEL_V(  8,  8)
 
 PUT_HEVC_QPEL_V(  4, 10)
 PUT_HEVC_QPEL_V(  8, 10)
-
-static PUT_HEVC_QPEL_V(  4, 14)
-static PUT_HEVC_QPEL_V(  8, 14)
-
-// ff_hevc_put_hevc_qpel_hvX_X_sse
-PUT_HEVC_QPEL_HV(  4,  8)
-PUT_HEVC_QPEL_HV(  8,  8)
-
-PUT_HEVC_QPEL_HV(  4, 10)
-PUT_HEVC_QPEL_HV(  8, 10)
+#endif
