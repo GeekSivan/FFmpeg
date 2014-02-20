@@ -15,6 +15,27 @@ libavutil:     2012-10-22
 
 API changes, most recent first:
 
+2014-xx-xx - xxxxxxx - lavu 53.04.0  - opt.h
+  Add AV_OPT_FLAG_EXPORT and AV_OPT_FLAG_READONLY to mark options meant (only)
+  for reading.
+
+2014-xx-xx - xxxxxxx - lavu 53.03.01 - opt.h
+  Deprecate unused AV_OPT_FLAG_METADATA.
+
+2014-02-xx - xxxxxxx - lavd 55.10.100 - avdevice.h
+  Add avdevice_list_devices() and avdevice_free_list_devices()
+
+2014-02-16 - db3c970 - lavf 55.33.100 - avio.h
+  Add avio_find_protocol_name() to find out the name of the protocol that would
+  be selected for a given URL.
+
+2014-02-xx - xxxxxxx - lavu 53.3.0 - frame.h
+  Add AV_FRAME_DATA_DOWNMIX_INFO value to the AVFrameSideDataType enum and
+  downmix_info.h API, which identify downmix-related metadata.
+
+2014-02-11 - 1b05ac2 - lavf 55.32.100 - avformat.h
+  Add av_write_uncoded_frame() and av_interleaved_write_uncoded_frame().
+
 2014-02-04 - 3adb5f8 / d9ae103 - lavf 55.30.100 / 55.11.0 - avformat.h
   Add AVFormatContext.max_interleave_delta for controlling amount of buffering
   when interleaving.
