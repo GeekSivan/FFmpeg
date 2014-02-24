@@ -2111,9 +2111,8 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
     int i, j, res = 0;
 
 
-    ff_alloc_entries(s->avctx, s->sh.num_entry_point_offsets + 1);
-
     if(s->sh.num_entry_point_offsets != 0)   {
+        ff_alloc_entries(s->avctx, s->sh.num_entry_point_offsets + 1);
         offset = (lc->gb.index >> 3);
         for (j = 0, cmpt = 0, startheader = offset + s->sh.entry_point_offset[0]; j < s->skipped_bytes; j++) {
             if (s->skipped_bytes_pos[j] >= offset && s->skipped_bytes_pos[j] < startheader) {
