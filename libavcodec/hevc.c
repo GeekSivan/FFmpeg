@@ -2119,18 +2119,7 @@ static void tiles_filters(HEVCContext *s)
             ff_hevc_hls_filter(s, x0, y0, ctb_size);
 }
 
-static int hls_slice_data(HEVCContext *s)
-{
-    int arg[2];
-    int ret[2];
-
-    arg[0] = 0;
-    arg[1] = 1;
-
-    s->avctx->execute(s->avctx, hls_decode_entry, arg, ret , 1, sizeof(int));
-    return ret[0];
-}
-static int hls_slice_data_wpp(HEVCContext *s, const uint8_t *nal, int length)
+static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
 {
     HEVCLocalContext *lc = s->HEVClc;
     int *ret = av_malloc((s->sh.num_entry_point_offsets + 1) * sizeof(int));
@@ -2139,9 +2128,9 @@ static int hls_slice_data_wpp(HEVCContext *s, const uint8_t *nal, int length)
     int startheader, cmpt = 0;
     int i, j, res = 0;
 
+    ff_alloc_entries(s->avctx, s->sh.num_entry_point_offsets + 1);
 
-    if(s->sh.num_entry_point_offsets != 0)   {
-        ff_alloc_entries(s->avctx, s->sh.num_entry_point_offsets + 1);
+    if (s->threads_number > 1 && s->sh.num_entry_point_offsets > 0) {
         offset = (lc->gb.index >> 3);
         for (j = 0, cmpt = 0, startheader = offset + s->sh.entry_point_offset[0]; j < s->skipped_bytes; j++) {
             if (s->skipped_bytes_pos[j] >= offset && s->skipped_bytes_pos[j] < startheader) {
@@ -2186,13 +2175,10 @@ static int hls_slice_data_wpp(HEVCContext *s, const uint8_t *nal, int length)
     if (s->pps->entropy_coding_sync_enabled_flag && s->threads_number!=1) {
         s->avctx->execute2(s->avctx, (void *) hls_decode_entry_wpp  , arg, ret, s->sh.num_entry_point_offsets + 1);
         res = ret[s->sh.num_entry_point_offsets];
-    } else if (s->pps->tiles_enabled_flag        && s->threads_number!=1) {
 #if 0
+    } else if (s->pps->tiles_enabled_flag        && s->threads_number!=1) {
         s->avctx->execute2(s->avctx, (void *) hls_decode_entry_tiles, arg, ret, s->sh.num_entry_point_offsets + 1);
         res = ret[s->sh.num_entry_point_offsets];
-#else
-        s->avctx->execute2(s->avctx, (void *) hls_decode_entry_tiles, arg, ret, 1);
-        res = ret[0];
 #endif
     } else {
         s->avctx->execute(s->avctx, hls_decode_entry, arg, ret , 1, sizeof(int));
@@ -2418,10 +2404,7 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
             }
         }
 
-        if (s->threads_number > 1 && s->sh.num_entry_point_offsets > 0 && !s->pps->tiles_enabled_flag)
-            ctb_addr_ts = hls_slice_data_wpp(s, nal, length);
-        else
-            ctb_addr_ts = hls_slice_data(s);
+        ctb_addr_ts = hls_slice_data(s, nal, length);
 
         if (ctb_addr_ts >= (s->sps->ctb_width * s->sps->ctb_height)) {
             s->is_decoded = 1;
