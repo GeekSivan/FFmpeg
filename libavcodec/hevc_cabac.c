@@ -567,10 +567,10 @@ void ff_hevc_cabac_init(HEVCContext *s, int ctb_addr_ts)
     } else {
         if (s->pps->tiles_enabled_flag &&
             s->pps->tile_id[ctb_addr_ts] != s->pps->tile_id[ctb_addr_ts - 1]) {
-            if (s->threads_number == 1)
+//            if (s->threads_number == 1)
                 cabac_reinit(s->HEVClc);
-            else
-                cabac_init_decoder(s);
+//            else
+//                cabac_init_decoder(s);
             cabac_init_state(s);
         }
         if (s->pps->entropy_coding_sync_enabled_flag) {
