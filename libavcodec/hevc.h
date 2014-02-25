@@ -395,6 +395,7 @@ typedef struct ScalingList {
 typedef struct HEVCSPS {
     unsigned vps_id;
     int chroma_format_idc;
+    int chroma_array_type;
     uint8_t separate_colour_plane_flag;
 
     ///< output (i.e. cropped) values
@@ -657,7 +658,7 @@ typedef struct PredictionUnit {
     uint8_t intra_pred_mode[4];
     Mv mvd;
     uint8_t merge_flag;
-    uint8_t intra_pred_mode_c;
+    uint8_t intra_pred_mode_c[4];
 } PredictionUnit;
 
 typedef struct TransformTree {
@@ -674,6 +675,7 @@ typedef struct TransformUnit {
 
     // Inferred parameters;
     int cur_intra_pred_mode;
+    int cur_intra_pred_mode_c;
     uint8_t is_cu_qp_delta_coded;
 } TransformUnit;
 

@@ -662,14 +662,19 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
     }
 
     sps->chroma_format_idc = get_ue_golomb_long(gb);
-    if (sps->chroma_format_idc != 1) {
-        avpriv_report_missing_feature(s->avctx, "chroma_format_idc != 1\n");
+    if (!(sps->chroma_format_idc == 1 || sps->chroma_format_idc == 2 || sps->chroma_format_idc == 3)) {
+        avpriv_report_missing_feature(s->avctx, "chroma_format_idc != {1, 2, 3}\n");
         ret = AVERROR_PATCHWELCOME;
         goto err;
     }
 
     if (sps->chroma_format_idc == 3)
         sps->separate_colour_plane_flag = get_bits1(gb);
+
+    if (sps->separate_colour_plane_flag)
+        sps->chroma_array_type = 0;
+    else
+        sps->chroma_array_type = sps->chroma_format_idc;
 
     sps->width  = get_ue_golomb_long(gb);
     sps->height = get_ue_golomb_long(gb);
@@ -712,21 +717,26 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
         goto err;
     }
 
-    if (sps->chroma_format_idc == 1) {
-        switch (sps->bit_depth) {
-        case 8:  sps->pix_fmt = AV_PIX_FMT_YUV420P;   break;
-        case 9:  sps->pix_fmt = AV_PIX_FMT_YUV420P9;  break;
-        case 10: sps->pix_fmt = AV_PIX_FMT_YUV420P10; break;
+    switch (sps->bit_depth) {
+        case 8:
+            if (sps->chroma_format_idc == 1) sps->pix_fmt = AV_PIX_FMT_YUV420P;
+            if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P;
+            if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P;
+            break;
+        case 9:
+            if (sps->chroma_format_idc == 1) sps->pix_fmt = AV_PIX_FMT_YUV420P9;
+            if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P9;
+            if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P9;
+            break;
+        case 10:
+            if (sps->chroma_format_idc == 1) sps->pix_fmt = AV_PIX_FMT_YUV420P10;
+            if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P10;
+            if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P10;
+            break;
         default:
-            av_log(s->avctx, AV_LOG_ERROR, "Unsupported bit depth: %d\n",
-                   sps->bit_depth);
-            ret = AVERROR_PATCHWELCOME;
-            goto err;
-        }
-    } else {
-        av_log(s->avctx, AV_LOG_ERROR,
-               "non-4:2:0 support is currently unspecified.\n");
-        return AVERROR_PATCHWELCOME;
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "4:2:0, 4:2:2, 4:4:4 supports are currently specified.\n");
+            return AVERROR_PATCHWELCOME;
     }
 
     desc = av_pix_fmt_desc_get(sps->pix_fmt);
@@ -936,6 +946,12 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
         goto err;
     }
 
+    av_log(s->avctx, AV_LOG_DEBUG,
+           "Parsed SPS: id %d; coded wxh: %dx%d; "
+           "cropped wxh: %dx%d; pix_fmt: %s.\n",
+           sps_id, sps->width, sps->height,
+           sps->output_width, sps->output_height,
+           av_get_pix_fmt_name(sps->pix_fmt));
     if (s->avctx->debug & FF_DEBUG_BITSTREAM) {
         av_log(s->avctx, AV_LOG_DEBUG,
                "Parsed SPS: id %d; coded wxh: %dx%d; "
