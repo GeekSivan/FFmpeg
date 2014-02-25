@@ -1981,8 +1981,12 @@ static int hls_decode_entry_wpp(AVCodecContext *avctxt, void *input_ctb_row, int
 
         ff_hevc_cabac_init(s, ctb_addr_ts);
         hls_sao_param(s, x_ctb >> s->sps->log2_ctb_size, y_ctb >> s->sps->log2_ctb_size);
-        more_data = hls_coding_quadtree(s, x_ctb, y_ctb, s->sps->log2_ctb_size, 0);
 
+        s->deblock[ctb_addr_rs].beta_offset = s->sh.beta_offset;
+        s->deblock[ctb_addr_rs].tc_offset   = s->sh.tc_offset;
+        s->filter_slice_edges[ctb_addr_rs]  = s->sh.slice_loop_filter_across_slices_enabled_flag;
+
+        more_data = hls_coding_quadtree(s, x_ctb, y_ctb, s->sps->log2_ctb_size, 0);
         if (more_data < 0) {
             s->tab_slice_address[ctb_addr_rs] = -1;
             return more_data;
@@ -2021,6 +2025,7 @@ static int hls_decode_entry_tiles(AVCodecContext *avctxt, int *input_ctb_row, in
 {
     HEVCContext *s = avctxt->priv_data;
     HEVCLocalContext *lc;
+    int ctb_size    = 1 << s->sps->log2_ctb_size;
     int x_ctb = 0, y_ctb = 0;
     int more_data  = 1;
     int *ctb_row_p  = input_ctb_row;
@@ -2029,36 +2034,49 @@ static int hls_decode_entry_tiles(AVCodecContext *avctxt, int *input_ctb_row, in
     int ctb_addr_rs = ctb_row == 0 ? s->sh.slice_ctb_addr_rs : s->pps->tile_pos_rs[tile_id];
     int ctb_addr_ts = s->pps->ctb_addr_rs_to_ts[ctb_addr_rs];
     int ret;
-    
+
     s = s->sList[self_id];
     lc = s->HEVClc;
 
+#if 0
     if(ctb_row) {
-        ret = init_get_bits(&lc->gb, s->data+s->sh.offset[ctb_row - 1], s->sh.size[ctb_row - 1] * 8);
+        ret = init_get_bits8(&lc->gb, s->data + s->sh.offset[ctb_row - 1], s->sh.size[ctb_row - 1]);
         if (ret < 0)
             return ret;
     }
+#endif
     while (more_data) {
-        int ctb_addr_rs = s->pps->ctb_addr_ts_to_rs[ctb_addr_ts];
 
-        x_ctb = (ctb_addr_rs % s->sps->ctb_width) << s->sps->log2_ctb_size;
-        y_ctb = (ctb_addr_rs / s->sps->ctb_width) << s->sps->log2_ctb_size;
+        ctb_addr_rs = s->pps->ctb_addr_ts_to_rs[ctb_addr_ts];
+        x_ctb = (ctb_addr_rs % ((s->sps->width + ctb_size - 1) >> s->sps->log2_ctb_size)) << s->sps->log2_ctb_size;
+        y_ctb = (ctb_addr_rs / ((s->sps->width + ctb_size - 1) >> s->sps->log2_ctb_size)) << s->sps->log2_ctb_size;
 
-        hls_decode_neighbour(s,x_ctb, y_ctb, ctb_addr_ts);
+        hls_decode_neighbour(s, x_ctb, y_ctb, ctb_addr_ts);
         ff_hevc_cabac_init(s, ctb_addr_ts);
         hls_sao_param(s, x_ctb >> s->sps->log2_ctb_size, y_ctb >> s->sps->log2_ctb_size);
 
         s->deblock[ctb_addr_rs].beta_offset = s->sh.beta_offset;
-        s->deblock[ctb_addr_rs].tc_offset = s->sh.tc_offset;
+        s->deblock[ctb_addr_rs].tc_offset   = s->sh.tc_offset;
         s->filter_slice_edges[ctb_addr_rs]  = s->sh.slice_loop_filter_across_slices_enabled_flag;
 
         more_data = hls_coding_quadtree(s, x_ctb, y_ctb, s->sps->log2_ctb_size, 0);
+        if (more_data < 0) {
+            s->tab_slice_address[ctb_addr_rs] = -1;
+            return more_data;
+        }
 
         ctb_addr_ts++;
-
-        if (s->pps->tiles_enabled_flag && (s->pps->tile_id[ctb_addr_ts] != s->pps->tile_id[ctb_addr_ts-1]))
-            break;
-        
+        if (x_ctb + ctb_size < s->sps->width || y_ctb + ctb_size < s->sps->height)
+            if (s->pps->tile_id[ctb_addr_ts] != s->pps->tile_id[ctb_addr_ts-1]) {
+#if 0
+                return ctb_addr_ts;
+#else
+                ctb_row++;
+                ret = init_get_bits8(&lc->gb, s->data + s->sh.offset[ctb_row - 1], s->sh.size[ctb_row - 1]);
+                if (ret < 0)
+                    return ret;
+#endif
+            }
     }
     return ctb_addr_ts;
 }
@@ -2154,14 +2172,21 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
         ret[i] = 0;
     }
 
-    if (s->pps->entropy_coding_sync_enabled_flag && s->threads_number!=1)
+    if (s->pps->entropy_coding_sync_enabled_flag && s->threads_number!=1) {
         s->avctx->execute2(s->avctx, (void *) hls_decode_entry_wpp  , arg, ret, s->sh.num_entry_point_offsets + 1);
-    else if (s->pps->tiles_enabled_flag        && s->threads_number!=1)
+        res = ret[s->sh.num_entry_point_offsets];
+    } else if (s->pps->tiles_enabled_flag        && s->threads_number!=1) {
+#if 0
         s->avctx->execute2(s->avctx, (void *) hls_decode_entry_tiles, arg, ret, s->sh.num_entry_point_offsets + 1);
-    else
+        res = ret[s->sh.num_entry_point_offsets];
+#else
+        s->avctx->execute2(s->avctx, (void *) hls_decode_entry_tiles, arg, ret, 1);
+        res = ret[0];
+#endif
+    } else {
         s->avctx->execute(s->avctx, hls_decode_entry, arg, ret , 1, sizeof(int));
-
-    res = ret[s->threads_number==1 ? 0:s->sh.num_entry_point_offsets];
+        res = ret[0];
+    }
 
     av_free(ret);
     av_free(arg);
