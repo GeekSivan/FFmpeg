@@ -593,7 +593,6 @@ static int hls_slice_header(HEVCContext *s)
         }
 
         sh->slice_qp_delta = get_se_golomb(gb);
-
         if (s->pps->pic_slice_level_chroma_qp_offsets_present_flag) {
             sh->slice_cb_qp_offset = get_se_golomb(gb);
             sh->slice_cr_qp_offset = get_se_golomb(gb);
@@ -1607,9 +1606,9 @@ static int hls_coding_unit(HEVCContext *s, int x0, int y0, int log2_cb_size)
     int min_cb_width     = s->sps->min_cb_width;
     int x_cb             = x0 >> log2_min_cb_size;
     int y_cb             = y0 >> log2_min_cb_size;
-    int idx = log2_cb_size - 2;
+    int idx              = log2_cb_size - 2;
+    int qp_block_mask    = (1<<(s->sps->log2_ctb_size - s->pps->diff_cu_qp_delta_depth)) - 1;
     int x, y, ret;
-    int qp_block_mask = (1<<(s->sps->log2_ctb_size - s->pps->diff_cu_qp_delta_depth)) - 1;
 
     lc->cu.x                = x0;
     lc->cu.y                = y0;
@@ -1928,7 +1927,6 @@ static int hls_decode_entry(AVCodecContext *avctxt, void *isFilterThread)
             s->tab_slice_address[ctb_addr_rs] = -1;
             return more_data;
         }
-
 
         ctb_addr_ts++;
         ff_hevc_save_states(s, ctb_addr_ts);
