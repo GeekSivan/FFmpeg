@@ -640,6 +640,23 @@ static int hls_slice_header(HEVCContext *s)
     sh->num_entry_point_offsets = 0;
     if (s->pps->tiles_enabled_flag || s->pps->entropy_coding_sync_enabled_flag) {
         sh->num_entry_point_offsets = get_ue_golomb_long(gb);
+        if(s->pps->entropy_coding_sync_enabled_flag) {
+            if(sh->num_entry_point_offsets > s->sps->ctb_height || sh->num_entry_point_offsets < 0) {
+                av_log(s->avctx, AV_LOG_ERROR,
+                   "The number of entries %d is higher than the number of CTB rows %d \n",
+                   sh->num_entry_point_offsets,
+                   s->sps->ctb_height);
+                return AVERROR_INVALIDDATA;
+            }
+        } else {
+            if(sh->num_entry_point_offsets > s->sps->ctb_height*s->sps->ctb_width || sh->num_entry_point_offsets < 0) {
+                av_log(s->avctx, AV_LOG_ERROR,
+                       "The number of entries %d is higher than the number of CTBs %d \n",
+                       sh->num_entry_point_offsets,
+                       s->sps->ctb_height*s->sps->ctb_width);
+                return AVERROR_INVALIDDATA;
+            }
+        }
         if (sh->num_entry_point_offsets > 0) {
             int offset_len = get_ue_golomb_long(gb) + 1;
             int segments = offset_len >> 4;
