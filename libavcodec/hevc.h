@@ -723,20 +723,24 @@ typedef struct HEVCNAL {
 } HEVCNAL;
 
 typedef struct HEVCLocalContext {
+    GetBitContext gb;
+    CABACContext cc;
+    TransformTree tt;
+    TransformUnit tu;
+    CodingTree ct;
+    CodingUnit cu;
+    PredictionUnit pu;
+    NeighbourAvailable na;
+
     uint8_t cabac_state[HEVC_CONTEXTS];
 
     uint8_t first_qp_group;
 
-    GetBitContext gb;
-    CABACContext cc;
-    TransformTree tt;
 
     int8_t qp_y;
     int8_t curr_qp_y;
 
     int qPy_pred;
-
-    TransformUnit tu;
 
     uint8_t ctb_left_flag;
     uint8_t ctb_up_flag;
@@ -746,10 +750,6 @@ typedef struct HEVCLocalContext {
     int     end_of_tiles_y;
     /* +7 is for subpixel interpolation, *2 for high bit depths */
     DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
-    CodingTree ct;
-    CodingUnit cu;
-    PredictionUnit pu;
-    NeighbourAvailable na;
 
     uint8_t slice_or_tiles_left_boundary;
     uint8_t slice_or_tiles_up_boundary;
@@ -763,17 +763,7 @@ typedef struct HEVCContext {
 
     HEVCLocalContext    *HEVClcList[MAX_NB_THREADS];
     HEVCLocalContext    *HEVClc;
-
-    uint8_t             threads_type;
-    uint8_t             threads_number;
-
-    int                 width;
-    int                 height;
-
     uint8_t *cabac_state;
-
-    /** 1 if the independent slice segment header was successfully parsed */
-    uint8_t slice_initialized;
 
     AVFrame *frame;
     AVFrame *sao_frame;
@@ -790,12 +780,13 @@ typedef struct HEVCContext {
     AVBufferPool *tab_mvf_pool;
     AVBufferPool *rpl_tab_pool;
 
-    ///< candidate references for the current frame
-    RefPicList rps[5];
-
     SliceHeader sh;
     SAOParams *sao;
     DBParams *deblock;
+
+    ///< candidate references for the current frame
+    RefPicList rps[5];
+
     enum NALUnitType nal_unit_type;
     int temporal_id;  ///< temporal_id_plus1 - 1
     HEVCFrame *ref;
@@ -883,6 +874,12 @@ typedef struct HEVCContext {
     int quincunx_subsampling;
 
     int picture_struct;
+
+    /** 1 if the independent slice segment header was successfully parsed */
+    uint8_t slice_initialized;
+
+    uint8_t threads_type;
+    uint8_t threads_number;
 } HEVCContext;
 
 int ff_hevc_decode_short_term_rps(HEVCContext *s, ShortTermRPS *rps,

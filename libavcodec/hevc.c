@@ -1588,13 +1588,12 @@ static void intra_prediction_unit_default_value(HEVCContext *s,
 
     if (size_in_pus == 0)
         size_in_pus = 1;
-    for (j = 0; j < size_in_pus; j++) {
+    for (j = 0; j < size_in_pus; j++)
         memset(&s->tab_ipm[(y_pu + j) * min_pu_width + x_pu], INTRA_DC, size_in_pus);
-        for (k = 0; k < size_in_pus; k++) {
-            if (lc->cu.pred_mode == MODE_INTRA)
+    if (lc->cu.pred_mode == MODE_INTRA)
+        for (j = 0; j < size_in_pus; j++)
+            for (k = 0; k < size_in_pus; k++)
                 tab_mvf[(y_pu + j) * min_pu_width + x_pu + k].pred_flag = PF_INTRA;
-        }
-    }
 }
 
 static int hls_coding_unit(HEVCContext *s, int x0, int y0, int log2_cb_size)
@@ -2160,16 +2159,14 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
         ret[i] = 0;
     }
 
-    if (s->pps->entropy_coding_sync_enabled_flag && s->threads_number!=1) {
+    if (s->pps->entropy_coding_sync_enabled_flag && s->threads_number!=1)
         s->avctx->execute2(s->avctx, (void *) hls_decode_entry_wpp  , arg, ret, s->sh.num_entry_point_offsets + 1);
-        res = ret[s->sh.num_entry_point_offsets];
-    } else if (s->pps->tiles_enabled_flag        && s->threads_number!=1) {
+    else if (s->pps->tiles_enabled_flag        && s->threads_number!=1)
         s->avctx->execute2(s->avctx, (void *) hls_decode_entry_tiles, arg, ret, s->sh.num_entry_point_offsets + 1);
-        res = ret[s->sh.num_entry_point_offsets];
-    } else {
+    else
         s->avctx->execute(s->avctx, hls_decode_entry, arg, ret , 1, sizeof(int));
-        res = ret[0];
-    }
+
+    res = ret[s->threads_number==1 ? 0:s->sh.num_entry_point_offsets];
 
     av_free(ret);
     av_free(arg);
@@ -2183,23 +2180,22 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
 static int hls_nal_unit(HEVCContext *s)
 {
     GetBitContext *gb = &s->HEVClc->gb;
-    int nuh_layer_id;
 
     if (get_bits1(gb) != 0)
         return AVERROR_INVALIDDATA;
 
     s->nal_unit_type = get_bits(gb, 6);
 
-    nuh_layer_id   = get_bits(gb, 6);
+    s->nuh_layer_id   = get_bits(gb, 6);
     s->temporal_id = get_bits(gb, 3) - 1;
     if (s->temporal_id < 0)
         return AVERROR_INVALIDDATA;
 
     av_log(s->avctx, AV_LOG_DEBUG,
-           "nal_unit_type: %d, nuh_layer_id: %dtemporal_id: %d\n",
-           s->nal_unit_type, nuh_layer_id, s->temporal_id);
+           "nal_unit_type: %d, nuh_layer_id: %d temporal_id: %d\n",
+           s->nal_unit_type, s->nuh_layer_id, s->temporal_id);
 
-    return nuh_layer_id == 0;
+    return (s->nuh_layer_id == 0);
 }
 
 static int set_side_data(HEVCContext *s)
@@ -2304,6 +2300,8 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     } else if (!ret)
         return 0;
 
+    s->nuh_layer_id = ret;
+
     switch (s->nal_unit_type) {
     case NAL_VPS:
         ret = ff_hevc_decode_nal_vps(s);
@@ -2377,7 +2375,7 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
             av_log(s->avctx, AV_LOG_ERROR,
                    "Non-matching NAL types of the VCL NALUs: %d %d\n",
                    s->first_nal_type, s->nal_unit_type);
-            return AVERROR_INVALIDDATA;
+            goto fail;
         }
 
         if (!s->sh.dependent_slice_segment_flag &&
