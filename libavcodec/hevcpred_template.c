@@ -1,5 +1,5 @@
 /*
-f * HEVC video decoder
+ * HEVC video decoder
  *
  * Copyright (C) 2012 - 2013 Guillaume Martres
  *
