@@ -255,7 +255,7 @@ enum SAOType {
     SAO_NOT_APPLIED = 0,
     SAO_BAND,
     SAO_EDGE,
-    SAO_APPLED
+    SAO_APPLIED
 };
 
 enum SAOEOClass {
@@ -844,7 +844,6 @@ typedef struct HEVCContext {
     uint16_t seq_decode;
     uint16_t seq_output;
 
-    int enable_parallel_tiles;
     int wpp_err;
     int skipped_bytes;
     int *skipped_bytes_pos;
