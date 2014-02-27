@@ -955,7 +955,6 @@ int ff_hevc_cbf_luma_decode(HEVCContext *s, int trafo_depth);
  * Get the number of candidate references for the current frame.
  */
 int ff_hevc_frame_nb_refs(HEVCContext *s);
-
 int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc);
 
 /**
