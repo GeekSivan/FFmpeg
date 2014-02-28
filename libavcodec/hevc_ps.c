@@ -468,9 +468,6 @@ static void deriveNumberOfSubDpbs(HEVCVPS *vps) {
 }
 #endif
 
-
-
-
 #ifdef VPS_EXTENSION
 #if VPS_VUI_TILES_NOT_IN_USE__FLAG
 static void setTilesNotInUseFlag(HEVCVPS *vps, unsigned int x)

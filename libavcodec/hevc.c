@@ -2539,8 +2539,11 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     } else if (ret != (s->decoder_id) && s->nal_unit_type != NAL_VPS)
         return 0;
 
-    if ((s->temporal_id > s->temporal_layer_id) || (ret > s->quality_layer_id))
+    if (s->temporal_id > s->temporal_layer_id)
         return 0;
+
+
+
     s->nuh_layer_id = ret;
 
     switch (s->nal_unit_type) {
@@ -3377,6 +3380,10 @@ static const AVOption options[] = {
         AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, PAR },
     { "strict-displaywin", "stricly apply default display window size", OFFSET(apply_defdispwin),
         AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, PAR },
+    { "decoder-id", "set the decoder id", OFFSET(decoder_id),
+        AV_OPT_TYPE_INT, {.i64 = 0}, 0, 10, PAR },
+    { "temporal-layer-id", "set the max temporal id", OFFSET(temporal_layer_id),
+        AV_OPT_TYPE_INT, {.i64 = 0}, 0, 10, PAR },
     { NULL },
 };
 
