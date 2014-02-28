@@ -3010,6 +3010,7 @@ typedef struct AVCodecContext {
      *  this frame is used by the layer (n+1) as refernce frame for inter-layer predictions 
      */
     void* BL_frame;
+    void *copy_opaque;
 } AVCodecContext;
 
 AVRational av_codec_get_pkt_timebase         (const AVCodecContext *avctx);

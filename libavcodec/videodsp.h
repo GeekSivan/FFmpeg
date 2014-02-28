@@ -28,6 +28,8 @@
 
 #include <stddef.h>
 #include <stdint.h>
+struct HEVCWindow;
+struct UpsamplInf;
 
 #define EMULATED_EDGE(depth) \
 void ff_emulated_edge_mc_ ## depth(uint8_t *dst, const uint8_t *src, \
@@ -73,6 +75,16 @@ typedef struct VideoDSPContext {
      * @param stride distance between two lines of buf (in bytes)
      * @param h      number of lines to prefetch
      */
+
+    int (*emulated_edge_up_h)( uint8_t *src, ptrdiff_t linesize,
+                               const struct HEVCWindow *Enhscal,
+                               int block_w, int block_h, int src_x, int wBL, int shift);
+    
+    int (*emulated_edge_up_v)( int16_t *src, ptrdiff_t linesize,
+                               const struct HEVCWindow *Enhscal,
+                               int block_w, int block_h, int src_x, int src_y, int hBL, int wEL, int shift);
+    
+
     void (*prefetch)(uint8_t *buf, ptrdiff_t stride, int h);
 } VideoDSPContext;
 

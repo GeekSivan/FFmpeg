@@ -248,6 +248,8 @@ int ff_set_dimensions(AVCodecContext *s, int width, int height)
 
     s->coded_width  = width;
     s->coded_height = height;
+    s->coded_width  = width;
+    s->coded_height = height;
     s->width        = FF_CEIL_RSHIFT(width,  s->lowres);
     s->height       = FF_CEIL_RSHIFT(height, s->lowres);
 
@@ -846,6 +848,9 @@ static int get_buffer_internal(AVCodecContext *avctx, AVFrame *frame, int flags)
         if (frame->width <= 0 || frame->height <= 0) {
             frame->width  = FFMAX(avctx->width,  FF_CEIL_RSHIFT(avctx->coded_width,  avctx->lowres));
             frame->height = FFMAX(avctx->height, FF_CEIL_RSHIFT(avctx->coded_height, avctx->lowres));
+            
+            frame->coded_width  = FFMAX(avctx->width,  FF_CEIL_RSHIFT(avctx->coded_width,  avctx->lowres));
+            frame->coded_height = FFMAX(avctx->height, FF_CEIL_RSHIFT(avctx->coded_height, avctx->lowres));
             override_dimensions = 0;
         }
     }
