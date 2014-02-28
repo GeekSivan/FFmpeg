@@ -1155,8 +1155,8 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
     uint8_t *src2        = ref->data[2];
     ptrdiff_t src1stride = ref->linesize[1];
     ptrdiff_t src2stride = ref->linesize[2];
-    int pic_width        = s->sps->width >> 1;
-    int pic_height       = s->sps->height >> 1;
+    int pic_width        = s->sps->width >> s->sps->vshift[1];
+    int pic_height       = s->sps->height >> s->sps->hshift[1];
 
     int mx = mv->x & 7;
     int my = mv->y & 7;
