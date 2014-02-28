@@ -567,10 +567,10 @@ void ff_hevc_cabac_init(HEVCContext *s, int ctb_addr_ts)
     } else {
         if (s->pps->tiles_enabled_flag &&
             s->pps->tile_id[ctb_addr_ts] != s->pps->tile_id[ctb_addr_ts - 1]) {
-//            if (s->threads_number == 1)
+            if (s->threads_number == 1)
                 cabac_reinit(s->HEVClc);
-//            else
-//                cabac_init_decoder(s);
+            else
+                cabac_init_decoder(s);
             cabac_init_state(s);
         }
         if (s->pps->entropy_coding_sync_enabled_flag) {
@@ -1053,7 +1053,7 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
     int i;
     int qp,shift,add,scale,scale_m;
     const uint8_t level_scale[] = { 40, 45, 51, 57, 64, 72 };
-    const uint8_t *scale_matrix;
+    const uint8_t *scale_matrix = NULL;
     uint8_t dc_scale;
 
     memset(coeffs, 0, trafo_size * trafo_size * sizeof(int16_t));
@@ -1120,6 +1120,11 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
             if (log2_trafo_size >= 4)
                 dc_scale = sl->sl_dc[log2_trafo_size - 4][matrix_id];
         }
+    } else {
+        shift        = 0;
+        add          = 0;
+        scale        = 0;
+        dc_scale     = 0;
     }
 
     if (s->pps->transform_skip_enabled_flag && !lc->cu.cu_transquant_bypass_flag &&
@@ -1252,9 +1257,9 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
             if (c_idx != 0)
                 scf_offset = 27;
             if (log2_trafo_size == 2) {
-                ctx_idx_map_p = &ctx_idx_map[0];
+                ctx_idx_map_p = (uint8_t*) &ctx_idx_map[0];
             } else {
-                ctx_idx_map_p = &ctx_idx_map[(prev_sig + 1) << 4];
+                ctx_idx_map_p = (uint8_t*) &ctx_idx_map[(prev_sig + 1) << 4];
                 if (c_idx == 0) {
                     if ((x_cg > 0 || y_cg > 0))
                         scf_offset += 3;
@@ -1371,7 +1376,7 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                                 case 3: pos = (y_c << 3) + x_c; break;
                                 case 4: pos = ((y_c >> 1) << 3) + (x_c >> 1); break;
                                 case 5: pos = ((y_c >> 2) << 3) + (x_c >> 2); break;
-                                default: pos = (y_c << 2) + x_c;
+                                default: pos = (y_c << 2) + x_c; break;
                             }
                             scale_m = scale_matrix[pos];
                         } else {

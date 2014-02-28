@@ -152,7 +152,7 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
     do {
         int nb_output = 0;
         int min_poc   = INT_MAX;
-        int i, min_idx, ret;
+        int i, min_idx=0, ret;
 
         for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
             HEVCFrame *frame = &s->DPB[i];
@@ -220,6 +220,32 @@ static int init_slice_rpl(HEVCContext *s)
     frame->refPicList = (RefPicList *)frame->rpl_tab[ctb_addr_ts];
 
     return 0;
+}
+
+static HEVCFrame *find_ref_idx(HEVCContext *s, int poc)
+{
+    int i;
+    int LtMask = (1 << s->sps->log2_max_poc_lsb) - 1;
+
+    for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+        HEVCFrame *ref = &s->DPB[i];
+        if (ref->frame->buf[0] && (ref->sequence == s->seq_decode)) {
+            if ((ref->poc & LtMask) == poc)
+                return ref;
+        }
+    }
+
+    for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+        HEVCFrame *ref = &s->DPB[i];
+        if (ref->frame->buf[0] && ref->sequence == s->seq_decode) {
+            if (ref->poc == poc || (ref->poc & LtMask) == poc)
+                return ref;
+        }
+    }
+
+    av_log(s->avctx, AV_LOG_ERROR,
+           "Could not find ref with POC %d\n", poc);
+    return NULL;
 }
 
 int ff_hevc_slice_rpl(HEVCContext *s)
@@ -290,32 +316,6 @@ int ff_hevc_slice_rpl(HEVCContext *s)
     }
 
     return 0;
-}
-
-static HEVCFrame *find_ref_idx(HEVCContext *s, int poc)
-{
-    int i;
-    int LtMask = (1 << s->sps->log2_max_poc_lsb) - 1;
-
-    for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
-        HEVCFrame *ref = &s->DPB[i];
-        if (ref->frame->buf[0] && (ref->sequence == s->seq_decode)) {
-            if ((ref->poc & LtMask) == poc)
-                return ref;
-        }
-    }
-
-    for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
-        HEVCFrame *ref = &s->DPB[i];
-        if (ref->frame->buf[0] && ref->sequence == s->seq_decode) {
-            if (ref->poc == poc || (ref->poc & LtMask) == poc)
-                return ref;
-        }
-    }
-
-    av_log(s->avctx, AV_LOG_ERROR,
-           "Could not find ref with POC %d\n", poc);
-    return NULL;
 }
 
 static void mark_ref(HEVCFrame *frame, int flag)

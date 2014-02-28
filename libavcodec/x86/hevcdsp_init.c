@@ -97,30 +97,18 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     c->put_weighted_pred_avg[3] = ff_hevc_put_weighted_pred_avg16_8_sse;
                     c->put_weighted_pred_avg[4] = ff_hevc_put_weighted_pred_avg16_8_sse;
                     c->put_weighted_pred_avg[5] = ff_hevc_put_weighted_pred_avg16_8_sse;
-                    c->weighted_pred[0]         = ff_hevc_weighted_pred2_8_sse;
-                    c->weighted_pred[1]         = ff_hevc_weighted_pred4_8_sse;
-                    c->weighted_pred[2]         = ff_hevc_weighted_pred8_8_sse;
-                    c->weighted_pred[3]         = ff_hevc_weighted_pred16_8_sse;
-                    c->weighted_pred[4]         = ff_hevc_weighted_pred16_8_sse;
-                    c->weighted_pred[5]         = ff_hevc_weighted_pred16_8_sse;
-                    c->weighted_pred_avg[0]     = ff_hevc_weighted_pred_avg2_8_sse;
-                    c->weighted_pred_avg[1]     = ff_hevc_weighted_pred_avg4_8_sse;
-                    c->weighted_pred_avg[2]     = ff_hevc_weighted_pred_avg8_8_sse;
-                    c->weighted_pred_avg[3]     = ff_hevc_weighted_pred_avg16_8_sse;
-                    c->weighted_pred_avg[4]     = ff_hevc_weighted_pred_avg16_8_sse;
-                    c->weighted_pred_avg[5]     = ff_hevc_weighted_pred_avg16_8_sse;
 
 
-                    PEL_LINK_SSE(c->put_hevc_qpel, 0, 0, 1, qpel_h4 ,  8);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 1, 0, 1, qpel_h8 ,  8);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 2, 0, 1, qpel_h8 ,  8);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 3, 0, 1, qpel_h8 ,  8);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 4, 0, 1, qpel_h8 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 0, 0, 1, qpel_h4 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 1, 0, 1, qpel_h8 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 2, 0, 1, qpel_h16 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 3, 0, 1, qpel_h16 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 4, 0, 1, qpel_h16 ,  8);
                     PEL_LINK(c->put_hevc_qpel, 0, 1, 0, qpel_v4 ,  8);
                     PEL_LINK(c->put_hevc_qpel, 1, 1, 0, qpel_v8 ,  8);
-                    PEL_LINK(c->put_hevc_qpel, 2, 1, 0, qpel_v8 ,  8);
-                    PEL_LINK(c->put_hevc_qpel, 3, 1, 0, qpel_v8 ,  8);
-                    PEL_LINK(c->put_hevc_qpel, 4, 1, 0, qpel_v8 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 2, 1, 0, qpel_v16 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 3, 1, 0, qpel_v16 ,  8);
+                    PEL_LINK(c->put_hevc_qpel, 4, 1, 0, qpel_v16 ,  8);
                     PEL_LINK_SSE(c->put_hevc_qpel, 0, 1, 1, qpel_hv4,  8);
                     PEL_LINK_SSE(c->put_hevc_qpel, 1, 1, 1, qpel_hv8,  8);
                     PEL_LINK_SSE(c->put_hevc_qpel, 2, 1, 1, qpel_hv8,  8);
@@ -133,6 +121,18 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 #endif
                 }
                 if (EXTERNAL_SSE4(mm_flags)) {
+                    c->weighted_pred[0]         = ff_hevc_weighted_pred2_8_sse;
+                    c->weighted_pred[1]         = ff_hevc_weighted_pred4_8_sse;
+                    c->weighted_pred[2]         = ff_hevc_weighted_pred8_8_sse;
+                    c->weighted_pred[3]         = ff_hevc_weighted_pred16_8_sse;
+                    c->weighted_pred[4]         = ff_hevc_weighted_pred16_8_sse;
+                    c->weighted_pred[5]         = ff_hevc_weighted_pred16_8_sse;
+                    c->weighted_pred_avg[0]     = ff_hevc_weighted_pred_avg2_8_sse;
+                    c->weighted_pred_avg[1]     = ff_hevc_weighted_pred_avg4_8_sse;
+                    c->weighted_pred_avg[2]     = ff_hevc_weighted_pred_avg8_8_sse;
+                    c->weighted_pred_avg[3]     = ff_hevc_weighted_pred_avg16_8_sse;
+                    c->weighted_pred_avg[4]     = ff_hevc_weighted_pred_avg16_8_sse;
+                    c->weighted_pred_avg[5]     = ff_hevc_weighted_pred_avg16_8_sse;
 
                     c->put_unweighted_pred[0]   = ff_hevc_put_unweighted_pred2_8_sse;
                     c->put_unweighted_pred[1]   = ff_hevc_put_unweighted_pred4_8_sse;
@@ -155,13 +155,13 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     PEL_LINK(c->put_hevc_epel, 0, 0, 1, epel_h2,  8);
                     PEL_LINK(c->put_hevc_epel, 1, 0, 1, epel_h4,  8);
                     PEL_LINK(c->put_hevc_epel, 2, 0, 1, epel_h8,  8);
-                    PEL_LINK(c->put_hevc_epel, 3, 0, 1, epel_h8,  8);
-                    PEL_LINK(c->put_hevc_epel, 4, 0, 1, epel_h8,  8);
+                    PEL_LINK(c->put_hevc_epel, 3, 0, 1, epel_h16,  8);
+                    PEL_LINK(c->put_hevc_epel, 4, 0, 1, epel_h16,  8);
                     PEL_LINK(c->put_hevc_epel, 0, 1, 0, epel_v2,  8);
                     PEL_LINK(c->put_hevc_epel, 1, 1, 0, epel_v4,  8);
                     PEL_LINK(c->put_hevc_epel, 2, 1, 0, epel_v8,  8);
-                    PEL_LINK(c->put_hevc_epel, 3, 1, 0, epel_v8,  8);
-                    PEL_LINK(c->put_hevc_epel, 4, 1, 0, epel_v8,  8);
+                    PEL_LINK(c->put_hevc_epel, 3, 1, 0, epel_v16,  8);
+                    PEL_LINK(c->put_hevc_epel, 4, 1, 0, epel_v16,  8);
                     PEL_LINK(c->put_hevc_epel, 0, 1, 1, epel_hv2, 8);
                     PEL_LINK(c->put_hevc_epel, 1, 1, 1, epel_hv4, 8);
                     PEL_LINK(c->put_hevc_epel, 2, 1, 1, epel_hv8, 8);
@@ -246,11 +246,11 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     PEL_LINK(c->put_hevc_qpel, 2, 0, 0, pel_pixels8 ,10);
                     PEL_LINK(c->put_hevc_qpel, 3, 0, 0, pel_pixels8 ,10);
                     PEL_LINK(c->put_hevc_qpel, 4, 0, 0, pel_pixels8 ,10);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 0, 0, 1, qpel_h4,  10);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 1, 0, 1, qpel_h8,  10);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 2, 0, 1, qpel_h8,  10);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 3, 0, 1, qpel_h8,  10);
-                    PEL_LINK_SSE(c->put_hevc_qpel, 4, 0, 1, qpel_h8,  10);
+                    PEL_LINK(c->put_hevc_qpel, 0, 0, 1, qpel_h4,  10);
+                    PEL_LINK(c->put_hevc_qpel, 1, 0, 1, qpel_h8,  10);
+                    PEL_LINK(c->put_hevc_qpel, 2, 0, 1, qpel_h8,  10);
+                    PEL_LINK(c->put_hevc_qpel, 3, 0, 1, qpel_h8,  10);
+                    PEL_LINK(c->put_hevc_qpel, 4, 0, 1, qpel_h8,  10);
                     PEL_LINK(c->put_hevc_qpel, 0, 1, 0, qpel_v4,  10);
                     PEL_LINK(c->put_hevc_qpel, 1, 1, 0, qpel_v8,  10);
                     PEL_LINK(c->put_hevc_qpel, 2, 1, 0, qpel_v8,  10);
