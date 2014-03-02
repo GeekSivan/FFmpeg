@@ -251,7 +251,6 @@ static void parse_ptl(HEVCContext *s, PTL *ptl, int max_num_sub_layers)
     }
 }
 
-
 static void decode_sublayer_hrd(HEVCContext *s, unsigned int nb_cpb,
         int subpic_params_present)
 {
@@ -617,7 +616,7 @@ static void parseVPSVUI(GetBitContext *gb, HEVCVPS *vps)
     else
         vps->m_vpsVidSigInfo = vps->vps_max_layers;
 
-    for(i = 0; i < vps->m_vpsVidSigInfo; i++){
+    for(i = 0; i < vps->m_vpsVidSigInfo; i++) {
         vps->m_vpsVidFormat[i] = get_bits(gb, 3);
         vps->m_vpsFullRangeFlag[i] = get_bits1(gb) ;
         vps->m_vpsColorPrimaries[i] = get_bits(gb, 8);
@@ -647,7 +646,6 @@ static void parseVPSVUI(GetBitContext *gb, HEVCVPS *vps)
 static void parse_vps_extension (HEVCContext *s, HEVCVPS *vps)  {
     int i, j, k;
     GetBitContext *gb = &s->HEVClc->gb;
-
 
 #if VPS_EXTN_MASK_AND_DIM_INFO
     int numScalabilityTypes = 0;
@@ -1105,7 +1103,7 @@ int ff_hevc_decode_nal_vps(HEVCContext *s)
 #endif
 #endif*/
     if (s->vps_list[vps_id] &&
-            !memcmp(s->vps_list[vps_id]->data, vps_buf->data, vps_buf->size)) {
+        !memcmp(s->vps_list[vps_id]->data, vps_buf->data, vps_buf->size)) {
         av_buffer_unref(&vps_buf);
     } else {
         av_buffer_unref(&s->vps_list[vps_id]);
@@ -1315,7 +1313,7 @@ static void parseSPSExtension( HEVCContext *s, HEVCSPS *sps )
 {
     GetBitContext *gb = &s->HEVClc->gb ;
     int i;
-    get_bits1(gb);  //int inter_view =
+    int inter_view = get_bits1(gb);
     if( s->nuh_layer_id > 0 )
     {
         sps->m_numScaledRefLayerOffsets = get_ue_golomb_long(gb);
@@ -1570,7 +1568,6 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
         } else {
 #endif            
             set_default_scaling_list_data(&sps->scaling_list);
-
             sps->m_scalingListPresentFlag = get_bits1(gb);
             if (sps->m_scalingListPresentFlag) {
                 ret = scaling_list_data(s, &sps->scaling_list);
@@ -1950,7 +1947,6 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
             }
         }
     }
-
 #if SCALINGLIST_INFERRING
     pps->m_inferScalingListFlag = 0;
     if( s->nuh_layer_id > 0 )

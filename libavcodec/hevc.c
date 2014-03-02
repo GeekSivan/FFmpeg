@@ -36,7 +36,6 @@
 #include "cabac_functions.h"
 #include "dsputil.h"
 #include "golomb.h"
-#include "hevc_up_sample_filter.h"
 #include "hevc.h"
 
 /**
@@ -203,19 +202,11 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
                     s->up_filter_inf.idx = X1_5;
                 else
                     s->up_filter_inf.idx = DEFAULT;
- 
-            
-        
-        
-        
-        
-        
 #if ACTIVE_BOTH_FRAME_AND_PU
         s->buffer_frame[0] = av_malloc(pic_size*sizeof(short));
         s->buffer_frame[1] = av_malloc((pic_size>>2)*sizeof(short));
         s->buffer_frame[2] = av_malloc((pic_size>>2)*sizeof(short));
         s->is_upsampled = av_malloc(sps->ctb_width * sps->ctb_height);
-        s->dynamic_alloc += (sps->ctb_width * sps->ctb_height);
 #else
 #if !ACTIVE_PU_UPSAMPLING
         s->buffer_frame[0] = av_malloc(pic_size*sizeof(short));
@@ -226,11 +217,6 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
 #endif
 #endif
     }
-#endif
-
-    
-#if 0
-    printf("dynamic #*# %ld #*#  %d #*# \n", s->dynamic_alloc, s->decoder_id );
 #endif
     return 0;
 fail:
@@ -543,7 +529,7 @@ static int hls_slice_header(HEVCContext *s)
                 iBits++;
             }
 #endif
-            for (; iBits < s->pps->num_extra_slice_header_bits; iBits++)
+           for (; iBits < s->pps->num_extra_slice_header_bits; iBits++)
                 skip_bits1(gb);
 #else
             if(s->pps->num_extra_slice_header_bits>0)
@@ -555,7 +541,6 @@ static int hls_slice_header(HEVCContext *s)
 #else //SVC_EXTENSION
         for (i = 0; i < s->pps->num_extra_slice_header_bits; i++)
             skip_bits(gb, 1);  // slice_reserved_undetermined_flag[]
-
 #endif //SVC_EXTENSION
 
         sh->slice_type = get_ue_golomb_long(gb);
@@ -1521,6 +1506,10 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
     if (current_mv.pred_flag == PF_L0) {
         DECLARE_ALIGNED(16, int16_t,  tmp[MAX_PB_SIZE * MAX_PB_SIZE]);
         DECLARE_ALIGNED(16, int16_t, tmp2[MAX_PB_SIZE * MAX_PB_SIZE]);
+        ref0 = refPicList[0].ref[current_mv.ref_idx[0]];
+
+        if (!ref0)
+            return;
 
         luma_mc(s, tmp, tmpstride, ref0->frame,
                 &current_mv.mv[0], x0, y0, nPbW, nPbH, idx);
@@ -1557,6 +1546,7 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
     } else if (current_mv.pred_flag == PF_L1) {
         DECLARE_ALIGNED(16, int16_t, tmp [MAX_PB_SIZE * MAX_PB_SIZE]);
         DECLARE_ALIGNED(16, int16_t, tmp2[MAX_PB_SIZE * MAX_PB_SIZE]);
+        ref1 = refPicList[1].ref[current_mv.ref_idx[1]];
 
         if (!ref1)
             return;
@@ -1597,8 +1587,8 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
         DECLARE_ALIGNED(16, int16_t, tmp2[MAX_PB_SIZE * MAX_PB_SIZE]);
         DECLARE_ALIGNED(16, int16_t, tmp3[MAX_PB_SIZE * MAX_PB_SIZE]);
         DECLARE_ALIGNED(16, int16_t, tmp4[MAX_PB_SIZE * MAX_PB_SIZE]);
-        HEVCFrame *ref0 = refPicList[0].ref[current_mv.ref_idx[0]];
-        HEVCFrame *ref1 = refPicList[1].ref[current_mv.ref_idx[1]];
+        ref0 = refPicList[0].ref[current_mv.ref_idx[0]];
+        ref1 = refPicList[1].ref[current_mv.ref_idx[1]];
 
         if (!ref0 || !ref1)
             return;
@@ -2199,6 +2189,8 @@ static int hls_decode_entry_wpp(AVCodecContext *avctxt, void *input_ctb_row, int
         more_data = hls_coding_quadtree(s, x_ctb, y_ctb, s->sps->log2_ctb_size, 0);
         if (more_data < 0) {
             s->tab_slice_address[ctb_addr_rs] = -1;
+            avpriv_atomic_int_set(&s1->wpp_err,  1);
+            ff_thread_report_progress2(s->avctx, ctb_row ,thread, SHIFT_CTB_WPP);
             return more_data;
         }
 
@@ -2330,7 +2322,7 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
 
     ff_alloc_entries(s->avctx, s->sh.num_entry_point_offsets + 1);
 
-    if (s->threads_number > 1 && s->sh.num_entry_point_offsets > 0) {
+    if (s->sh.num_entry_point_offsets > 0) {
         offset = (lc->gb.index >> 3);
         for (j = 0, cmpt = 0, startheader = offset + s->sh.entry_point_offset[0]; j < s->skipped_bytes; j++) {
             if (s->skipped_bytes_pos[j] >= offset && s->skipped_bytes_pos[j] < startheader) {
@@ -2355,10 +2347,17 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
         s->sh.size[s->sh.num_entry_point_offsets - 1] = length - offset;
         s->sh.offset[s->sh.num_entry_point_offsets - 1] = offset;
 
+        if(s->sh.offset[i - 1]+s->sh.size[i - 1] > length) {
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "hls_slice_data:  packet length < image size : %d < %d\n",
+                   length, s->sh.offset[i - 1]+s->sh.size[i - 1]);
+            return AVERROR_INVALIDDATA;
+        }
+
         avpriv_atomic_int_set(&s->wpp_err, 0);
         ff_reset_entries(s->avctx);
     }
-    s->data = (uint8_t *) nal;
+    s->data = nal;
 
     for (i = 1; i < s->threads_number; i++) {
         s->sList[i]->HEVClc->first_qp_group = 1;
@@ -2539,11 +2538,8 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     } else if (ret != (s->decoder_id) && s->nal_unit_type != NAL_VPS)
         return 0;
 
-    if (s->temporal_id > s->temporal_layer_id)
+    if ((s->temporal_id > s->temporal_layer_id) || (ret > s->quality_layer_id))
         return 0;
-
-
-
     s->nuh_layer_id = ret;
 
     switch (s->nal_unit_type) {
@@ -2584,10 +2580,12 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     case NAL_RADL_R:
     case NAL_RASL_N:
     case NAL_RASL_R:
-        ret = hls_slice_header(s);
-        if (ret < 0)
-            return ret;
+    ret = hls_slice_header(s);
 
+    if (ret == -10)
+        return 0;
+    if (ret < 0)
+        return ret;
         if (s->max_ra == INT_MAX) {
             if (s->nal_unit_type == NAL_CRA_NUT || IS_BLA(s)) {
                 s->max_ra = s->poc;
@@ -2617,26 +2615,24 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
 
         if (s->nal_unit_type != s->first_nal_type) {
             av_log(s->avctx, AV_LOG_ERROR,
-                   "Non-matching NAL types of the VCL NALUs: %d %d\n",
-                   s->first_nal_type, s->nal_unit_type);
+                "Non-matching NAL types of the VCL NALUs: %d %d\n",
+                s->first_nal_type, s->nal_unit_type);
             goto fail;
         }
-
         if (!s->sh.dependent_slice_segment_flag &&
             s->sh.slice_type != I_SLICE) {
             ret = ff_hevc_slice_rpl(s);
             if (ret < 0) {
                 av_log(s->avctx, AV_LOG_WARNING,
-                       "Error constructing the reference lists for the current slice.\n");
+                     "Error constructing the reference lists for the current slice.\n");
                 goto fail;
-            }
+             }
         }
 #if ACTIVE_PU_UPSAMPLING
         if (s->active_el_frame)
             ff_thread_report_il_progress(s->avctx, s->poc, s->ref);
 #endif
         ctb_addr_ts = hls_slice_data(s, nal, length);
-
         if (ctb_addr_ts >= (s->sps->ctb_width * s->sps->ctb_height)) {
             s->is_decoded = 1;
             if (s->pps->tiles_enabled_flag && s->threads_number!=1)
@@ -3119,12 +3115,12 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
 {
     HEVCContext *s = avctx->priv_data;
     int i;
-
     s->avctx = avctx;
 
     s->HEVClc = av_mallocz(sizeof(HEVCLocalContext));
     if (!s->HEVClc)
         goto fail;
+
     s->HEVClcList[0] = s->HEVClc;
     s->sList[0] = s;
 
@@ -3175,7 +3171,6 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
         s->HEVClcList[i] = av_mallocz(sizeof(HEVCLocalContext));
         s->sList[i]->HEVClc = s->HEVClcList[i];
     }
-
     return 0;
 
 fail:
@@ -3327,7 +3322,6 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
     ff_init_cabac_states();
 
     avctx->internal->allocate_progress = 1;
-
     ret = hevc_init_context(avctx);
     if (ret < 0)
         return ret;
@@ -3383,6 +3377,8 @@ static const AVOption options[] = {
     { "decoder-id", "set the decoder id", OFFSET(decoder_id),
         AV_OPT_TYPE_INT, {.i64 = 0}, 0, 10, PAR },
     { "temporal-layer-id", "set the max temporal id", OFFSET(temporal_layer_id),
+        AV_OPT_TYPE_INT, {.i64 = 0}, 0, 10, PAR },
+    { "quality_layer_id", "set the max quality id", OFFSET(quality_layer_id),
         AV_OPT_TYPE_INT, {.i64 = 0}, 0, 10, PAR },
     { NULL },
 };
