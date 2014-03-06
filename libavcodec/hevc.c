@@ -2541,7 +2541,6 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     if ((s->temporal_id > s->temporal_layer_id) || (ret > s->quality_layer_id))
         return 0;
     s->nuh_layer_id = ret;
-
     switch (s->nal_unit_type) {
     case NAL_VPS:
         ret = ff_hevc_decode_nal_vps(s);

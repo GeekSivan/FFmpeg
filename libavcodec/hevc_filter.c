@@ -1086,7 +1086,6 @@ void ff_upsample_block(HEVCContext *s, HEVCFrame *ref0, int x0, int y0, int nPbW
     int log2_ctb =  s->sps->log2_ctb_size;
     int ctb_x0   =  (x0 >> log2_ctb) << log2_ctb;
     int ctb_y0   =  (y0 >> log2_ctb) << log2_ctb;
-
     if(  (x0 - ctb_x0) < MAX_EDGE  && ctb_x0> ctb_size &&
        !s->is_upsampled[(ctb_y0/ctb_size*s->sps->ctb_width)+((ctb_x0-ctb_size)/ctb_size)]){
         ff_upscale_mv_block(s, ctb_x0-ctb_size      , ctb_y0);

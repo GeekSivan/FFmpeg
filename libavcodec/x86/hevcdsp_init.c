@@ -25,6 +25,7 @@
 #include "libavcodec/get_bits.h" /* required for hevcdsp.h GetBitContext */
 #include "libavcodec/hevcdsp.h"
 #include "libavcodec/x86/hevcdsp.h"
+#include "libavcodec/hevc_defs.h"
 
 /***********************************/
 
@@ -171,6 +172,26 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
                     c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
 
+#ifdef SVC_EXTENSION
+    c->upsample_filter_block_luma_h[1] = ff_upsample_filter_block_luma_h_x2_sse;
+    c->upsample_filter_block_cr_h[1]   = ff_upsample_filter_block_cr_h_x2_sse;
+    c->upsample_filter_block_luma_v[1] = ff_upsample_filter_block_luma_v_x2_sse;
+    c->upsample_filter_block_cr_v[1]   = ff_upsample_filter_block_cr_v_x2_sse;
+
+    c->upsample_filter_block_luma_h[2] = ff_upsample_filter_block_luma_h_x1_5_sse;
+    c->upsample_filter_block_cr_h[2]   = ff_upsample_filter_block_cr_h_x1_5_sse;
+    c->upsample_filter_block_luma_v[2] = ff_upsample_filter_block_luma_v_x1_5_sse;
+    c->upsample_filter_block_cr_v[2]   = ff_upsample_filter_block_cr_v_x1_5_sse;
+
+/*
+    c->upsample_filter_block_luma_h[0] = ff_upsample_filter_block_luma_h_all_sse;
+    c->upsample_filter_block_cr_h[0]   = ff_upsample_filter_block_cr_h_all_sse;
+    c->upsample_filter_block_luma_v[0] = ff_upsample_filter_block_luma_v_all_sse;
+    c->upsample_filter_block_cr_v[0]   = ff_upsample_filter_block_cr_v_all_sse;
+*/
+
+
+#endif
                 }
                 if (EXTERNAL_AVX(mm_flags)) {
                 }

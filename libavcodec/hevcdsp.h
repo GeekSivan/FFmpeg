@@ -99,7 +99,12 @@ DECLARE_ALIGNED(16, static const int8_t, up_sample_filter_chroma_x1_5[3][4])= /*
     { -2,  20,  52, -6},
     { -6,  52,  20, -2}
 };
-
+DECLARE_ALIGNED(16, static const int8_t, up_sample_filter_x1_5chroma[3][4])=
+{
+    {  0,   4,  62, -2},
+    { -4,  30,  42, -4},
+    { -4,  54,  16, -2}
+};
 
 DECLARE_ALIGNED(16, static const int8_t, up_sample_filter_chroma_x2[2][4])=
 {
@@ -179,11 +184,11 @@ typedef struct HEVCDSPContext {
                                          uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride,
                                          int y_BL, int x_EL, int y_EL, int block_w, int block_h, int widthEL, int heightEL,
                                          const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info);
-void (*upsample_filter_block_cr_h[3])(
+    void (*upsample_filter_block_cr_h[3])(
                                        int16_t *dst, ptrdiff_t dststride, uint8_t *_src, ptrdiff_t _srcstride,
                                        int x_EL, int x_BL, int block_w, int block_h, int widthEL,
                                        const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info);
-void (*upsample_filter_block_cr_v[3])(
+    void (*upsample_filter_block_cr_v[3])(
                                        uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride,
                                        int y_BL, int x_EL, int y_EL, int block_w, int block_h, int widthEL, int heightEL,
                                        const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info);
