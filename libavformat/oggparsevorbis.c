@@ -347,7 +347,7 @@ static int vorbis_header(AVFormatContext *s, int idx)
             avpriv_set_pts_info(st, 64, 1, srate);
         }
     } else if (os->buf[os->pstart] == 3) {
-        if (vorbis_update_metadata(s, idx) >= 0) {
+        if (vorbis_update_metadata(s, idx) >= 0 && priv->len[1] > 10) {
             // drop all metadata we parsed and which is not required by libvorbis
             unsigned new_len = 7 + 4 + AV_RL32(priv->packet[1] + 7) + 4 + 1;
             if (new_len >= 16 && new_len < os->psize) {
@@ -384,7 +384,7 @@ static int vorbis_packet(AVFormatContext *s, int idx)
      * here we parse the duration of each packet in the first page and compare
      * the total duration to the page granule to find the encoder delay and
      * set the first timestamp */
-    if ((!os->lastpts || os->lastpts == AV_NOPTS_VALUE) && !(os->flags & OGG_FLAG_EOS)) {
+    if ((!os->lastpts || os->lastpts == AV_NOPTS_VALUE) && !(os->flags & OGG_FLAG_EOS) && (int64_t)os->granule>=0) {
         int seg, d;
         uint8_t *last_pkt  = os->buf + os->pstart;
         uint8_t *next_pkt  = last_pkt;
