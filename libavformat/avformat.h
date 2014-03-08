@@ -981,6 +981,20 @@ typedef struct AVStream {
      * Internal data to prevent doing update_initial_durations() twice
      */
     int update_initial_durations_done;
+
+    /**
+     * Internal data to generate dts from pts
+     */
+    int64_t pts_reorder_error[MAX_REORDER_DELAY+1];
+    uint8_t pts_reorder_error_count[MAX_REORDER_DELAY+1];
+
+    /**
+     * Internal data to analyze DTS and detect faulty mpeg streams
+     */
+    int64_t last_dts_for_order_check;
+    uint8_t dts_ordered;
+    uint8_t dts_misordered;
+
 } AVStream;
 
 AVRational av_stream_get_r_frame_rate(const AVStream *s);
