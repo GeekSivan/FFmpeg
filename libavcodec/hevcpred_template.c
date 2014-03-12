@@ -152,6 +152,7 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
         }
         memset(left, 128, 2 * MAX_TB_SIZE*sizeof(pixel));
         memset(top , 128, 2 * MAX_TB_SIZE*sizeof(pixel));
+        top[-1] = 128;
     }
     if (cand_up_left) {
         left[-1] = POS(-1, -1);
