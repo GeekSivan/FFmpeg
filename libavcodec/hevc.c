@@ -812,45 +812,14 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                               int log2_cb_size, int log2_trafo_size,
                               int trafo_depth, int blk_idx)
 {
-    int i;
+    HEVCLocalContext *lc  = s->HEVClc;
     const int log2_trafo_size_c = log2_trafo_size - (s->sps->chroma_array_type  ==  3 ? 0 : 1);
-    HEVCLocalContext *lc = s->HEVClc;
+    int trafo_size = 1 << log2_trafo_size;
+    int i;
 
     if (lc->cu.pred_mode == MODE_INTRA) {
-        int trafo_size = 1 << log2_trafo_size;
         ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
-
         s->hpc.intra_pred(s, x0, y0, log2_trafo_size, 0);
-        if (log2_trafo_size > 2 || s->sps->chroma_array_type == 3) {
-            trafo_size = 1 << (log2_trafo_size_c + 1);
-            ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
-            s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 1);
-            s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 2);
-            if (s->sps->chroma_array_type == 2) {
-                int y0_tmp = y0 + (1 << log2_trafo_size_c);
-                if (y0_tmp <= (s->sps->height)) {
-                    ff_hevc_set_neighbour_available(s, x0, y0_tmp,
-                                                    trafo_size, trafo_size);
-                    s->hpc.intra_pred(s, x0, y0_tmp, log2_trafo_size_c, 1);
-                    s->hpc.intra_pred(s, x0, y0_tmp, log2_trafo_size_c, 2);
-                }
-            }
-        } else if (blk_idx == 3) {
-            trafo_size = 1 << (log2_trafo_size + 1);
-            ff_hevc_set_neighbour_available(s, xBase, yBase,
-                                            trafo_size, trafo_size);
-            s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 1);
-            s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 2);
-            if (s->sps->chroma_array_type == 2) {
-                int yBase_tmp = yBase + (1 << (log2_trafo_size));
-                if (yBase_tmp <= (s->sps->height)) {
-                    ff_hevc_set_neighbour_available(s, xBase, yBase_tmp,
-                                                    trafo_size, trafo_size);
-                    s->hpc.intra_pred(s, xBase, yBase_tmp, log2_trafo_size, 1);
-                    s->hpc.intra_pred(s, xBase, yBase_tmp, log2_trafo_size, 2);
-                }
-            }
-        }
     }
 
     if (lc->tt.cbf_luma ||
@@ -904,25 +873,81 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
         if (lc->tt.cbf_luma)
             ff_hevc_hls_residual_coding(s, x0, y0, log2_trafo_size, scan_idx, 0);
         if (log2_trafo_size > 2 || s->sps->chroma_array_type == 3) {
-            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ )
+            trafo_size = 1 << (log2_trafo_size_c + 1);
+            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
+                if (lc->cu.pred_mode == MODE_INTRA) {
+                    ff_hevc_set_neighbour_available(s, x0, y0 + (i << log2_trafo_size_c), trafo_size, trafo_size);
+                    s->hpc.intra_pred(s, x0, y0 + (i << log2_trafo_size_c), log2_trafo_size_c, 1);
+                }
                 if (SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0 + (i << log2_trafo_size_c)))
                     ff_hevc_hls_residual_coding(s, x0, y0 + (i << log2_trafo_size_c),
                                                 log2_trafo_size_c, scan_idx_c, 1);
-            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ )
+            }
+            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
+                if (lc->cu.pred_mode == MODE_INTRA) {
+                    ff_hevc_set_neighbour_available(s, x0, y0 + (i << log2_trafo_size_c), trafo_size, trafo_size);
+                    s->hpc.intra_pred(s, x0, y0 + (i << log2_trafo_size_c), log2_trafo_size_c, 2);
+                }
                 if (SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0 + (i << log2_trafo_size_c)))
                     ff_hevc_hls_residual_coding(s, x0, y0 + (i << log2_trafo_size_c),
                                                 log2_trafo_size_c, scan_idx_c, 2);
+            }
         } else if (blk_idx == 3) {
-            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ )
+            trafo_size = 1 << (log2_trafo_size + 1);
+            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
+                if (lc->cu.pred_mode == MODE_INTRA) {
+                    ff_hevc_set_neighbour_available(s, xBase, yBase + (i << log2_trafo_size),
+                                                    trafo_size, trafo_size);
+                    s->hpc.intra_pred(s, xBase, yBase + (i << log2_trafo_size), log2_trafo_size, 1);
+                }
                 if (SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], xBase, yBase + (i << log2_trafo_size_c)))
                     ff_hevc_hls_residual_coding(s, xBase, yBase + (i << log2_trafo_size),
                                                 log2_trafo_size, scan_idx_c, 1);
-            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ )
+            }
+            for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
+                if (lc->cu.pred_mode == MODE_INTRA) {
+                    ff_hevc_set_neighbour_available(s, xBase, yBase + (i << log2_trafo_size),
+                                                trafo_size, trafo_size);
+                    s->hpc.intra_pred(s, xBase, yBase + (i << log2_trafo_size), log2_trafo_size, 2);
+                }
                 if (SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], xBase, yBase + (i << log2_trafo_size_c)))
                     ff_hevc_hls_residual_coding(s, xBase, yBase + (i << log2_trafo_size),
                                                 log2_trafo_size, scan_idx_c, 2);
+            }
+        }
+    } else if (lc->cu.pred_mode == MODE_INTRA) {
+        if (log2_trafo_size > 2 || s->sps->chroma_array_type == 3) {
+            trafo_size = 1 << (log2_trafo_size_c + 1);
+            ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
+            s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 1);
+            s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 2);
+            if (s->sps->chroma_array_type == 2) {
+                int y0_tmp = y0 + (1 << log2_trafo_size_c);
+                if (y0_tmp <= (s->sps->height)) {
+                    ff_hevc_set_neighbour_available(s, x0, y0_tmp,
+                                                    trafo_size, trafo_size);
+                    s->hpc.intra_pred(s, x0, y0_tmp, log2_trafo_size_c, 1);
+                    s->hpc.intra_pred(s, x0, y0_tmp, log2_trafo_size_c, 2);
+                }
+            }
+        } else if (blk_idx == 3) {
+            trafo_size = 1 << (log2_trafo_size + 1);
+            ff_hevc_set_neighbour_available(s, xBase, yBase,
+                                            trafo_size, trafo_size);
+            s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 1);
+            s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 2);
+            if (s->sps->chroma_array_type == 2) {
+                int yBase_tmp = yBase + (1 << (log2_trafo_size));
+                if (yBase_tmp <= (s->sps->height)) {
+                    ff_hevc_set_neighbour_available(s, xBase, yBase_tmp,
+                                                    trafo_size, trafo_size);
+                    s->hpc.intra_pred(s, xBase, yBase_tmp, log2_trafo_size, 1);
+                    s->hpc.intra_pred(s, xBase, yBase_tmp, log2_trafo_size, 2);
+                }
+            }
         }
     }
+
     return 0;
 }
 
