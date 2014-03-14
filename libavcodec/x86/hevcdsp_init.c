@@ -190,8 +190,8 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                 }
                 if (EXTERNAL_SSSE3(mm_flags)) {
 #if ARCH_X86_64
-                    c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_10_ssse3;
-                    c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_ssse3;
+//                    c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_10_ssse3;
+//                    c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_ssse3;
 #endif
                 }
                 if (EXTERNAL_SSE4(mm_flags)) {
