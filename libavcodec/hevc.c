@@ -818,6 +818,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
     int i;
 
     if (lc->cu.pred_mode == MODE_INTRA) {
+        int trafo_size = 1 << log2_trafo_size;
         ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
         s->hpc.intra_pred(s, x0, y0, log2_trafo_size, 0);
     }
@@ -925,13 +926,10 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
             s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 1);
             s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 2);
             if (s->sps->chroma_array_type == 2) {
-                int y0_tmp = y0 + (1 << log2_trafo_size_c);
-                if (y0_tmp <= (s->sps->height)) {
-                    ff_hevc_set_neighbour_available(s, x0, y0_tmp,
-                                                    trafo_size_h, trafo_size_v);
-                    s->hpc.intra_pred(s, x0, y0_tmp, log2_trafo_size_c, 1);
-                    s->hpc.intra_pred(s, x0, y0_tmp, log2_trafo_size_c, 2);
-                }
+                ff_hevc_set_neighbour_available(s, x0, y0 + (1 << log2_trafo_size_c),
+                                                trafo_size_h, trafo_size_v);
+                s->hpc.intra_pred(s, x0, y0 + (1 << log2_trafo_size_c), log2_trafo_size_c, 1);
+                s->hpc.intra_pred(s, x0, y0 + (1 << log2_trafo_size_c), log2_trafo_size_c, 2);
             }
         } else if (blk_idx == 3) {
             int trafo_size_h = 1 << (log2_trafo_size + 1);
@@ -941,13 +939,10 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
             s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 1);
             s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 2);
             if (s->sps->chroma_array_type == 2) {
-                int yBase_tmp = yBase + (1 << (log2_trafo_size));
-                if (yBase_tmp <= (s->sps->height)) {
-                    ff_hevc_set_neighbour_available(s, xBase, yBase_tmp,
-                                                    trafo_size_h, trafo_size_v);
-                    s->hpc.intra_pred(s, xBase, yBase_tmp, log2_trafo_size, 1);
-                    s->hpc.intra_pred(s, xBase, yBase_tmp, log2_trafo_size, 2);
-                }
+                ff_hevc_set_neighbour_available(s, xBase, yBase + (1 << (log2_trafo_size)),
+                                                trafo_size_h, trafo_size_v);
+                s->hpc.intra_pred(s, xBase, yBase + (1 << (log2_trafo_size)), log2_trafo_size, 1);
+                s->hpc.intra_pred(s, xBase, yBase + (1 << (log2_trafo_size)), log2_trafo_size, 2);
             }
         }
     }
@@ -1219,14 +1214,15 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
     uint8_t *src2        = ref->data[2];
     ptrdiff_t src1stride = ref->linesize[1];
     ptrdiff_t src2stride = ref->linesize[2];
-    int pic_width        = s->sps->width >> s->sps->vshift[1];
-    int pic_height       = s->sps->height >> s->sps->hshift[1];
-    int shift = (s->sps->chroma_array_type == 3) ? 2 : 3;
-    int mx = mv->x & ((1 << shift) - 1);
-    int my = mv->y & ((1 << shift) - 1);
+    int pic_width        = s->sps->width >> s->sps->hshift[1];
+    int pic_height       = s->sps->height >> s->sps->vshift[1];
+    int hshift = 2 + s->sps->hshift[1];
+    int vshift = 2 + s->sps->vshift[1];
+    intptr_t mx = mv->x & ((1 << hshift) - 1);
+    intptr_t my = mv->y & ((1 << vshift) - 1);
 
-    x_off += mv->x >> shift;
-    y_off += mv->y >> shift;
+    x_off += mv->x >> hshift;
+    y_off += mv->y >> vshift;
     src1  += y_off * src1stride + (x_off << s->sps->pixel_shift);
     src2  += y_off * src2stride + (x_off << s->sps->pixel_shift);
 
