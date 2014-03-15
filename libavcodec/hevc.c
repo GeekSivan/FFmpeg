@@ -813,7 +813,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                               int trafo_depth, int blk_idx)
 {
     HEVCLocalContext *lc  = s->HEVClc;
-    const int log2_trafo_size_c = log2_trafo_size - (s->sps->chroma_array_type  ==  3 ? 0 : 1);
+    const int log2_trafo_size_c = log2_trafo_size - s->sps->hshift[1];
     int trafo_size = 1 << log2_trafo_size;
     int i;
 
@@ -873,7 +873,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
         if (lc->tt.cbf_luma)
             ff_hevc_hls_residual_coding(s, x0, y0, log2_trafo_size, scan_idx, 0);
         if (log2_trafo_size > 2 || s->sps->chroma_array_type == 3) {
-            trafo_size = 1 << (log2_trafo_size_c + 1);
+            trafo_size = 1 << (log2_trafo_size_c + s->sps->hshift[1]);
             for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
                 if (lc->cu.pred_mode == MODE_INTRA) {
                     ff_hevc_set_neighbour_available(s, x0, y0 + (i << log2_trafo_size_c), trafo_size, trafo_size);
@@ -917,7 +917,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
         }
     } else if (lc->cu.pred_mode == MODE_INTRA) {
         if (log2_trafo_size > 2 || s->sps->chroma_array_type == 3) {
-            trafo_size = 1 << (log2_trafo_size_c + 1);
+            trafo_size = 1 << (log2_trafo_size_c + s->sps->hshift[1]);
             ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
             s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 1);
             s->hpc.intra_pred(s, x0, y0, log2_trafo_size_c, 2);
