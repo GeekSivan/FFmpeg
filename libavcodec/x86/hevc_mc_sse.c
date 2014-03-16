@@ -1203,7 +1203,7 @@ mc_red_func(pel_pixels, 8,16, 32);
 mc_red_func(pel_pixels, 8,16, 48);
 mc_red_func(pel_pixels, 8,16, 64);
 
-mc_red_func(pel_pixels,10, 2,  6);
+//mc_red_func(pel_pixels,10, 2,  6);
 mc_red_func(pel_pixels,10, 4, 12);
 mc_red_func(pel_pixels,10, 8, 16);
 mc_red_func(pel_pixels,10, 8, 24);
