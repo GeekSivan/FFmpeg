@@ -814,7 +814,6 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
 {
     HEVCLocalContext *lc  = s->HEVClc;
     const int log2_trafo_size_c = log2_trafo_size - s->sps->hshift[1];
-    int trafo_size = 1 << log2_trafo_size;
     int i;
 
     if (lc->cu.pred_mode == MODE_INTRA) {
@@ -1216,13 +1215,15 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
     ptrdiff_t src2stride = ref->linesize[2];
     int pic_width        = s->sps->width >> s->sps->hshift[1];
     int pic_height       = s->sps->height >> s->sps->vshift[1];
-    int hshift = 2 + s->sps->hshift[1];
-    int vshift = 2 + s->sps->vshift[1];
-    intptr_t mx = mv->x & ((1 << hshift) - 1);
-    intptr_t my = mv->y & ((1 << vshift) - 1);
+    int hshift = s->sps->hshift[1];
+    int vshift = s->sps->vshift[1];
+    intptr_t mx = mv->x & ((1 << (2 + hshift)) - 1);
+    intptr_t my = mv->y & ((1 << (2 + vshift)) - 1);
+    intptr_t _mx = mx << (1 - hshift);
+    intptr_t _my = my << (1 - vshift);
 
-    x_off += mv->x >> hshift;
-    y_off += mv->y >> vshift;
+    x_off += mv->x >> (2 + hshift);
+    y_off += mv->y >> (2 + vshift);
     src1  += y_off * src1stride + (x_off << s->sps->pixel_shift);
     src2  += y_off * src2stride + (x_off << s->sps->pixel_shift);
 
@@ -1247,7 +1248,7 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
         src1 = lc->edge_emu_buffer + buf_offset1;
         src1stride = edge_emu_stride;
         s->hevcdsp.put_hevc_epel[idx][!!my][!!mx](dst1, dststride, src1, src1stride,
-                                             block_w, block_h, mx, my);
+                                             block_w, block_h, _mx, _my);
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src2 - offset2,
                                  edge_emu_stride, src2stride,
@@ -1259,12 +1260,12 @@ static void chroma_mc(HEVCContext *s, int16_t *dst1, int16_t *dst2,
         src2stride = edge_emu_stride;
 
         s->hevcdsp.put_hevc_epel[idx][!!my][!!mx](dst2, dststride, src2, src2stride,
-                                             block_w, block_h, mx, my);
+                                             block_w, block_h, _mx, _my);
     } else {
         s->hevcdsp.put_hevc_epel[idx][!!my][!!mx](dst1, dststride, src1, src1stride,
-                                             block_w, block_h, mx, my);
+                                             block_w, block_h, _mx, _my);
         s->hevcdsp.put_hevc_epel[idx][!!my][!!mx](dst2, dststride, src2, src2stride,
-                                             block_w, block_h, mx, my);
+                                             block_w, block_h, _mx, _my);
     }
 }
 
