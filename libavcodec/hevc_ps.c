@@ -870,8 +870,26 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
     vui_present = get_bits1(gb);
     if (vui_present)
         decode_vui(s, sps);
-    skip_bits1(gb); // sps_extension_flag
 
+    if (get_bits1(gb)) { // sps_extension_flag
+        int sps_extension_flag[1];
+        int sps_extension_7bits;
+		for (i = 0; i < 1; i++)
+			sps_extension_flag[i]= 	get_bits1(gb);
+        sps_extension_7bits	= get_bits(gb, 7);
+        if (sps_extension_flag[0]) {
+            int transform_skip_rotation_enabled_flag = get_bits1(gb);
+            int transform_skip_context_enabled_flag	 = get_bits1(gb);
+            int intra_block_copy_enabled_flag	     = get_bits1(gb);
+            int implicit_rdpcm_enabled_flag	         = get_bits1(gb);
+            int explicit_rdpcm_enabled_flag	         = get_bits1(gb);
+            int extended_precision_processing_flag	 = get_bits1(gb);
+            sps->intra_smoothing_disabled_flag	     = get_bits1(gb);
+            int high_precision_offsets_enabled_flag	 = get_bits1(gb);
+            int fast_rice_adaptation_enabled_flag	 = get_bits1(gb);
+            int cabac_bypass_alignment_enabled_flag	 = get_bits1(gb);
+        }
+    }
     if (s->apply_defdispwin) {
         sps->output_window.left_offset   += sps->vui.def_disp_win.left_offset;
         sps->output_window.right_offset  += sps->vui.def_disp_win.right_offset;
