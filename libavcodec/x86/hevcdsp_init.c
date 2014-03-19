@@ -89,57 +89,76 @@ mc_rep_func(pel_pixels,10,  8, 16);
 mc_rep_func(epel_h, 8, 16, 64);
 mc_rep_func(epel_h, 8, 16, 48);
 mc_rep_func(epel_h, 8, 16, 32);
+mc_rep_func(epel_h, 8,  8, 24);
+
 
 mc_rep_func(epel_h,10,  8, 64);
 mc_rep_func(epel_h,10,  8, 48);
 mc_rep_func(epel_h,10,  8, 32);
 mc_rep_func(epel_h,10,  8, 24);
 mc_rep_func(epel_h,10,  8, 16);
+mc_rep_func(epel_h,10,  4, 12);
 
 
 mc_rep_func(epel_v, 8, 16, 64);
 mc_rep_func(epel_v, 8, 16, 48);
 mc_rep_func(epel_v, 8, 16, 32);
+mc_rep_func(epel_v, 8,  8, 24);
+
 
 mc_rep_func(epel_v,10,  8, 64);
 mc_rep_func(epel_v,10,  8, 48);
 mc_rep_func(epel_v,10,  8, 32);
 mc_rep_func(epel_v,10,  8, 24);
 mc_rep_func(epel_v,10,  8, 16);
+mc_rep_func(epel_v,10,  4, 12);
+
 
 mc_rep_func(epel_hv, 8,  8, 64);
 mc_rep_func(epel_hv, 8,  8, 48);
 mc_rep_func(epel_hv, 8,  8, 32);
 mc_rep_func(epel_hv, 8,  8, 24);
 mc_rep_func(epel_hv, 8,  8, 16);
+mc_rep_func(epel_hv, 8,  4, 12);
+
 
 mc_rep_func(epel_hv,10,  8, 64);
 mc_rep_func(epel_hv,10,  8, 48);
 mc_rep_func(epel_hv,10,  8, 32);
 mc_rep_func(epel_hv,10,  8, 24);
 mc_rep_func(epel_hv,10,  8, 16);
+mc_rep_func(epel_hv,10,  4, 12);
+
 
 
 mc_rep_func(qpel_h, 8, 16, 64);
 mc_rep_func(qpel_h, 8, 16, 48);
 mc_rep_func(qpel_h, 8, 16, 32);
+mc_rep_func(qpel_h, 8,  8, 24);
+
 
 mc_rep_func(qpel_h,10,  8, 64);
 mc_rep_func(qpel_h,10,  8, 48);
 mc_rep_func(qpel_h,10,  8, 32);
 mc_rep_func(qpel_h,10,  8, 24);
 mc_rep_func(qpel_h,10,  8, 16);
+mc_rep_func(qpel_h,10,  4, 12);
+
 
 
 mc_rep_func(qpel_v, 8, 16, 64);
 mc_rep_func(qpel_v, 8, 16, 48);
 mc_rep_func(qpel_v, 8, 16, 32);
+mc_rep_func(qpel_v, 8,  8, 24);
+
 
 mc_rep_func(qpel_v,10,  8, 64);
 mc_rep_func(qpel_v,10,  8, 48);
 mc_rep_func(qpel_v,10,  8, 32);
 mc_rep_func(qpel_v,10,  8, 24);
 mc_rep_func(qpel_v,10,  8, 16);
+mc_rep_func(qpel_v,10,  4, 12);
+
 #endif
 void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 {

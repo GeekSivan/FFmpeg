@@ -420,32 +420,6 @@ cglobal hevc_put_hevc_epel_h%1_%2, 6, 7, 15 , dst, dststride, src, srcstride, he
     RET
 %endmacro
 
-cglobal hevc_put_hevc_epel_h24_8, 6, 7, 15 , dst, dststride, src, srcstride, height, mx, rfilter
-    sub             srcq, 1
-    EPEL_FILTER        8, mx
-.loop
-    EPEL_LOAD          8, srcq, 1, 24
-    EPEL_COMPUTE       8, 16, m14, m15
-    PEL_STORE16     dstq, m0, m1
-    EPEL_LOAD          8, srcq + 16, 1, 24
-    EPEL_COMPUTE       8, 8, m14, m15
-    PEL_STORE8   dstq+32, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
-cglobal hevc_put_hevc_epel_h12_10, 6, 7, 15 , dst, dststride, src, srcstride, height, mx, rfilter
-    sub             srcq, 2
-    EPEL_FILTER       10, mx
-.loop
-    EPEL_LOAD         10, srcq, 2, 12
-    EPEL_COMPUTE      10, 8, m14, m15
-    PEL_STORE8      dstq, m0, m1
-    EPEL_LOAD         10, srcq + 16, 2, 12
-    EPEL_COMPUTE      10, 4, m14, m15
-    PEL_STORE4   dstq+16, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
 ; ******************************
 ; void put_hevc_epel_v(int16_t *dst, ptrdiff_t dststride,
 ;                      uint8_t *_src, ptrdiff_t _srcstride,
@@ -465,34 +439,6 @@ cglobal hevc_put_hevc_epel_v%1_%2, 7, 9, 15 , dst, dststride, src, srcstride, he
     LOOP_END          dst, dststride, src, srcstride
     RET
 %endmacro
-
-cglobal hevc_put_hevc_epel_v24_8, 7, 9, 0 , dst, dststride, src, srcstride, height, mx, my, r3src, rfilter
-    lea           r3srcq, [srcstrideq*3]
-    sub               srcq, srcstrideq
-    EPEL_FILTER        8, my
-.loop
-    EPEL_LOAD          8, srcq, srcstride, 24
-    EPEL_COMPUTE       8, 16, m14, m15
-    PEL_STORE16     dstq, m0, m1
-    EPEL_LOAD          8, srcq + 16, srcstride, 24
-    EPEL_COMPUTE       8, 8, m14, m15
-    PEL_STORE8   dstq+32, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
-cglobal hevc_put_hevc_epel_v12_10, 7, 9, 15 , dst, dststride, src, srcstride, height, mx, my, r3src, rfilter
-    lea           r3srcq, [srcstrideq*3]
-    sub             srcq, srcstrideq
-    EPEL_FILTER       10, my
-.loop
-    EPEL_LOAD         10, srcq, srcstride, 12
-    EPEL_COMPUTE      10, 8, m14, m15
-    PEL_STORE8      dstq, m0, m1
-    EPEL_LOAD         10, srcq + 16, srcstride, 12
-    EPEL_COMPUTE      10, 4, m14, m15
-    PEL_STORE4   dstq+16, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
 
 ; ******************************
 ; void put_hevc_epel_hv(int16_t *dst, ptrdiff_t dststride,
@@ -537,94 +483,6 @@ cglobal hevc_put_hevc_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstride, h
     RET
 %endmacro
 
-cglobal hevc_put_hevc_epel_hv12_8, 7, 11, 12 , dst, dststride, src, srcstride, height, mx, my, r3src, rfilter
-    sub             srcq, 1
-    sub             srcq, srcstrideq
-    EPEL_HV_FILTER     8
-.loop
-    EPEL_LOAD          8, srcq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m4, m0
-    EPEL_LOAD          8, srcq + srcstrideq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m5, m0
-    EPEL_LOAD          8, srcq + 2*srcstrideq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m6, m0
-    EPEL_LOAD          8, srcq + r3srcq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m7, m0
-    punpcklwd         m0, m4, m5
-    punpckhwd         m1, m4, m5
-    punpcklwd         m2, m6, m7
-    punpckhwd         m3, m6, m7
-    EPEL_COMPUTE      14, 8, m12, m13
-    PEL_STORE8      dstq, m0, m1
-
-    EPEL_LOAD          8, srcq + 8, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m4, m0
-    EPEL_LOAD          8, srcq + 8 + srcstrideq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-   SWAP               m5, m0
-    EPEL_LOAD          8, srcq + 8 + 2*srcstrideq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m6, m0
-    EPEL_LOAD          8, srcq + 8 + r3srcq, 1, 12
-    EPEL_COMPUTE       8, 6, m14, m15
-    SWAP              m7, m0
-    punpcklwd         m0, m4, m5
-    punpcklwd         m2, m6, m7
-    EPEL_COMPUTE      14, 4 , m12, m13
-    PEL_STORE4   dstq+16, m0, m1
-    
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
-cglobal hevc_put_hevc_epel_hv12_10, 7, 11, 12 , dst, dststride, src, srcstride, height, mx, my, r3src, rfilter
-    sub             srcq, 2
-    sub             srcq, srcstrideq
-    EPEL_HV_FILTER    10
-.loop
-    EPEL_LOAD         10, srcq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m4, m0
-    EPEL_LOAD         10, srcq + srcstrideq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m5, m0
-    EPEL_LOAD         10, srcq + 2*srcstrideq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m6, m0
-    EPEL_LOAD         10, srcq + r3srcq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m7, m0
-    punpcklwd         m0, m4, m5
-    punpckhwd         m1, m4, m5
-    punpcklwd         m2, m6, m7
-    punpckhwd         m3, m6, m7
-    EPEL_COMPUTE      14, 8, m12, m13
-    PEL_STORE8      dstq, m0, m1
-
-
-    EPEL_LOAD         10, srcq +16, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m4, m0
-    EPEL_LOAD         10, srcq+16+srcstrideq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m5, m0
-    EPEL_LOAD         10, srcq+16+2*srcstrideq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m6, m0
-    EPEL_LOAD         10, srcq+16+r3srcq, 2, 12
-    EPEL_COMPUTE      10, 6, m14, m15
-    SWAP              m7, m0
-    punpcklwd         m0, m4, m5
-    punpcklwd         m2, m6, m7
-    EPEL_COMPUTE      14,  4, m12, m13
-    PEL_STORE4   dstq+16, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
 ; ******************************
 ; void put_hevc_qpel_hX_X_X(int16_t *dst, ptrdiff_t dststride,
 ;                       uint8_t *_src, ptrdiff_t _srcstride,
@@ -642,29 +500,6 @@ cglobal hevc_put_hevc_qpel_h%1_%2, 6, 7, 15 , dst, dststride, src, srcstride, he
     RET
 %endmacro
 
-cglobal hevc_put_hevc_qpel_h24_8, 6, 7, 15 , dst, dststride, src, srcstride, height, mx, rfilter
-    QPEL_FILTER        8, mx
-.loop
-    QPEL_H_LOAD        8, srcq, 24
-    QPEL_COMPUTE      16, 8
-    PEL_STORE16     dstq, m0, m1
-    QPEL_H_LOAD        8, srcq+16, 24
-    QPEL_COMPUTE       8, 8
-    PEL_STORE8   dstq+32, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
-cglobal hevc_put_hevc_qpel_h12_10, 6, 7, 15 , dst, dststride, src, srcstride, height, mx, rfilter
-    QPEL_FILTER       10, mx
-.loop
-    QPEL_H_LOAD       10, srcq, 12
-    QPEL_COMPUTE       8, 10
-    PEL_STORE8      dstq, m0, m1
-    QPEL_H_LOAD       10, srcq+16, 12
-    QPEL_COMPUTE       4, 10
-    PEL_STORE4   dstq+16, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
 
 ; ******************************
 ; void put_hevc_qpel_vX_X_X(int16_t *dst, ptrdiff_t dststride,
@@ -683,33 +518,6 @@ cglobal hevc_put_hevc_qpel_v%1_%2, 7, 14, 15 , dst, dststride, src, srcstride, h
     LOOP_END         dst, dststride, src, srcstride
     RET
 %endmacro
-
-cglobal hevc_put_hevc_qpel_v24_8, 7, 14, 15 , dst, dststride, src, srcstride, height, r3src, my, rfilter
-    lea           r3srcq, [srcstrideq*3]
-    QPEL_FILTER        8, my
-.loop
-    QPEL_V_LOAD        8, srcq, srcstride, 24
-    QPEL_COMPUTE      16, 8
-    PEL_STORE16     dstq, m0, m1
-    QPEL_V_LOAD        8, srcq+16, srcstride, 24
-    QPEL_COMPUTE       8, 8
-    PEL_STORE8   dstq+32, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
-cglobal hevc_put_hevc_qpel_v12_10, 7, 14, 15 , dst, dststride, src, srcstride, height, r3src, my, rfilter
-    lea           r3srcq, [srcstrideq*3]
-    QPEL_FILTER       10, my
-.loop
-    QPEL_V_LOAD       10, srcq, srcstride, 12
-    QPEL_COMPUTE       8, 10
-    PEL_STORE8      dstq, m0, m1
-    QPEL_V_LOAD       10, srcq+16, srcstride, 12
-    QPEL_COMPUTE       4, 10
-    PEL_STORE4   dstq+16, m0, m1
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
 
 HEVC_PUT_HEVC_PEL_PIXELS  2, 8
 HEVC_PUT_HEVC_PEL_PIXELS  4, 8
