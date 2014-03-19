@@ -58,7 +58,7 @@ typedef struct HEVCDSPContext {
     void (*put_hevc_qpel_uni[10][2][2])(uint8_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
                                    int width, int height, intptr_t mx, intptr_t my);
     void (*put_hevc_qpel_uni_w[10][2][2])(uint8_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
-                                        int width, int height, intptr_t mx, intptr_t my, int denom, int wx, int ox);
+                                        int width, int height, intptr_t mx, intptr_t my, int16_t denom, int16_t wx, int16_t ox);
 
     void (*put_hevc_qpel_bi[10][2][2])(uint8_t *dst, ptrdiff_t dststride, uint8_t *_src, ptrdiff_t _srcstride,
                                        int16_t *src2, ptrdiff_t src2stride,
@@ -73,7 +73,7 @@ typedef struct HEVCDSPContext {
     void (*put_hevc_epel_uni[10][2][2])(uint8_t *dst, ptrdiff_t dststride, uint8_t *_src, ptrdiff_t _srcstride,
                                       int width, int height, intptr_t mx, intptr_t my);
     void (*put_hevc_epel_uni_w[10][2][2])(uint8_t *dst, ptrdiff_t dststride, uint8_t *_src, ptrdiff_t _srcstride,
-                                        int width, int height, intptr_t mx, intptr_t my, int denom, int wx, int ox);
+                                        int width, int height, intptr_t mx, intptr_t my, int16_t denom, int16_t wx, int16_t ox);
     void (*put_hevc_epel_bi[10][2][2])(uint8_t *dst, ptrdiff_t dststride, uint8_t *_src, ptrdiff_t _srcstride,
                                        int16_t *src2, ptrdiff_t src2stride,
                                        int width, int height, intptr_t mx, intptr_t my);
