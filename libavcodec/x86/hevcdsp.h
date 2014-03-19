@@ -31,6 +31,7 @@ void ff_hevc_put_hevc_ ## name ## _ ## D ## _sse(int16_t *dst, ptrdiff_t dststri
 
 #ifdef OPTI_ASM
 #define PEL_PROTOTYPE(name, D) \
+PEL_PROTOTYPE_SSE(name, D);    \
 PEL_PROTOTYPE_ASM(name, D)
 #else
 #define PEL_PROTOTYPE(name, D) \
