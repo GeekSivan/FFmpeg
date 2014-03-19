@@ -371,33 +371,6 @@ cglobal hevc_put_hevc_pel_pixels%1_%2, 5, 5, 2, dst, dststride, src, srcstride,h
     RET
 %endmacro
 
-cglobal hevc_put_hevc_pel_pixels24_8, 5, 5, 2, dst, dststride, src, srcstride,height
-.loop
-    movdqu            m0, [srcq]                 ; load data from source
-    movhlps           m1, m0
-    pmovzxbw          m0, m0
-    pmovzxbw          m1, m1
-    psllw             m0, 6
-    psllw             m1, 6
-    movdqa        [dstq], m0
-    movdqa   [dstq + 16], m1                     ; store 16
-    movq              m0, [srcq + 16]
-    pmovzxbw          m0, m0
-    psllw             m0, 6
-    movdqa   [dstq + 32], m0
-    LOOP_END         dst, dststride, src, srcstride
-    RET
-
-cglobal hevc_put_hevc_pel_pixels12_10, 5, 5, 1, dst, dststride, src, srcstride,height
-.loop
-    movdqu            m0, [srcq]            ; load data from source
-    psllw             m0, 4
-    movdqa        [dstq], m0
-    movq              m0, [srcq + 16]
-    psllw             m0, 4
-    movq     [dstq + 16], m0
-    LOOP_END         dst, dststride, src, srcstride
-    RET
 
 ; ******************************
 ; void put_hevc_epel_hX(int16_t *dst, ptrdiff_t dststride,

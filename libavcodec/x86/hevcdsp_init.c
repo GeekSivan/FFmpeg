@@ -79,12 +79,16 @@ void ff_hevc_put_hevc_##name##W##_##bitd##_sse4(int16_t *dst, ptrdiff_t dststrid
 mc_rep_func(pel_pixels, 8, 16, 64);
 mc_rep_func(pel_pixels, 8, 16, 48);
 mc_rep_func(pel_pixels, 8, 16, 32);
+mc_rep_func(pel_pixels, 8,  8, 24);
+
 
 mc_rep_func(pel_pixels,10,  8, 64);
 mc_rep_func(pel_pixels,10,  8, 48);
 mc_rep_func(pel_pixels,10,  8, 32);
 mc_rep_func(pel_pixels,10,  8, 24);
 mc_rep_func(pel_pixels,10,  8, 16);
+mc_rep_func(pel_pixels,10,  4, 12);
+
 
 mc_rep_func(epel_h, 8, 16, 64);
 mc_rep_func(epel_h, 8, 16, 48);
