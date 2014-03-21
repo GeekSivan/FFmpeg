@@ -1364,7 +1364,6 @@ static void chroma_mc_bi(HEVCContext *s, uint8_t *dst0, ptrdiff_t dststride, AVF
     intptr_t my0 = mv0->y & ((1 << (2 + vshift)) - 1);
     intptr_t mx1 = mv1->x & ((1 << (2 + hshift)) - 1);
     intptr_t my1 = mv1->y & ((1 << (2 + vshift)) - 1);
-
     intptr_t _mx0 = mx0 << (1 - hshift);
     intptr_t _my0 = my0 << (1 - vshift);
     intptr_t _mx1 = mx1 << (1 - hshift);

@@ -251,9 +251,10 @@ static void sao_filter_CTB(HEVCContext *s, int x, int y)
         int x0       = x >> s->sps->hshift[c_idx];
         int y0       = y >> s->sps->vshift[c_idx];
         int stride   = s->frame->linesize[c_idx];
-        int ctb_size = (1 << (s->sps->log2_ctb_size)) >> s->sps->hshift[c_idx];
-        int width    = FFMIN(ctb_size, (s->sps->width  >> s->sps->hshift[c_idx]) - x0);
-        int height   = FFMIN(ctb_size, (s->sps->height >> s->sps->vshift[c_idx]) - y0);
+        int ctb_size_h = (1 << (s->sps->log2_ctb_size)) >> s->sps->hshift[c_idx];
+        int ctb_size_v = (1 << (s->sps->log2_ctb_size)) >> s->sps->vshift[c_idx];
+        int width    = FFMIN(ctb_size_h, (s->sps->width  >> s->sps->hshift[c_idx]) - x0);
+        int height   = FFMIN(ctb_size_v, (s->sps->height >> s->sps->vshift[c_idx]) - y0);
         uint8_t *src = &s->frame->data[c_idx][y0 * stride + (x0 << s->sps->pixel_shift)];
         uint8_t *dst = &s->sao_frame->data[c_idx][y0 * stride + (x0 << s->sps->pixel_shift)];
 
