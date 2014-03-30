@@ -61,7 +61,7 @@
 #define MAX_QP 51
 #define DEFAULT_INTRA_TC_OFFSET 2
 
-#define HEVC_CONTEXTS 183
+#define HEVC_CONTEXTS 186
 
 #define MRG_MAX_NUM_CANDS     5
 
@@ -180,6 +180,7 @@ enum SyntaxElement {
     COEFF_ABS_LEVEL_GREATER2_FLAG,
     COEFF_ABS_LEVEL_REMAINING,
     COEFF_SIGN_FLAG,
+    INTRA_BC_FLAG,
 };
 
 enum PartMode {
@@ -197,6 +198,7 @@ enum PredMode {
     MODE_INTER = 0,
     MODE_INTRA,
     MODE_SKIP,
+    MODE_INTRA_BC,
 };
 
 enum InterPredIdc {
@@ -457,6 +459,9 @@ typedef struct HEVCSPS {
     int max_transform_hierarchy_depth_intra;
 
     int intra_smoothing_disabled_flag;
+    int transform_skip_context_enabled_flag;
+    int transform_skip_rotation_enabled_flag;
+    int intra_block_copy_enabled_flag;
 
     ///< coded frame dimension in various units
     int width;
@@ -633,6 +638,7 @@ typedef struct CodingUnit {
     uint8_t intra_split_flag;   ///< IntraSplitFlag
     uint8_t max_trafo_depth;    ///< MaxTrafoDepth
     uint8_t cu_transquant_bypass_flag;
+    uint8_t intra_bc_flag;
 } CodingUnit;
 
 typedef struct Mv {
@@ -956,6 +962,8 @@ int ff_hevc_no_residual_syntax_flag_decode(HEVCContext *s);
 int ff_hevc_split_transform_flag_decode(HEVCContext *s, int log2_trafo_size);
 int ff_hevc_cbf_cb_cr_decode(HEVCContext *s, int trafo_depth);
 int ff_hevc_cbf_luma_decode(HEVCContext *s, int trafo_depth);
+int ff_hevc_intra_bc_flag_decode(HEVCContext *s);
+int ff_hevc_part_mode_bc_decode(HEVCContext *s, int log2_cb_size);
 
 /**
  * Get the number of candidate references for the current frame.
