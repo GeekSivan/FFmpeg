@@ -29,7 +29,6 @@
 #include "libavutil/avassert.h"
 #include "libavcodec/bytestream.h"
 #include "libavcodec/get_bits.h"
-#include "libavcodec/mathops.h"
 #include "avformat.h"
 #include "mpegts.h"
 #include "internal.h"
@@ -45,6 +44,13 @@
 #define MAX_PES_PAYLOAD 200*1024
 
 #define MAX_MP4_DESCR_COUNT 16
+
+#define MOD_UNLIKELY(modulus, dividend, divisor, prev_dividend) \
+    do { \
+        if ((prev_dividend) == 0 || (dividend) - (prev_dividend) != (divisor)) \
+            (modulus) = (dividend) % (divisor); \
+        (prev_dividend) = (dividend); \
+    } while (0)
 
 enum MpegTSFilterType {
     MPEGTS_PES,
@@ -996,10 +1002,7 @@ static int mpegts_push_data(MpegTSFilter *filter,
                 pes->pts = AV_NOPTS_VALUE;
                 pes->dts = AV_NOPTS_VALUE;
                 if ((flags & 0xc0) == 0x80) {
-                    pes->pts = ff_parse_pes_pts(r);
-                    /* video pts is not monotonic, can't be used for dts */
-                    if (pes->st->codec->codec_type != AVMEDIA_TYPE_VIDEO)
-                        pes->dts = pes->pts;
+                    pes->dts = pes->pts = ff_parse_pes_pts(r);
                     r += 5;
                 } else if ((flags & 0xc0) == 0xc0) {
                     pes->pts = ff_parse_pes_pts(r);
@@ -1702,10 +1705,10 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
             break;
         pid = get16(&p, p_end);
         if (pid < 0)
-            break;
+            goto out;
         pid &= 0x1fff;
         if (pid == ts->current_pid)
-            break;
+            goto out;
 
         /* now create stream */
         if (ts->pids[pid] && ts->pids[pid]->type == MPEGTS_PES) {
@@ -1751,11 +1754,11 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
         desc_list_len = get16(&p, p_end);
         if (desc_list_len < 0)
-            break;
+            goto out;
         desc_list_len &= 0xfff;
         desc_list_end = p + desc_list_len;
         if (desc_list_end > p_end)
-            break;
+            goto out;
         for(;;) {
             if (ff_parse_mpeg2_descriptor(ts->stream, st, stream_type, &p, desc_list_end,
                 mp4_descr, mp4_descr_count, pid, ts) < 0)
