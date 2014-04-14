@@ -501,7 +501,7 @@ static void FUNC(sao_edge_filter_1)(uint8_t *_dst, uint8_t *_src,
 ////////////////////////////////////////////////////////////////////////////////
 static void FUNC(put_hevc_pel_pixels)(int16_t *dst, ptrdiff_t dststride,
                                        uint8_t *_src, ptrdiff_t _srcstride,
-                                       int width, int height, int mx, int my)
+                                       int height, intptr_t mx, intptr_t my, int width)
 {
     int x, y;
     pixel *src          = (pixel *)_src;
@@ -530,7 +530,7 @@ static void FUNC(put_hevc_pel_pixels)(int16_t *dst, ptrdiff_t dststride,
 
 static void FUNC(put_hevc_qpel_h)(int16_t *dst,  ptrdiff_t dststride,
                                        uint8_t *_src, ptrdiff_t _srcstride,
-                                       int width, int height, int mx, int my)
+                                       int height, intptr_t mx, intptr_t my, int width)
 {
     int x, y;
     pixel        *src       = (pixel*)_src;
@@ -546,7 +546,7 @@ static void FUNC(put_hevc_qpel_h)(int16_t *dst,  ptrdiff_t dststride,
 
 static void FUNC(put_hevc_qpel_v)(int16_t *dst,  ptrdiff_t dststride,
                                        uint8_t *_src, ptrdiff_t _srcstride,
-                                       int width, int height, int mx, int my)
+                                       int height, intptr_t mx, intptr_t my, int width)
 {
     int x, y;
     pixel        *src       = (pixel*)_src;
@@ -564,8 +564,8 @@ static void FUNC(put_hevc_qpel_hv)(int16_t *dst,
                                    ptrdiff_t dststride,
                                    uint8_t *_src,
                                    ptrdiff_t _srcstride,
-                                   int width, int height,
-                                   int mx, int my)
+                                   int height, intptr_t mx,
+                                   intptr_t my, int width)
 {
     int x, y;
     const int8_t *filter;
@@ -604,7 +604,7 @@ static void FUNC(put_hevc_qpel_hv)(int16_t *dst,
 
 static void FUNC(put_hevc_epel_h)(int16_t *dst, ptrdiff_t dststride,
                                    uint8_t *_src, ptrdiff_t _srcstride,
-                                   int width, int height, int mx, int my)
+                                   int height, intptr_t mx, intptr_t my, int width)
 {
     int x, y;
     pixel *src = (pixel *)_src;
@@ -620,7 +620,7 @@ static void FUNC(put_hevc_epel_h)(int16_t *dst, ptrdiff_t dststride,
 
 static void FUNC(put_hevc_epel_v)(int16_t *dst, ptrdiff_t dststride,
                                    uint8_t *_src, ptrdiff_t _srcstride,
-                                   int width, int height, int mx, int my)
+                                   int height, intptr_t mx, intptr_t my, int width)
 {
     int x, y;
     pixel *src = (pixel *)_src;
@@ -637,7 +637,7 @@ static void FUNC(put_hevc_epel_v)(int16_t *dst, ptrdiff_t dststride,
 
 static void FUNC(put_hevc_epel_hv)(int16_t *dst, ptrdiff_t dststride,
                                     uint8_t *_src, ptrdiff_t _srcstride,
-                                    int width, int height, int mx, int my)
+                                    int height, intptr_t mx, intptr_t my, int width)
 {
     int x, y;
     pixel *src = (pixel *)_src;
@@ -1002,26 +1002,32 @@ static void FUNC(hevc_v_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
 /*      ------- Spatial horizontal upsampling filter  --------    */
 static void FUNC(upsample_filter_block_luma_h_all)( int16_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride,
                                         int x_EL, int x_BL, int block_w, int block_h, int widthEL,
-                                        const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info) {
+                                        const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info/*, int y_BL, short * buffer_frame*/) {
     int rightEndL  = widthEL - Enhscal->right_offset;
     int leftStartL = Enhscal->left_offset;
     int x, i, j, phase, refPos16, refPos;
     int16_t*   dst_tmp;
     pixel*   src_tmp, *src = (pixel *) _src;
     const int8_t*   coeff;
+    //short * srcY1;
 
     for( i = 0; i < block_w; i++ )	{
         x        = av_clip_c(i+x_EL, leftStartL, rightEndL);
         refPos16 = (((x - leftStartL)*up_info->scaleXLum + up_info->addXLum) >> 12);
         phase    = refPos16 & 15;
+        //printf("x %d phase %d \n", x, phase);
         coeff    = up_sample_filter_luma[phase];
         refPos   = (refPos16 >> 4) - x_BL;
         dst_tmp  = _dst  + i;
-        src_tmp  = src + refPos;
+        src_tmp  = src   + refPos;
+        //srcY1 = buffer_frame + y_BL*widthEL+ x_EL+i;
         for( j = 0; j < block_h ; j++ ) {
             *dst_tmp  = LumHor_FILTER_Block(src_tmp, coeff);
+            /*if(*srcY1 != *dst_tmp)
+                printf("--- %d %d %d %d %d %d %d %d %d \n",refPos, i, j, *srcY1, *dst_tmp, src_tmp[-3], src_tmp[-2], src_tmp[-1], src_tmp[0]);*/
             src_tmp  += _srcstride;
             dst_tmp  += _dststride;
+            //srcY1    += widthEL;
         }
     }
 }
@@ -1069,14 +1075,23 @@ static void FUNC(upsample_filter_block_luma_v_all)( uint8_t *_dst, ptrdiff_t _ds
     	y        =   av_clip_c(y_EL+j, topStartL, bottomEndL-1);
     	refPos16 = ((( y - topStartL )* up_info->scaleYLum + up_info->addYLum) >> 12);
         phase    = refPos16 & 15;
+        //printf("y %d phase %d \n", y, phase);
+
         coeff    = up_sample_filter_luma[phase];
-        refPos   = (refPos16 >> 4) -y_BL;
+        refPos   = (refPos16 >> 4) - y_BL;
         src_tmp  = _src  + refPos  * _srcstride;
         dst_tmp  =  dst  + (y_EL+j) * _dststride + x_EL;
         for( i = 0; i < block_w; i++ )	{
             *dst_tmp = av_clip_pixel( (LumVer_FILTER_Block(src_tmp, coeff, _srcstride) + I_OFFSET) >> (N_SHIFT));
-            if( ((x_EL+i) >= leftStartL) && ((x_EL+i) <= rightEndL-2) )
+
+           /* uint8_t dst_tmp0;
+            dst_tmp0 = av_clip_pixel( (LumVer_FILTER_Block(src_tmp, coeff, _srcstride) + I_OFFSET) >> (N_SHIFT));
+            if(dst_tmp0 != *dst_tmp)
+                printf("%d %d   --  %d %d \n", j, i, dst_tmp0, *dst_tmp);
+            */
+            if( ((x_EL+i) >= leftStartL) && ((x_EL+i) <= rightEndL-2) ){
                 src_tmp++;
+            }
             dst_tmp++;
         }
     }

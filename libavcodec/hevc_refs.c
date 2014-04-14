@@ -165,6 +165,8 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
 
     ref->poc      = poc;
     ref->flags    = HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_SHORT_REF;
+    if(s->sh.pic_output_flag == 0)
+        ref->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
     ref->sequence = s->seq_decode;
     ref->window   = s->sps->output_window;
     return 0;
@@ -210,6 +212,16 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
         int nb_output = 0;
         int min_poc   = INT_MAX;
         int i, min_idx=0, ret;
+
+        if(s->sh.no_output_of_prior_pics_flag == 1) {
+            for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
+                HEVCFrame *frame = &s->DPB[i];
+                 if ((frame->flags & HEVC_FRAME_FLAG_OUTPUT) && frame->poc != s->poc &&
+                    frame->sequence == s->seq_output) {
+                    frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
+                 }
+            }
+        }
 
         for (i = 0; i < FF_ARRAY_ELEMS(s->DPB); i++) {
             HEVCFrame *frame = &s->DPB[i];
@@ -699,12 +711,14 @@ int ff_hevc_frame_rps(HEVCContext *s)
         for (i = 0; short_rps && i < short_rps->num_delta_pocs; i++) {
             int poc = s->poc + short_rps->delta_poc[i];
             HEVCFrame *ref = find_ref_idx(s, poc);
-            mark_ref(ref, HEVC_FRAME_FLAG_SHORT_REF);
+            if (ref)
+                mark_ref(ref, HEVC_FRAME_FLAG_SHORT_REF);
         }
         for (i = 0; long_rps && i < long_rps->nb_refs; i++) {
             int poc  = long_rps->poc[i];
             HEVCFrame *ref = find_ref_idx(s, poc);
-            mark_ref(ref, HEVC_FRAME_FLAG_LONG_REF);
+            if (ref)
+                mark_ref(ref, HEVC_FRAME_FLAG_LONG_REF);
         }
     }
 #endif

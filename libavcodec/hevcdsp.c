@@ -136,7 +136,10 @@ void ff_hevc_dsp_init(HEVCDSPContext *hevcdsp, int bit_depth)
 
 #undef PEL_FUNC
 #define PEL_FUNC(dst1, idx1, idx2, a, depth)                                   \
-    hevcdsp->dst1[0][idx1][idx2] = hevcdsp->dst1[1][idx1][idx2] = hevcdsp->dst1[2][idx1][idx2] = hevcdsp->dst1[3][idx1][idx2] = hevcdsp->dst1[4][idx1][idx2]    = a ## _ ## depth
+    for(i = 0 ; i < 10 ; i++)                                                  \
+{                                                                              \
+    hevcdsp->dst1[i][idx1][idx2] = a ## _ ## depth;                            \
+}
 
 #undef EPEL_FUNCS
 #define EPEL_FUNCS(depth)                                                     \
@@ -181,7 +184,7 @@ void ff_hevc_dsp_init(HEVCDSPContext *hevcdsp, int bit_depth)
     hevcdsp->hevc_v_loop_filter_luma_c   = FUNC(hevc_v_loop_filter_luma, depth);   \
     hevcdsp->hevc_h_loop_filter_chroma_c = FUNC(hevc_h_loop_filter_chroma, depth); \
     hevcdsp->hevc_v_loop_filter_chroma_c = FUNC(hevc_v_loop_filter_chroma, depth)
-
+int i = 0;
     switch (bit_depth) {
     case 9:
         HEVC_DSP(9);
@@ -223,5 +226,5 @@ void ff_hevc_dsp_init(HEVCDSPContext *hevcdsp, int bit_depth)
     }
 #endif
     if (ARCH_X86) ff_hevcdsp_init_x86(hevcdsp, bit_depth);
-    if (ARCH_ARM) ff_hevcdsp_init_arm(hevcdsp, bit_depth);
+    //if (ARCH_ARM) ff_hevcdsp_init_arm(hevcdsp, bit_depth);
 }

@@ -28,6 +28,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 struct HEVCWindow;
 struct UpsamplInf;
 
@@ -84,7 +85,6 @@ typedef struct VideoDSPContext {
                                const struct HEVCWindow *Enhscal,
                                int block_w, int block_h, int src_x, int src_y, int hBL, int wEL, int shift);
     
-
     void (*prefetch)(uint8_t *buf, ptrdiff_t stride, int h);
 } VideoDSPContext;
 
