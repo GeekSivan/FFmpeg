@@ -1018,8 +1018,7 @@ int ff_hevc_decode_nal_vps(HEVCContext *s)
     vps->m_extensionOffset = get_bits(gb, 16);
 #else
     if (get_bits(gb, 16) != 0xffff) { // vps_reserved_ffff_16bits
-        av_log(s->avctx, AV_LOG_ERROR, "vps_reserved_ffff_16bits is not 0xffff\n");
-        goto err;
+        av_log(s->avctx, AV_LOG_INFO, "vps_reserved_ffff_16bits is not 0xffff\n");
     }
 #endif
 

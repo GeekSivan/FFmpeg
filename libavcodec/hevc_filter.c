@@ -1055,7 +1055,6 @@ void ff_upscale_mv_block(HEVCContext *s, int ctb_x, int ctb_y) {
                         }
                     } else
                         memset(&refEL->tab_mvf[pre_unit], 0, sizeof(MvField));
-                    
                 } else
                     memset(&refEL->tab_mvf[pre_unit], 0, sizeof(MvField));
 
