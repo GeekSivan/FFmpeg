@@ -880,14 +880,14 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
         if (sps_extension_flag[0]) {
             sps->transform_skip_rotation_enabled_flag = get_bits1(gb);
             sps->transform_skip_context_enabled_flag  = get_bits1(gb);
-            sps->intra_block_copy_enabled_flag        = get_bits1(gb);
-            int implicit_rdpcm_enabled_flag	         = get_bits1(gb);
-            int explicit_rdpcm_enabled_flag	         = get_bits1(gb);
-            int extended_precision_processing_flag	 = get_bits1(gb);
-            sps->intra_smoothing_disabled_flag	     = get_bits1(gb);
-            int high_precision_offsets_enabled_flag	 = get_bits1(gb);
-            int fast_rice_adaptation_enabled_flag	 = get_bits1(gb);
-            int cabac_bypass_alignment_enabled_flag	 = get_bits1(gb);
+            sps->intra_block_copy_enabled_flag       = get_bits1(gb);
+            int implicit_rdpcm_enabled_flag          = get_bits1(gb);
+            int explicit_rdpcm_enabled_flag          = get_bits1(gb);
+            int extended_precision_processing_flag   = get_bits1(gb);
+            sps->intra_smoothing_disabled_flag       = get_bits1(gb);
+            int high_precision_offsets_enabled_flag  = get_bits1(gb);
+            int fast_rice_adaptation_enabled_flag    = get_bits1(gb);
+            int cabac_bypass_alignment_enabled_flag  = get_bits1(gb);
         }
     }
     if (s->apply_defdispwin) {
