@@ -286,6 +286,15 @@ enum AVCodecID {
     AV_CODEC_ID_HNM4_VIDEO,
     AV_CODEC_ID_HEVC_DEPRECATED,
     AV_CODEC_ID_FIC,
+    AV_CODEC_ID_ALIAS_PIX,
+    AV_CODEC_ID_BRENDER_PIX_DEPRECATED,
+    AV_CODEC_ID_PAF_VIDEO_DEPRECATED,
+    AV_CODEC_ID_EXR_DEPRECATED,
+    AV_CODEC_ID_VP7_DEPRECATED,
+    AV_CODEC_ID_SANM_DEPRECATED,
+    AV_CODEC_ID_SGIRLE_DEPRECATED,
+    AV_CODEC_ID_MVC1_DEPRECATED,
+    AV_CODEC_ID_MVC2_DEPRECATED,
 
     AV_CODEC_ID_BRENDER_PIX= MKBETAG('B','P','I','X'),
     AV_CODEC_ID_Y41P       = MKBETAG('Y','4','1','P'),
@@ -314,6 +323,7 @@ enum AVCodecID {
     AV_CODEC_ID_SMVJPEG    = MKBETAG('S','M','V','J'),
     AV_CODEC_ID_HEVC       = MKBETAG('H','2','6','5'),
 #define AV_CODEC_ID_H265 AV_CODEC_ID_HEVC
+    AV_CODEC_ID_VP7        = MKBETAG('V','P','7','0'),
 
     /* various PCM "codecs" */
     AV_CODEC_ID_FIRST_AUDIO = 0x10000,     ///< A dummy id pointing at the start of audio codecs
@@ -382,6 +392,8 @@ enum AVCodecID {
     AV_CODEC_ID_ADPCM_IMA_ISS,
     AV_CODEC_ID_ADPCM_G722,
     AV_CODEC_ID_ADPCM_IMA_APC,
+    AV_CODEC_ID_ADPCM_VIMA_DEPRECATED,
+    AV_CODEC_ID_ADPCM_VIMA = MKBETAG('V','I','M','A'),
     AV_CODEC_ID_VIMA       = MKBETAG('V','I','M','A'),
     AV_CODEC_ID_ADPCM_AFC  = MKBETAG('A','F','C',' '),
     AV_CODEC_ID_ADPCM_IMA_OKI = MKBETAG('O','K','I',' '),
@@ -471,6 +483,8 @@ enum AVCodecID {
     AV_CODEC_ID_COMFORT_NOISE,
     AV_CODEC_ID_TAK_DEPRECATED,
     AV_CODEC_ID_METASOUND,
+    AV_CODEC_ID_PAF_AUDIO_DEPRECATED,
+    AV_CODEC_ID_ON2AVC,
     AV_CODEC_ID_FFWAVESYNTH = MKBETAG('F','F','W','S'),
     AV_CODEC_ID_SONIC       = MKBETAG('S','O','N','C'),
     AV_CODEC_ID_SONIC_LS    = MKBETAG('S','O','N','L'),
@@ -479,6 +493,10 @@ enum AVCodecID {
     AV_CODEC_ID_TAK         = MKBETAG('t','B','a','K'),
     AV_CODEC_ID_EVRC        = MKBETAG('s','e','v','c'),
     AV_CODEC_ID_SMV         = MKBETAG('s','s','m','v'),
+    AV_CODEC_ID_DSD_LSBF    = MKBETAG('D','S','D','L'),
+    AV_CODEC_ID_DSD_MSBF    = MKBETAG('D','S','D','M'),
+    AV_CODEC_ID_DSD_LSBF_PLANAR = MKBETAG('D','S','D','1'),
+    AV_CODEC_ID_DSD_MSBF_PLANAR = MKBETAG('D','S','D','8'),
 
     /* subtitle codecs */
     AV_CODEC_ID_FIRST_SUBTITLE = 0x17000,          ///< A dummy ID pointing at the start of subtitle codecs.
@@ -1003,6 +1021,12 @@ enum AVPacketSideDataType {
     AV_PKT_DATA_H263_MB_INFO,
 
     /**
+     * This side data should be associated with an audio stream and contains
+     * ReplayGain information in form of the AVReplayGain struct.
+     */
+    AV_PKT_DATA_REPLAYGAIN,
+
+    /**
      * Recommmends skipping the specified number of samples
      * @code
      * u32le number of samples to skip from start of this packet
@@ -1067,6 +1091,12 @@ enum AVPacketSideDataType {
     AV_PKT_DATA_METADATA_UPDATE,
 };
 
+typedef struct AVPacketSideData {
+    uint8_t *data;
+    int      size;
+    enum AVPacketSideDataType type;
+} AVPacketSideData;
+
 /**
  * This structure stores compressed data. It is typically exported by demuxers
  * and then passed as input to decoders, or received as output from encoders and
@@ -1123,11 +1153,7 @@ typedef struct AVPacket {
      * Additional packet data that can be provided by the container.
      * Packet can contain several types of side information.
      */
-    struct {
-        uint8_t *data;
-        int      size;
-        enum AVPacketSideDataType type;
-    } *side_data;
+    AVPacketSideData *side_data;
     int side_data_elems;
 
     /**
@@ -1338,12 +1364,17 @@ typedef struct AVCodecContext {
      *   encoded input.
      *
      * Audio:
-     *   For encoding, this is the number of "priming" samples added to the
-     *   beginning of the stream. The decoded output will be delayed by this
-     *   many samples relative to the input to the encoder. Note that this
-     *   field is purely informational and does not directly affect the pts
-     *   output by the encoder, which should always be based on the actual
-     *   presentation time, including any delay.
+     *   For encoding, this is the number of "priming" samples added by the
+     *   encoder to the beginning of the stream. The decoded output will be
+     *   delayed by this many samples relative to the input to the encoder (or
+     *   more, if the decoder adds its own padding).
+     *   The timestamps on the output packets are adjusted by the encoder so
+     *   that they always refer to the first sample of the data actually
+     *   contained in the packet, including any added padding.
+     *   E.g. if the timebase is 1/samplerate and the timestamp of the first
+     *   input sample is 0, the timestamp of the first output packet will be
+     *   -delay.
+     *
      *   For decoding, this is the number of samples the decoder needs to
      *   output before the decoder's output is valid. When seeking, you should
      *   start decoding this many samples prior to your desired seek point.
@@ -2230,7 +2261,7 @@ typedef struct AVCodecContext {
 
     /**
      * ratecontrol qmin qmax limiting method
-     * 0-> clipping, 1-> use a nice continuous function to limit qscale wthin qmin/qmax.
+     * 0-> clipping, 1-> use a nice continuous function to limit qscale within qmin/qmax.
      * - encoding: Set by user.
      * - decoding: unused
      */
@@ -2325,14 +2356,14 @@ typedef struct AVCodecContext {
     int context_model;
 
     /**
-     * minimum Lagrange multipler
+     * minimum Lagrange multiplier
      * - encoding: Set by user.
      * - decoding: unused
      */
     int lmin;
 
     /**
-     * maximum Lagrange multipler
+     * maximum Lagrange multiplier
      * - encoding: Set by user.
      * - decoding: unused
      */
@@ -2557,7 +2588,7 @@ typedef struct AVCodecContext {
 #define AV_EF_EXPLODE   (1<<3)          ///< abort decoding on minor error detection
 
 #define AV_EF_CAREFUL    (1<<16)        ///< consider things that violate the spec, are fast to calculate and have not been seen in the wild as errors
-#define AV_EF_COMPLIANT  (1<<17)        ///< consider all spec non compliancies as errors
+#define AV_EF_COMPLIANT  (1<<17)        ///< consider all spec non compliances as errors
 #define AV_EF_AGGRESSIVE (1<<18)        ///< consider things that a sane encoder should not do as an error
 
 
@@ -2621,13 +2652,17 @@ typedef struct AVCodecContext {
 #define FF_IDCT_SIMPLEMMX     3
 #define FF_IDCT_ARM           7
 #define FF_IDCT_ALTIVEC       8
+#if FF_API_ARCH_SH4
 #define FF_IDCT_SH4           9
+#endif
 #define FF_IDCT_SIMPLEARM     10
 #define FF_IDCT_IPP           13
 #define FF_IDCT_XVIDMMX       14
 #define FF_IDCT_SIMPLEARMV5TE 16
 #define FF_IDCT_SIMPLEARMV6   17
+#if FF_API_ARCH_SPARC
 #define FF_IDCT_SIMPLEVIS     18
+#endif
 #define FF_IDCT_FAAN          20
 #define FF_IDCT_SIMPLENEON    22
 #if FF_API_ARCH_ALPHA
@@ -2744,7 +2779,7 @@ typedef struct AVCodecContext {
 #endif
 
     /**
-     * noise vs. sse weight for the nsse comparsion function
+     * noise vs. sse weight for the nsse comparison function
      * - encoding: Set by user.
      * - decoding: unused
      */
@@ -3597,14 +3632,14 @@ int av_dup_packet(AVPacket *pkt);
  *
  * @return 0 on success, negative AVERROR on fail
  */
-int av_copy_packet(AVPacket *dst, AVPacket *src);
+int av_copy_packet(AVPacket *dst, const AVPacket *src);
 
 /**
  * Copy packet side data
  *
  * @return 0 on success, negative AVERROR on fail
  */
-int av_copy_packet_side_data(AVPacket *dst, AVPacket *src);
+int av_copy_packet_side_data(AVPacket *dst, const AVPacket *src);
 
 /**
  * Free a packet.
@@ -3693,7 +3728,7 @@ void av_packet_free_side_data(AVPacket *pkt);
  *
  * @return 0 on success, a negative AVERROR on error.
  */
-int av_packet_ref(AVPacket *dst, AVPacket *src);
+int av_packet_ref(AVPacket *dst, const AVPacket *src);
 
 /**
  * Wipe the packet.
