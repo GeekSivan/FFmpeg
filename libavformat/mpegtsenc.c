@@ -86,6 +86,8 @@ typedef struct MpegTSWrite {
     int flags;
     int copyts;
     int tables_version;
+
+    int omit_video_pes_length;
 } MpegTSWrite;
 
 /* a PES packet header is generated every DEFAULT_PES_HEADER_FREQ packets */
@@ -124,6 +126,8 @@ static const AVOption options[] = {
       offsetof(MpegTSWrite, copyts), AV_OPT_TYPE_INT, {.i64=-1}, -1, 1, AV_OPT_FLAG_ENCODING_PARAM},
     { "tables_version", "set PAT, PMT and SDT version",
       offsetof(MpegTSWrite, tables_version), AV_OPT_TYPE_INT, {.i64=0}, 0, 31, AV_OPT_FLAG_ENCODING_PARAM},
+    { "omit_video_pes_length", "Ommit the PES packet length for video packets",
+      offsetof(MpegTSWrite, omit_video_pes_length), AV_OPT_TYPE_INT, {.i64=1}, 0, 1, AV_OPT_FLAG_ENCODING_PARAM},
     { NULL },
 };
 
@@ -628,7 +632,7 @@ static int mpegts_write_header(AVFormatContext *s)
     ts->sdt.write_packet = section_write_packet;
     ts->sdt.opaque = s;
 
-    pids = av_malloc(s->nb_streams * sizeof(*pids));
+    pids = av_malloc_array(s->nb_streams, sizeof(*pids));
     if (!pids)
         return AVERROR(ENOMEM);
 
@@ -1066,6 +1070,9 @@ static void mpegts_write_pes(AVFormatContext *s, AVStream *st,
             }
             if (len > 0xffff)
                 len = 0;
+            if (ts->omit_video_pes_length && st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+                len = 0;
+            }
             *q++ = len >> 8;
             *q++ = len;
             val = 0x80;
@@ -1162,6 +1169,19 @@ static void mpegts_write_pes(AVFormatContext *s, AVStream *st,
     ts_st->prev_payload_key = key;
 }
 
+int ff_check_h264_startcode(AVFormatContext *s, const AVStream *st, const AVPacket *pkt)
+{
+    if (pkt->size < 5 || AV_RB32(pkt->data) != 0x0000001) {
+        if (!st->nb_frames) {
+            av_log(s, AV_LOG_ERROR, "H.264 bitstream malformed, "
+                   "no startcode found, use the h264_mp4toannexb bitstream filter (-bsf h264_mp4toannexb)\n");
+            return AVERROR(EINVAL);
+        }
+        av_log(s, AV_LOG_WARNING, "H.264 bitstream error, startcode missing\n");
+    }
+    return 0;
+}
+
 static int mpegts_write_packet_internal(AVFormatContext *s, AVPacket *pkt)
 {
     AVStream *st = s->streams[pkt->stream_index];
@@ -1201,15 +1221,9 @@ static int mpegts_write_packet_internal(AVFormatContext *s, AVPacket *pkt)
     if (st->codec->codec_id == AV_CODEC_ID_H264) {
         const uint8_t *p = buf, *buf_end = p+size;
         uint32_t state = -1;
-
-        if (pkt->size < 5 || AV_RB32(pkt->data) != 0x0000001) {
-            if (!st->nb_frames) {
-                av_log(s, AV_LOG_ERROR, "H.264 bitstream malformed, "
-                       "no startcode found, use the h264_mp4toannexb bitstream filter (-bsf h264_mp4toannexb)\n");
-                return AVERROR(EINVAL);
-            }
-            av_log(s, AV_LOG_WARNING, "H.264 bitstream error, startcode missing\n");
-        }
+        int ret = ff_check_h264_startcode(s, st, pkt);
+        if (ret < 0)
+            return ret;
 
         do {
             p = avpriv_find_start_code(p, buf_end, &state);

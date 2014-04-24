@@ -30,6 +30,7 @@
 
 #include "config.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #if CONFIG_BZLIB
 #include <bzlib.h>
@@ -921,7 +922,7 @@ static int ebml_parse_id(MatroskaDemuxContext *matroska, EbmlSyntax *syntax,
         matroska->levels[matroska->num_levels - 1].length == 0xffffffffffffff)
         return 0;  // we reached the end of an unknown size cluster
     if (!syntax[i].id && id != EBML_ID_VOID && id != EBML_ID_CRC32) {
-        av_log(matroska->ctx, AV_LOG_INFO, "Unknown entry 0x%X\n", id);
+        av_log(matroska->ctx, AV_LOG_INFO, "Unknown entry 0x%"PRIX32"\n", id);
         if (matroska->ctx->error_recognition & AV_EF_EXPLODE)
             return AVERROR_INVALIDDATA;
     }
@@ -1913,6 +1914,8 @@ static int matroska_read_header(AVFormatContext *s)
                 st->codec->block_align = track->audio.sub_packet_size;
                 extradata_offset       = 78;
             }
+        } else if (codec_id == AV_CODEC_ID_PRORES && track->codec_priv.size == 4) {
+            fourcc = AV_RL32(track->codec_priv.data);
         }
         track->codec_priv.size -= extradata_offset;
 
@@ -2542,7 +2545,8 @@ static int matroska_parse_frame(MatroskaDemuxContext *matroska,
         pkt_data = wv_data;
     }
 
-    if (st->codec->codec_id == AV_CODEC_ID_PRORES)
+    if (st->codec->codec_id == AV_CODEC_ID_PRORES &&
+        AV_RB32(&data[4]) != MKBETAG('i', 'c', 'p', 'f'))
         offset = 8;
 
     pkt = av_mallocz(sizeof(AVPacket));
@@ -2553,7 +2557,7 @@ static int matroska_parse_frame(MatroskaDemuxContext *matroska,
         goto fail;
     }
 
-    if (st->codec->codec_id == AV_CODEC_ID_PRORES) {
+    if (st->codec->codec_id == AV_CODEC_ID_PRORES && offset == 8) {
         uint8_t *buf = pkt->data;
         bytestream_put_be32(&buf, pkt_size);
         bytestream_put_be32(&buf, MKBETAG('i', 'c', 'p', 'f'));

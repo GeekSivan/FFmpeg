@@ -461,7 +461,7 @@ typedef struct HEVCSPS {
 } HEVCSPS;
 
 typedef struct HEVCPPS {
-    unsigned sps_id; ///< seq_parameter_set_id
+    unsigned int sps_id; ///< seq_parameter_set_id
 
     uint8_t sign_data_hiding_flag;
 
@@ -843,7 +843,7 @@ typedef struct HEVCContext {
     int **skipped_bytes_pos_nal;
     int *skipped_bytes_pos_size_nal;
 
-    uint8_t *data;
+    const uint8_t *data;
 
     HEVCNAL *nals;
     int nb_nals;
