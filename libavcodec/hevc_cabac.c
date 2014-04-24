@@ -76,7 +76,6 @@ static const int8_t num_bins_in_se[] = {
      6, // coeff_abs_level_greater2_flag
      0, // coeff_abs_level_remaining
      0, // coeff_sign_flag
-     1, // intra_bc_flag
 };
 
 /**
@@ -124,7 +123,6 @@ static const int elem_offset[sizeof(num_bins_in_se)] = {
      88,
     132,
     156,
-    162,
     162,
     162,
 };
@@ -197,10 +195,7 @@ static const uint8_t init_values[3][HEVC_CONTEXTS] = {
       140,  92, 137, 138, 140, 152, 138, 139, 153,  74, 149,  92, 139, 107,
       122, 152, 140, 179, 166, 182, 140, 227, 122, 197,
       // coeff_abs_level_greater2_flag
-      138, 153, 136, 167, 152, 152,
-      // intra_bc_Flag
-      197,
-    },
+      138, 153, 136, 167, 152, 152, },
     { // sao_merge_flag
       153,
       // sao_type_idx
@@ -264,10 +259,7 @@ static const uint8_t init_values[3][HEVC_CONTEXTS] = {
       154, 196, 196, 167, 154, 152, 167, 182, 182, 134, 149, 136, 153, 121,
       136, 137, 169, 194, 166, 167, 154, 167, 137, 182,
       // coeff_abs_level_greater2_flag
-      107, 167, 91, 122, 107, 167,
-      // intra_bc_Flag
-      197,
-    },
+      107, 167, 91, 122, 107, 167, },
     { // sao_merge_flag
       153,
       // sao_type_idx
@@ -331,10 +323,7 @@ static const uint8_t init_values[3][HEVC_CONTEXTS] = {
       154, 196, 167, 167, 154, 152, 167, 182, 182, 134, 149, 136, 153, 121,
       136, 122, 169, 208, 166, 167, 154, 152, 167, 182,
       // coeff_abs_level_greater2_flag
-      107, 167, 91, 107, 107, 167,
-      // intra_bc_Flag
-      197,
-    },
+      107, 167, 91, 107, 107, 167, },
 };
 
 static const uint8_t scan_1x1[1] = {
@@ -769,22 +758,6 @@ int ff_hevc_part_mode_decode(HEVCContext *s, int log2_cb_size)
     return PART_nLx2N;  // 0000
 }
 
-int ff_hevc_part_mode_bc_decode(HEVCContext *s, int log2_cb_size)
-{
-    if (GET_CABAC(elem_offset[PART_MODE])) // 1
-        return PART_2Nx2N;
-    if (GET_CABAC(elem_offset[PART_MODE] + 1)) // 01
-        return PART_2NxN;
-    if (log2_cb_size == s->sps->log2_min_cb_size) {
-        if (GET_CABAC(elem_offset[PART_MODE] + 2)) // 001
-            return PART_Nx2N;
-        return PART_NxN; // 000
-    } else {
-        return PART_Nx2N;
-    }
-}
-
-
 int ff_hevc_pcm_flag_decode(HEVCContext *s)
 {
     return get_cabac_terminate(&s->HEVClc->cc);
@@ -1035,11 +1008,6 @@ static av_always_inline int coeff_sign_flag_decode(HEVCContext *s, uint8_t nb)
     for (i = 0; i < nb; i++)
         ret = (ret << 1) | get_cabac_bypass(&s->HEVClc->cc);
     return ret;
-}
-
-int ff_hevc_intra_bc_flag_decode(HEVCContext *s)
-{
-    return GET_CABAC(elem_offset[INTRA_BC_FLAG]);
 }
 
 void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,

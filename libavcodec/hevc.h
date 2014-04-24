@@ -180,7 +180,6 @@ enum SyntaxElement {
     COEFF_ABS_LEVEL_GREATER2_FLAG,
     COEFF_ABS_LEVEL_REMAINING,
     COEFF_SIGN_FLAG,
-    INTRA_BC_FLAG,
 };
 
 enum PartMode {
@@ -198,7 +197,6 @@ enum PredMode {
     MODE_INTER = 0,
     MODE_INTRA,
     MODE_SKIP,
-    MODE_INTRA_BC,
 };
 
 enum InterPredIdc {

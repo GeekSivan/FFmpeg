@@ -1091,7 +1091,7 @@ static int hls_transform_tree(HEVCContext *s, int x0, int y0,
         int log2_min_tu_size = s->sps->log2_min_tb_size;
         int min_tu_width     = s->sps->min_tb_width;
 
-        if ((lc->cu.pred_mode == MODE_INTRA && !lc->cu.intra_bc_flag) || trafo_depth != 0 ||
+        if (lc->cu.pred_mode == MODE_INTRA || trafo_depth != 0 ||
             SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0) ||
             SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0) ||
             (s->sps->chroma_array_type  ==  2 &&
@@ -1883,25 +1883,17 @@ static int hls_coding_unit(HEVCContext *s, int x0, int y0, int log2_cb_size)
         if (!s->sh.disable_deblocking_filter_flag)
             ff_hevc_deblocking_boundary_strengths(s, x0, y0, log2_cb_size);
     } else {
-        if (s->sps->intra_block_copy_enabled_flag)
-            lc->cu.intra_bc_flag = ff_hevc_intra_bc_flag_decode(s);
-        if (s->sh.slice_type != I_SLICE && !lc->cu.intra_bc_flag)
+        if (s->sh.slice_type != I_SLICE)
             lc->cu.pred_mode = ff_hevc_pred_mode_decode(s);
-        if (lc->cu.pred_mode != MODE_INTRA || lc->cu.intra_bc_flag ||
+        if (lc->cu.pred_mode != MODE_INTRA ||
             log2_cb_size == s->sps->log2_min_cb_size) {
-            if (!lc->cu.intra_bc_flag)
-                lc->cu.part_mode = ff_hevc_part_mode_decode(s, log2_cb_size);
-            else {
-                lc->cu.part_mode = ff_hevc_part_mode_bc_decode(s, log2_cb_size);
-                lc->cu.pred_mode = MODE_INTRA_BC;
-            }
+            lc->cu.part_mode        = ff_hevc_part_mode_decode(s, log2_cb_size);
             lc->cu.intra_split_flag = lc->cu.part_mode == PART_NxN &&
                                       lc->cu.pred_mode == MODE_INTRA;
         }
 
-        if (lc->cu.pred_mode == MODE_INTRA || lc->cu.pred_mode == MODE_INTRA_BC) {
+        if (lc->cu.pred_mode == MODE_INTRA) {
             if (lc->cu.part_mode == PART_2Nx2N && s->sps->pcm_enabled_flag &&
-                !lc->cu.intra_bc_flag &&
                 log2_cb_size >= s->sps->pcm.log2_min_pcm_cb_size &&
                 log2_cb_size <= s->sps->pcm.log2_max_pcm_cb_size) {
                 lc->cu.pcm_flag = ff_hevc_pcm_flag_decode(s);
@@ -1914,18 +1906,6 @@ static int hls_coding_unit(HEVCContext *s, int x0, int y0, int log2_cb_size)
 
                 if (ret < 0)
                     return ret;
-            } else if (lc->cu.intra_bc_flag) {
-                intra_prediction_unit_default_value(s, x0, y0, log2_cb_size);
-                ff_hevc_hls_mvd_coding(s, x0, y0, 2);
-                if (lc->cu.part_mode == PART_2NxN)
-                    ff_hevc_hls_mvd_coding(s, x0, y0 + cb_size / 2, 2);
-                else if (lc->cu.part_mode == PART_Nx2N)
-                    ff_hevc_hls_mvd_coding(s, x0 + cb_size / 2, y0, 2);
-                else if (lc->cu.part_mode == PART_NxN) {
-                    ff_hevc_hls_mvd_coding(s, x0 + cb_size / 2, y0, 2);
-                    ff_hevc_hls_mvd_coding(s, x0, y0 + cb_size / 2, 2);
-                    ff_hevc_hls_mvd_coding(s, x0 + cb_size / 2, y0 + cb_size / 2, 2);
-                }
             } else {
                 intra_prediction_unit(s, x0, y0, log2_cb_size);
             }
@@ -1969,9 +1949,8 @@ static int hls_coding_unit(HEVCContext *s, int x0, int y0, int log2_cb_size)
         }
 
         if (!lc->cu.pcm_flag) {
-            if ((lc->cu.pred_mode != MODE_INTRA &&
-                !(lc->cu.part_mode == PART_2Nx2N && lc->pu.merge_flag)) ||
-                (lc->cu.pred_mode == MODE_INTRA  && lc->cu.intra_bc_flag)) {
+            if (lc->cu.pred_mode != MODE_INTRA &&
+                !(lc->cu.part_mode == PART_2Nx2N && lc->pu.merge_flag)) {
                 lc->cu.rqt_root_cbf = ff_hevc_no_residual_syntax_flag_decode(s);
             }
             if (lc->cu.rqt_root_cbf) {

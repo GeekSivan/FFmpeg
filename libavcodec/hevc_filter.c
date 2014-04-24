@@ -199,9 +199,9 @@ static void sao_filter_CTB(HEVCContext *s, int x, int y)
     int ctb_addr_ts          = s->pps->ctb_addr_rs_to_ts[ctb_addr_rs];
     SAOParams *sao           = &CTB(s->sao, x_ctb, y_ctb);
     // flags indicating unfilterable edges
-    uint8_t vert_edge[]      = { 0, 0};
-    uint8_t horiz_edge[]     = { 0, 0};
-    uint8_t diag_edge[]      = { 0, 0, 0, 0};
+    uint8_t vert_edge[]      = { 0, 0 };
+    uint8_t horiz_edge[]     = { 0, 0 };
+    uint8_t diag_edge[]      = { 0, 0, 0, 0 };
     uint8_t lfase            = CTB(s->filter_slice_edges, x_ctb, y_ctb);
     uint8_t no_tile_filter   = s->pps->tiles_enabled_flag &&
                                !s->pps->loop_filter_across_tiles_enabled_flag;
@@ -492,7 +492,7 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
                     bs0 = s->horizontal_bs[(x +           y * s->bs_width) >> 2];
                     bs1 = 0;
                 } else {
-                    bs0 = s->horizontal_bs[(x + y           * s->bs_width) >> 2];
+                    bs0 = s->horizontal_bs[(x           + y * s->bs_width) >> 2];
                     bs1 = s->horizontal_bs[(x + (4 * h) + y * s->bs_width) >> 2];
                 }
 
