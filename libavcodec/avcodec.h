@@ -3024,6 +3024,7 @@ typedef struct AVCodecContext {
 #define FF_DEBUG_VIS_MV_B_FOR  0x00000002 //visualize forward predicted MVs of B frames
 #define FF_DEBUG_VIS_MV_B_BACK 0x00000004 //visualize backward predicted MVs of B frames
 #endif
+
     /**
      * custom intra quantization matrix
      * Code outside libavcodec should access this field using av_codec_g/set_chroma_intra_matrix()
