@@ -71,6 +71,9 @@
 #define EPEL_EXTRA_BEFORE 1
 #define EPEL_EXTRA_AFTER  2
 #define EPEL_EXTRA        3
+#define QPEL_EXTRA_BEFORE 3
+#define QPEL_EXTRA_AFTER  4
+#define QPEL_EXTRA        7
 
 #define EDGE_EMU_BUFFER_STRIDE 80
 
@@ -735,6 +738,8 @@ typedef struct HEVCLocalContext {
     int     end_of_tiles_y;
     /* +7 is for subpixel interpolation, *2 for high bit depths */
     DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
+    DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer2)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
+
     CodingTree ct;
     CodingUnit cu;
     PredictionUnit pu;
