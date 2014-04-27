@@ -204,6 +204,13 @@ enum InterPredIdc {
     PRED_BI,
 };
 
+enum PredFlag {
+    PF_INTRA = 0,
+    PF_L0,
+    PF_L1,
+    PF_BI,
+};
+
 enum IntraPredMode {
     INTRA_PLANAR = 0,
     INTRA_DC,
@@ -629,8 +636,7 @@ typedef struct Mv {
 typedef struct MvField {
     Mv mv[2];
     int8_t ref_idx[2];
-    int8_t pred_flag[2];
-    uint8_t is_intra;
+    int8_t pred_flag;
 } MvField;
 
 typedef struct NeighbourAvailable {
@@ -977,9 +983,7 @@ void ff_hevc_luma_mv_mvp_mode(HEVCContext *s, int x0, int y0,
 void ff_hevc_set_qPy(HEVCContext *s, int xC, int yC, int xBase, int yBase,
                      int log2_cb_size);
 void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
-                                           int log2_trafo_size,
-                                           int slice_or_tiles_up_boundary,
-                                           int slice_or_tiles_left_boundary);
+                                           int log2_trafo_size);
 int ff_hevc_cu_qp_delta_sign_flag(HEVCContext *s);
 int ff_hevc_cu_qp_delta_abs(HEVCContext *s);
 void ff_hevc_hls_filter(HEVCContext *s, int x, int y);
