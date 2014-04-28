@@ -43,7 +43,7 @@ HEVC_SAMPLES =                  \
     IPRED_B_Nokia_3             \
     IPRED_C_Mitsubishi_3        \
     LS_A_Orange_2               \
-    LS_B_Orange_4               \
+    LS_B_ORANGE_4               \
     LTRPSPS_A_Qualcomm_1        \
     MAXBINS_A_TI_4              \
     MAXBINS_B_TI_4              \

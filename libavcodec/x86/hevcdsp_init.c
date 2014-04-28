@@ -380,7 +380,6 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     10);
                     QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    10);
                 }
-
             }
         }
     }
