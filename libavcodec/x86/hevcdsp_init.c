@@ -347,7 +347,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 
             if (EXTERNAL_MMXEXT(mm_flags)) {
 
-                if (EXTERNAL_SSSE3(mm_flags)) {
+                if (EXTERNAL_SSSE3(mm_flags) && ARCH_X86_64) {
 
                     EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels,  8);
                     EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h,      8);
@@ -365,7 +365,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
         }
     } else if (bit_depth == 10) {
         if (EXTERNAL_MMX(mm_flags)) {
-            if (EXTERNAL_MMXEXT(mm_flags)) {
+            if (EXTERNAL_MMXEXT(mm_flags) && ARCH_X86_64) {
 
                 if (EXTERNAL_SSSE3(mm_flags)) {
                     EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels, 10);
