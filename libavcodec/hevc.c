@@ -1051,7 +1051,7 @@ static int hls_pcm_sample(HEVCContext *s, int x0, int y0, int log2_cb_size)
 }
 
 /**
- * 8.5.3.2.2.1 Luma sample interpolation process
+ * 8.5.3.2.2.1 Luma sample unidirectional interpolation process
  *
  * @param s HEVC decoding context
  * @param dst target buffer for block data at block position
@@ -1062,6 +1062,8 @@ static int hls_pcm_sample(HEVCContext *s, int x0, int y0, int log2_cb_size)
  * @param y_off vertical position of block from origin (0, 0)
  * @param block_w width of block
  * @param block_h height of block
+ * @param luma_weight weighting factor applied to the luma prediction
+ * @param luma_offset additive offset applied to the luma prediction value
  */
 
 static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
@@ -1109,7 +1111,23 @@ static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
                                                         luma_weight, luma_offset, mx, my, block_w);
 }
 
-static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
+/**
+ * 8.5.3.2.2.1 Luma sample bidirectional interpolation process
+ *
+ * @param s HEVC decoding context
+ * @param dst target buffer for block data at block position
+ * @param dststride stride of the dst buffer
+ * @param ref0 reference picture0 buffer at origin (0, 0)
+ * @param mv0 motion vector0 (relative to block position) to get pixel data from
+ * @param x_off horizontal position of block from origin (0, 0)
+ * @param y_off vertical position of block from origin (0, 0)
+ * @param block_w width of block
+ * @param block_h height of block
+ * @param ref1 reference picture1 buffer at origin (0, 0)
+ * @param mv1 motion vector1 (relative to block position) to get pixel data from
+ * @param current_mv current motion vector structure
+ */
+ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
                        AVFrame *ref0, const Mv *mv0, int x_off, int y_off,
                        int block_w, int block_h, AVFrame *ref1, const Mv *mv1, struct MvField *current_mv)
 {
@@ -1185,7 +1203,7 @@ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
 }
 
 /**
- * 8.5.3.2.2.2 Chroma sample interpolation process
+ * 8.5.3.2.2.2 Chroma sample uniprediction interpolation process
  *
  * @param s HEVC decoding context
  * @param dst1 target buffer for block data at block position (U plane)
@@ -1197,6 +1215,8 @@ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
  * @param y_off vertical position of block from origin (0, 0)
  * @param block_w width of block
  * @param block_h height of block
+ * @param chroma_weight weighting factor applied to the chroma prediction
+ * @param chroma_offset additive offset applied to the chroma prediction value
  */
 
 static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
@@ -1247,6 +1267,23 @@ static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
                                                         chroma_weight, chroma_offset, _mx, _my, block_w);
 }
 
+/**
+ * 8.5.3.2.2.1 Chroma sample bidirectional interpolation process
+ *
+ * @param s HEVC decoding context
+ * @param dst target buffer for block data at block position
+ * @param dststride stride of the dst buffer
+ * @param ref0 reference picture0 buffer at origin (0, 0)
+ * @param mv0 motion vector0 (relative to block position) to get pixel data from
+ * @param x_off horizontal position of block from origin (0, 0)
+ * @param y_off vertical position of block from origin (0, 0)
+ * @param block_w width of block
+ * @param block_h height of block
+ * @param ref1 reference picture1 buffer at origin (0, 0)
+ * @param mv1 motion vector1 (relative to block position) to get pixel data from
+ * @param current_mv current motion vector structure
+ * @param cidx chroma component(cb, cr)
+ */
 static void chroma_mc_bi(HEVCContext *s, uint8_t *dst0, ptrdiff_t dststride, AVFrame *ref0, AVFrame *ref1,
                          int x_off, int y_off, int block_w, int block_h, struct MvField *current_mv, int cidx)
 {

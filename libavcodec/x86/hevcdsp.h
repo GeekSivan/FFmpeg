@@ -75,16 +75,16 @@ void ff_hevc_put_hevc_uni_w##width##_##bitd##_sse4(uint8_t *dst, ptrdiff_t dstst
 void ff_hevc_put_hevc_bi_w##width##_##bitd##_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1)
 
 #define WEIGHTING_PROTOTYPES(bitd) \
-		WEIGHTING_PROTOTYPE(2, bitd); \
-		WEIGHTING_PROTOTYPE(4, bitd); \
-		WEIGHTING_PROTOTYPE(6, bitd); \
-		WEIGHTING_PROTOTYPE(8, bitd); \
-		WEIGHTING_PROTOTYPE(12, bitd); \
-		WEIGHTING_PROTOTYPE(16, bitd); \
-		WEIGHTING_PROTOTYPE(24, bitd); \
-		WEIGHTING_PROTOTYPE(32, bitd); \
-		WEIGHTING_PROTOTYPE(48, bitd); \
-		WEIGHTING_PROTOTYPE(64, bitd)
+        WEIGHTING_PROTOTYPE(2, bitd); \
+        WEIGHTING_PROTOTYPE(4, bitd); \
+        WEIGHTING_PROTOTYPE(6, bitd); \
+        WEIGHTING_PROTOTYPE(8, bitd); \
+        WEIGHTING_PROTOTYPE(12, bitd); \
+        WEIGHTING_PROTOTYPE(16, bitd); \
+        WEIGHTING_PROTOTYPE(24, bitd); \
+        WEIGHTING_PROTOTYPE(32, bitd); \
+        WEIGHTING_PROTOTYPE(48, bitd); \
+        WEIGHTING_PROTOTYPE(64, bitd)
 
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL_PIXELS EPEL_PIXELS

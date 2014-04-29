@@ -126,7 +126,6 @@ mc_rep_funcs(epel_hv,10,  8, 24);
 mc_rep_funcs(epel_hv,10,  8, 16);
 mc_rep_funcs(epel_hv,10,  4, 12);
 
-
 mc_rep_funcs(qpel_h, 8, 16, 64);
 mc_rep_funcs(qpel_h, 8, 16, 48);
 mc_rep_funcs(qpel_h, 8, 16, 32);
@@ -159,7 +158,6 @@ mc_rep_funcs(qpel_hv,10,  8, 32);
 mc_rep_funcs(qpel_hv,10,  8, 24);
 mc_rep_funcs(qpel_hv,10,  8, 16);
 mc_rep_funcs(qpel_hv,10,  4, 12);
-
 
 #define mc_rep_uni_w(bitd, step, W) \
 void ff_hevc_put_hevc_uni_w##W##_##bitd##_sse4(uint8_t *_dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, \
