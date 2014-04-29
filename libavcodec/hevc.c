@@ -1268,7 +1268,7 @@ static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
 }
 
 /**
- * 8.5.3.2.2.1 Chroma sample bidirectional interpolation process
+ * 8.5.3.2.2.2 Chroma sample bidirectional interpolation process
  *
  * @param s HEVC decoding context
  * @param dst target buffer for block data at block position
