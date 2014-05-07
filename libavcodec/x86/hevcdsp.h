@@ -1,10 +1,29 @@
+/*
+ * HEVC video decoder
+ *
+ * Copyright (C) 2012 - 2013 Guillaume Martres
+ * Copyright (C) 2013 - 2014 Pierre-Edouard Lepere
+ *
+ *
+ * This file is part of FFmpeg.
+ *
+ * FFmpeg is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * FFmpeg is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with FFmpeg; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
 #ifndef AVCODEC_X86_HEVCDSP_H
 #define AVCODEC_X86_HEVCDSP_H
-
-struct SAOParams;
-struct AVFrame;
-struct UpsamplInf;
-struct HEVCWindow;
 
 #define OPTI_ASM
 
@@ -83,6 +102,7 @@ void ff_hevc_transform_32x32_dc_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdi
 ///////////////////////////////////////////////////////////////////////////////
 // MC functions
 ///////////////////////////////////////////////////////////////////////////////
+
 #define EPEL_PROTOTYPES(fname, bitd) \
         PEL_PROTOTYPE(fname##4,  bitd); \
         PEL_PROTOTYPE(fname##6,  bitd); \
@@ -103,6 +123,22 @@ void ff_hevc_transform_32x32_dc_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdi
         PEL_PROTOTYPE(fname##32, bitd); \
         PEL_PROTOTYPE(fname##48, bitd); \
         PEL_PROTOTYPE(fname##64, bitd)
+
+#define WEIGHTING_PROTOTYPE(width, bitd) \
+void ff_hevc_put_hevc_uni_w##width##_##bitd##_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox); \
+void ff_hevc_put_hevc_bi_w##width##_##bitd##_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1)
+
+#define WEIGHTING_PROTOTYPES(bitd) \
+        WEIGHTING_PROTOTYPE(2, bitd); \
+        WEIGHTING_PROTOTYPE(4, bitd); \
+        WEIGHTING_PROTOTYPE(6, bitd); \
+        WEIGHTING_PROTOTYPE(8, bitd); \
+        WEIGHTING_PROTOTYPE(12, bitd); \
+        WEIGHTING_PROTOTYPE(16, bitd); \
+        WEIGHTING_PROTOTYPE(24, bitd); \
+        WEIGHTING_PROTOTYPE(32, bitd); \
+        WEIGHTING_PROTOTYPE(48, bitd); \
+        WEIGHTING_PROTOTYPE(64, bitd)
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -133,28 +169,10 @@ QPEL_PROTOTYPES(qpel_v, 10);
 
 QPEL_PROTOTYPES(qpel_hv,  8);
 QPEL_PROTOTYPES(qpel_hv, 10);
-void ff_hevc_put_hevc_uni_w2_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w4_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w6_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w8_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w12_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w16_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w24_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w32_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w48_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
-void ff_hevc_put_hevc_uni_w64_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox);
 
-void ff_hevc_put_hevc_bi_w2_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w4_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w6_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w8_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w12_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w16_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w24_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w32_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w48_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-void ff_hevc_put_hevc_bi_w64_8_sse4(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1);
-/* ASM wrapper */
+
+WEIGHTING_PROTOTYPES(8);
+WEIGHTING_PROTOTYPES(10);
 
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions
@@ -221,8 +239,5 @@ void ff_hevc_sao_band_filter_0_10_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _s
            int y_BL, int x_EL, int y_EL, int block_w, int block_h, int widthEL, int heightEL,
            const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info);
 //#endif
-
-
-
 
 #endif // AVCODEC_X86_HEVCDSP_H

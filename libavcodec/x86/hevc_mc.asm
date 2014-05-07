@@ -359,7 +359,7 @@ QPEL_TABLE 10, 4, w, sse4
 %if %1 == 8
     pmaddubsw         m0, %3   ;x1*c1+x2*c2
     pmaddubsw         m2, %4   ;x3*c3+x4*c4
-    paddw             m0, m2    
+    paddw             m0, m2
 %if %2 > 8
     pmaddubsw         m1, %3
     pmaddubsw         m3, %4
@@ -374,7 +374,7 @@ QPEL_TABLE 10, 4, w, sse4
     pmaddwd           m3, %4
     paddd             m1, m3
 %endif
-    psrad             m0, %1-8 
+    psrad             m0, %1-8
     psrad             m1, %1-8
     packssdw          m0, m1
 %endif
@@ -781,7 +781,10 @@ cglobal hevc_put_hevc_uni_qpel_h%1_%2, 6, 7, 15 , dst, dststride, src, srcstride
 .loop
     QPEL_H_LOAD       %2, srcq, %1, 10
     QPEL_COMPUTE      %1, %2
-    UNI_COMPUTE       %1, %2, m0, m1, [pw_%2]
+%if %2 > 8
+    packssdw          m0, m1
+%endif
+    UNI_COMPUTE       %1, %2, m0, m1, m9
     PEL_%2STORE%1   dstq, m0, m1
     lea             dstq, [dstq+dststrideq]      ; dst += dststride
     lea             srcq, [srcq+srcstrideq]      ; src += srcstride
@@ -795,6 +798,9 @@ cglobal hevc_put_hevc_bi_qpel_h%1_%2, 8, 9, 16 , dst, dststride, src, srcstride,
 .loop
     QPEL_H_LOAD       %2, srcq, %1, 10
     QPEL_COMPUTE      %1, %2
+%if %2 > 8
+    packssdw          m0, m1
+%endif
     SIMPLE_BILOAD     %1, src2q, m10, m11
     BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9
     PEL_%2STORE%1   dstq, m0, m1
@@ -851,6 +857,9 @@ cglobal hevc_put_hevc_bi_qpel_v%1_%2, 9, 14, 16 , dst, dststride, src, srcstride
     SIMPLE_BILOAD     %1, src2q, m10, m11
     QPEL_V_LOAD       %2, srcq, srcstride, %1
     QPEL_COMPUTE      %1, %2
+%if %2 > 8
+    packssdw          m0, m1
+%endif
     BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9
     PEL_%2STORE%1   dstq, m0, m1
     lea             dstq, [dstq+dststrideq]      ; dst += dststride
@@ -1182,6 +1191,11 @@ WEIGHTING_FUNCS 2, 8
 WEIGHTING_FUNCS 4, 8
 WEIGHTING_FUNCS 6, 8
 WEIGHTING_FUNCS 8, 8
+
+WEIGHTING_FUNCS 2, 10
+WEIGHTING_FUNCS 4, 10
+WEIGHTING_FUNCS 6, 10
+WEIGHTING_FUNCS 8, 10
 
 HEVC_PUT_HEVC_PEL_PIXELS  2, 8
 HEVC_PUT_HEVC_PEL_PIXELS  4, 8

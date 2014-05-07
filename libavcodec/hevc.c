@@ -40,6 +40,7 @@
 #include "hevc.h"
 
 const uint8_t ff_hevc_pel_weight[65] = { [2] = 0, [4] = 1, [6] = 2, [8] = 3, [12] = 4, [16] = 5, [24] = 6, [32] = 7, [48] = 8, [64] = 9 };
+
 /**
  * NOTE: Each function hls_foo correspond to the function foo in the
  * specification (HLS stands for High Level Syntax).
@@ -348,8 +349,10 @@ fail:
     return ret;
 }
 
-static int is_sps_exist(HEVCContext *s, const HEVCSPS* last_sps) {
+static int is_sps_exist(HEVCContext *s, const HEVCSPS* last_sps)
+{
     int i;
+
     for( i = 0; i < MAX_SPS_COUNT; i++)
         if(s->sps_list[i])
             if (last_sps == (HEVCSPS*)s->sps_list[i]->data)
@@ -374,7 +377,6 @@ static int hls_slice_header(HEVCContext *s)
     sh->no_output_of_prior_pics_flag = 0;
     if (s->nal_unit_type >= 16 && s->nal_unit_type <= 23)
         sh->no_output_of_prior_pics_flag = get_bits1(gb);
-
     if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
         sh->no_output_of_prior_pics_flag = 1;
 
@@ -393,8 +395,8 @@ static int hls_slice_header(HEVCContext *s)
     if (s->sps != (HEVCSPS*)s->sps_list[s->pps->sps_id]->data) {
         const HEVCSPS* last_sps = s->sps;
         s->sps = (HEVCSPS*)s->sps_list[s->pps->sps_id]->data;
-        if( last_sps ) {
-            if( is_sps_exist(s, last_sps) ) {
+        if (last_sps) {
+            if (is_sps_exist(s, last_sps)) {
                 if (s->sps->width !=  last_sps->width || s->sps->height != last_sps->height ||
                         s->sps->temporal_layer[s->sps->max_sub_layers - 1].max_dec_pic_buffering != last_sps->temporal_layer[last_sps->max_sub_layers - 1].max_dec_pic_buffering)
                     sh->no_output_of_prior_pics_flag = 0;
@@ -1176,7 +1178,7 @@ static int hls_pcm_sample(HEVCContext *s, int x0, int y0, int log2_cb_size)
 }
 
 /**
- * 8.5.3.2.2.1 Luma sample interpolation process
+ * 8.5.3.2.2.1 Luma sample unidirectional interpolation process
  *
  * @param s HEVC decoding context
  * @param dst target buffer for block data at block position
@@ -1187,6 +1189,8 @@ static int hls_pcm_sample(HEVCContext *s, int x0, int y0, int log2_cb_size)
  * @param y_off vertical position of block from origin (0, 0)
  * @param block_w width of block
  * @param block_h height of block
+ * @param luma_weight weighting factor applied to the luma prediction
+ * @param luma_offset additive offset applied to the luma prediction value
  */
 
 static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
@@ -1198,11 +1202,11 @@ static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
     ptrdiff_t srcstride  = ref->linesize[0];
     int pic_width        = s->sps->width;
     int pic_height       = s->sps->height;
-    int mx         = mv->x & 3;
-    int my         = mv->y & 3;
-    int weight_flag = (s->sh.slice_type == P_SLICE && s->pps->weighted_pred_flag) ||
-                      (s->sh.slice_type == B_SLICE && s->pps->weighted_bipred_flag);
-    int idx = ff_hevc_pel_weight[block_w];
+    int mx               = mv->x & 3;
+    int my               = mv->y & 3;
+    int weight_flag      = (s->sh.slice_type == P_SLICE && s->pps->weighted_pred_flag) ||
+                           (s->sh.slice_type == B_SLICE && s->pps->weighted_bipred_flag);
+    int idx              = ff_hevc_pel_weight[block_w];
 
     x_off += mv->x >> 2;
     y_off += mv->y >> 2;
@@ -1234,30 +1238,43 @@ static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
                                                         luma_weight, luma_offset, mx, my, block_w);
 }
 
-static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
+/**
+ * 8.5.3.2.2.1 Luma sample bidirectional interpolation process
+ *
+ * @param s HEVC decoding context
+ * @param dst target buffer for block data at block position
+ * @param dststride stride of the dst buffer
+ * @param ref0 reference picture0 buffer at origin (0, 0)
+ * @param mv0 motion vector0 (relative to block position) to get pixel data from
+ * @param x_off horizontal position of block from origin (0, 0)
+ * @param y_off vertical position of block from origin (0, 0)
+ * @param block_w width of block
+ * @param block_h height of block
+ * @param ref1 reference picture1 buffer at origin (0, 0)
+ * @param mv1 motion vector1 (relative to block position) to get pixel data from
+ * @param current_mv current motion vector structure
+ */
+ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
                        AVFrame *ref0, const Mv *mv0, int x_off, int y_off,
                        int block_w, int block_h, AVFrame *ref1, const Mv *mv1, struct MvField *current_mv)
 {
     HEVCLocalContext *lc = s->HEVClc;
+    DECLARE_ALIGNED(16, int16_t,  tmp[MAX_PB_SIZE * MAX_PB_SIZE]);
     ptrdiff_t src0stride  = ref0->linesize[0];
     ptrdiff_t src1stride  = ref1->linesize[0];
     int pic_width        = s->sps->width;
     int pic_height       = s->sps->height;
-    DECLARE_ALIGNED(16, int16_t,  tmp[MAX_PB_SIZE * MAX_PB_SIZE]);
-    int mx0         = mv0->x & 3;
-    int my0         = mv0->y & 3;
-    int mx1         = mv1->x & 3;
-    int my1         = mv1->y & 3;
-    int weight_flag = (s->sh.slice_type == P_SLICE && s->pps->weighted_pred_flag) ||
-                      (s->sh.slice_type == B_SLICE && s->pps->weighted_bipred_flag);
-
-    int tmpstride = MAX_PB_SIZE;
-
-    int x_off0 = x_off + (mv0->x >> 2);
-    int y_off0 = y_off + (mv0->y >> 2);
-    int x_off1 = x_off + (mv1->x >> 2);
-    int y_off1 = y_off + (mv1->y >> 2);
-    int idx    = ff_hevc_pel_weight[block_w];
+    int mx0              = mv0->x & 3;
+    int my0              = mv0->y & 3;
+    int mx1              = mv1->x & 3;
+    int my1              = mv1->y & 3;
+    int weight_flag      = (s->sh.slice_type == P_SLICE && s->pps->weighted_pred_flag) ||
+                           (s->sh.slice_type == B_SLICE && s->pps->weighted_bipred_flag);
+    int x_off0           = x_off + (mv0->x >> 2);
+    int y_off0           = y_off + (mv0->y >> 2);
+    int x_off1           = x_off + (mv1->x >> 2);
+    int y_off1           = y_off + (mv1->y >> 2);
+    int idx              = ff_hevc_pel_weight[block_w];
 
     uint8_t *src0  = ref0->data[0] + y_off0 * src0stride + (x_off0 << s->sps->pixel_shift);
     uint8_t *src1  = ref1->data[0] + y_off1 * src1stride + (x_off1 << s->sps->pixel_shift);
@@ -1296,13 +1313,13 @@ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
         src1stride = edge_emu_stride;
     }
 
-    s->hevcdsp.put_hevc_qpel[idx][!!my0][!!mx0](tmp, tmpstride, src0, src0stride,
+    s->hevcdsp.put_hevc_qpel[idx][!!my0][!!mx0](tmp, MAX_PB_SIZE, src0, src0stride,
                                                 block_h, mx0, my0, block_w);
     if (!weight_flag)
-        s->hevcdsp.put_hevc_qpel_bi[idx][!!my1][!!mx1](dst, dststride, src1, src1stride, tmp, tmpstride,
+        s->hevcdsp.put_hevc_qpel_bi[idx][!!my1][!!mx1](dst, dststride, src1, src1stride, tmp, MAX_PB_SIZE,
                                                        block_h, mx1, my1, block_w);
     else
-        s->hevcdsp.put_hevc_qpel_bi_w[idx][!!my1][!!mx1](dst, dststride, src1, src1stride, tmp, tmpstride,
+        s->hevcdsp.put_hevc_qpel_bi_w[idx][!!my1][!!mx1](dst, dststride, src1, src1stride, tmp, MAX_PB_SIZE,
                                                          block_h, s->sh.luma_log2_weight_denom,
                                                          s->sh.luma_weight_l0[current_mv->ref_idx[0]],
                                                          s->sh.luma_weight_l1[current_mv->ref_idx[1]],
@@ -1313,7 +1330,7 @@ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
 }
 
 /**
- * 8.5.3.2.2.2 Chroma sample interpolation process
+ * 8.5.3.2.2.2 Chroma sample uniprediction interpolation process
  *
  * @param s HEVC decoding context
  * @param dst1 target buffer for block data at block position (U plane)
@@ -1325,6 +1342,8 @@ static void luma_mc_bi(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
  * @param y_off vertical position of block from origin (0, 0)
  * @param block_w width of block
  * @param block_h height of block
+ * @param chroma_weight weighting factor applied to the chroma prediction
+ * @param chroma_offset additive offset applied to the chroma prediction value
  */
 
 static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
@@ -1334,16 +1353,17 @@ static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
     HEVCLocalContext *lc = s->HEVClc;
     int pic_width        = s->sps->width >> s->sps->hshift[1];
     int pic_height       = s->sps->height >> s->sps->vshift[1];
-    const Mv *mv = &current_mv->mv[reflist];
-    int weight_flag = (s->sh.slice_type == P_SLICE && s->pps->weighted_pred_flag) ||
-                        (s->sh.slice_type == B_SLICE && s->pps->weighted_bipred_flag);
-    int idx = ff_hevc_pel_weight[block_w];
-    int hshift = s->sps->hshift[1];
-    int vshift = s->sps->vshift[1];
-    intptr_t mx = mv->x & ((1 << (2 + hshift)) - 1);
-    intptr_t my = mv->y & ((1 << (2 + vshift)) - 1);
-    intptr_t _mx = mx << (1 - hshift);
-    intptr_t _my = my << (1 - vshift);
+    const Mv *mv         = &current_mv->mv[reflist];
+    int weight_flag      = (s->sh.slice_type == P_SLICE && s->pps->weighted_pred_flag) ||
+                           (s->sh.slice_type == B_SLICE && s->pps->weighted_bipred_flag);
+    int idx              = ff_hevc_pel_weight[block_w];
+    int hshift           = s->sps->hshift[1];
+    int vshift           = s->sps->vshift[1];
+    intptr_t mx          = mv->x & ((1 << (2 + hshift)) - 1);
+    intptr_t my          = mv->y & ((1 << (2 + vshift)) - 1);
+    intptr_t _mx         = mx << (1 - hshift);
+    intptr_t _my         = my << (1 - vshift);
+
     x_off += mv->x >> (2 + hshift);
     y_off += mv->y >> (2 + vshift);
     src0  += y_off * srcstride + (x_off << s->sps->pixel_shift);
@@ -1374,6 +1394,23 @@ static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
                                                         chroma_weight, chroma_offset, _mx, _my, block_w);
 }
 
+/**
+ * 8.5.3.2.2.2 Chroma sample bidirectional interpolation process
+ *
+ * @param s HEVC decoding context
+ * @param dst target buffer for block data at block position
+ * @param dststride stride of the dst buffer
+ * @param ref0 reference picture0 buffer at origin (0, 0)
+ * @param mv0 motion vector0 (relative to block position) to get pixel data from
+ * @param x_off horizontal position of block from origin (0, 0)
+ * @param y_off vertical position of block from origin (0, 0)
+ * @param block_w width of block
+ * @param block_h height of block
+ * @param ref1 reference picture1 buffer at origin (0, 0)
+ * @param mv1 motion vector1 (relative to block position) to get pixel data from
+ * @param current_mv current motion vector structure
+ * @param cidx chroma component(cb, cr)
+ */
 static void chroma_mc_bi(HEVCContext *s, uint8_t *dst0, ptrdiff_t dststride, AVFrame *ref0, AVFrame *ref1,
                          int x_off, int y_off, int block_w, int block_h, struct MvField *current_mv, int cidx)
 {
@@ -3161,6 +3198,7 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
         s->threads_number  = avctx->thread_count;
     else
         s->threads_number  = 1;
+    s->eos = 0;
 
     for (i = 1; i < s->threads_number ; i++) {
         s->sList[i] = av_mallocz(sizeof(HEVCContext));

@@ -318,6 +318,12 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
         case AV_CODEC_ID_AC3:
             stream_type = STREAM_TYPE_AUDIO_AC3;
             break;
+        case AV_CODEC_ID_DTS:
+            stream_type = STREAM_TYPE_AUDIO_DTS;
+            break;
+        case AV_CODEC_ID_TRUEHD:
+            stream_type = STREAM_TYPE_AUDIO_TRUEHD;
+            break;
         default:
             stream_type = STREAM_TYPE_PRIVATE_DATA;
             break;
@@ -700,6 +706,10 @@ static int mpegts_write_header(AVFormatContext *s)
                 goto fail;
             }
             ast = avformat_new_stream(ts_st->amux, NULL);
+            if (!ast) {
+                ret = AVERROR(ENOMEM);
+                goto fail;
+            }
             ret = avcodec_copy_context(ast->codec, st->codec);
             if (ret != 0)
                 goto fail;

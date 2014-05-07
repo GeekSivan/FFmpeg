@@ -60,6 +60,7 @@ enum HWAccelID {
     HWACCEL_NONE = 0,
     HWACCEL_AUTO,
     HWACCEL_VDPAU,
+    HWACCEL_DXVA2,
 };
 
 typedef struct HWAccel {
@@ -257,7 +258,7 @@ typedef struct InputStream {
     double ts_scale;
     int saw_first_ts;
     int showed_multi_packet_warning;
-    AVDictionary *opts;
+    AVDictionary *decoder_opts;
     AVRational framerate;               /* framerate forced with -r */
     int top_field_first;
     int guess_layout_max;
@@ -409,7 +410,7 @@ typedef struct OutputStream {
     char *filters_script;  ///< filtergraph script associated to the -filter_script option
 
     int64_t sws_flags;
-    AVDictionary *opts;
+    AVDictionary *encoder_opts;
     AVDictionary *swr_opts;
     AVDictionary *resample_opts;
     char *apad;
@@ -512,5 +513,6 @@ FilterGraph *init_simple_filtergraph(InputStream *ist, OutputStream *ost);
 int ffmpeg_parse_options(int argc, char **argv);
 
 int vdpau_init(AVCodecContext *s);
+int dxva2_init(AVCodecContext *s);
 
 #endif /* FFMPEG_H */

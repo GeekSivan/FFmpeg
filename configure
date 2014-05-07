@@ -199,6 +199,7 @@ External library support:
   --enable-libaacplus      enable AAC+ encoding via libaacplus [no]
   --enable-libass          enable libass subtitles rendering [no]
   --enable-libbluray       enable BluRay reading using libbluray [no]
+  --enable-libbs2b         enable bs2b DSP library [no]
   --enable-libcaca         enable textual display using libcaca
   --enable-libcelt         enable CELT decoding via libcelt [no]
   --enable-libcdio         enable audio CD grabbing with libcdio
@@ -285,6 +286,7 @@ Toolchain options:
   --ld=LD                  use linker LD [$ld_default]
   --pkg-config=PKGCONF     use pkg-config PKGCONF [$pkg_config_default]
   --pkg-config-flags=FLAGS pass additional flags to pkgconf []
+  --ranlib=RANLIB          use ranlib RANLIB [$ranlib_default]
   --host-cc=HOSTCC         use host C compiler HOSTCC
   --host-cflags=HCFLAGS    use HCFLAGS when compiling for host
   --host-cppflags=HCPPFLAGS use HCPPFLAGS when compiling for host
@@ -1310,6 +1312,7 @@ EXTERNAL_LIBRARY_LIST="
     libaacplus
     libass
     libbluray
+    libbs2b
     libcaca
     libcdio
     libcelt
@@ -1558,6 +1561,7 @@ ARCH_FEATURES="
     fast_cmov
     local_aligned_8
     local_aligned_16
+    local_aligned_32
 "
 
 BUILTIN_LIST="
@@ -1657,6 +1661,7 @@ SYSTEM_FUNCS="
     clock_gettime
     closesocket
     CommandLineToArgvW
+    CoTaskMemFree
     CryptGenRandom
     dlopen
     fcntl
@@ -1757,6 +1762,7 @@ HAVE_LIST="
     $TYPES_LIST
     atomics_native
     dos_paths
+    dxva2_lib
     libc_msvcrt
     libdc1394_1
     libdc1394_2
@@ -1866,6 +1872,7 @@ CMDLINE_SET="
     pkg_config_flags
     progs_suffix
     random_seed
+    ranlib
     samples
     strip
     sysinclude
@@ -2116,7 +2123,7 @@ snow_decoder_select="dsputil dwt h264qpel hpeldsp rangecoder"
 snow_encoder_select="aandcttables dsputil dwt h264qpel hpeldsp mpegvideoenc rangecoder"
 sonic_decoder_select="golomb rangecoder"
 sonic_encoder_select="golomb rangecoder"
-sonic_ls_encoder_select="golomb"
+sonic_ls_encoder_select="golomb rangecoder"
 sp5x_decoder_select="mjpeg_decoder"
 svq1_decoder_select="hpeldsp"
 svq1_encoder_select="aandcttables dsputil hpeldsp mpegvideoenc"
@@ -2459,6 +2466,7 @@ atempo_filter_select="rdft"
 azmq_filter_deps="libzmq"
 blackframe_filter_deps="gpl"
 boxblur_filter_deps="gpl"
+bs2b_filter_deps="libbs2b"
 colormatrix_filter_deps="gpl"
 cropdetect_filter_deps="gpl"
 dctdnoiz_filter_deps="avcodec"
@@ -2580,7 +2588,7 @@ ln_s="ln -s -f"
 nm_default="nm -g"
 objformat="elf"
 pkg_config_default=pkg-config
-ranlib="ranlib"
+ranlib_default="ranlib"
 strip_default="strip"
 yasmexe_default="yasm"
 windres_default="windres"
@@ -2856,7 +2864,7 @@ cc_default="${cross_prefix}${cc_default}"
 cxx_default="${cross_prefix}${cxx_default}"
 nm_default="${cross_prefix}${nm_default}"
 pkg_config_default="${cross_prefix}${pkg_config_default}"
-ranlib="${cross_prefix}${ranlib}"
+ranlib_default="${cross_prefix}${ranlib_default}"
 strip_default="${cross_prefix}${strip_default}"
 windres_default="${cross_prefix}${windres_default}"
 
@@ -2947,7 +2955,7 @@ case "$toolchain" in
     ;;
 esac
 
-set_default arch cc cxx pkg_config strip sysinclude target_exec target_os yasmexe
+set_default arch cc cxx pkg_config ranlib strip sysinclude target_exec target_os yasmexe
 enabled cross_compile || host_cc_default=$cc
 set_default host_cc
 
@@ -3101,6 +3109,15 @@ icl_flags(){
     done
 }
 
+icc_flags(){
+    for flag; do
+        case $flag in
+            -flto)                echo -ipo ;;
+            *)                    echo $flag ;;
+        esac
+    done
+}
+
 pgi_flags(){
     for flag; do
         case $flag in
@@ -3129,10 +3146,16 @@ suncc_flags(){
                     prescott|nocona)    echo -xarch=sse3 -xchip=pentium4 ;;
                     *-sse3)             echo -xarch=sse3                 ;;
                     core2)              echo -xarch=ssse3 -xchip=core2   ;;
-                    corei7)           echo -xarch=sse4_2 -xchip=nehalem  ;;
-                    corei7-avx)       echo -xarch=avx -xchip=sandybridge ;;
+                    bonnell)                   echo -xarch=ssse3         ;;
+                    corei7|nehalem)            echo -xtarget=nehalem     ;;
+                    westmere)                  echo -xtarget=westmere    ;;
+                    silvermont)                echo -xarch=sse4_2        ;;
+                    corei7-avx|sandybridge)    echo -xtarget=sandybridge ;;
+                    core-avx*|ivybridge|haswell|broadwell)
+                                               echo -xarch=avx           ;;
                     amdfam10|barcelona)        echo -xtarget=barcelona   ;;
-                    bdver*)                    echo -xarch=avx           ;;
+                    btver1)                    echo -xarch=amdsse4a      ;;
+                    btver2|bdver*)             echo -xarch=avx           ;;
                     athlon-4|athlon-[mx]p)     echo -xarch=ssea          ;;
                     k8|opteron|athlon64|athlon-fx)
                                                echo -xarch=sse2a         ;;
@@ -3216,6 +3239,7 @@ probe_cc(){
         _cflags_speed='-O3'
         _cflags_size='-Os'
         _cflags_noopt='-O1'
+        _flags_filter=icc_flags
     elif $_cc -v 2>&1 | grep -q xlc; then
         _type=xlc
         _ident=$($_cc -qversion 2>/dev/null | head -n1)
@@ -3709,7 +3733,8 @@ elif enabled x86; then
             disable i686
         ;;
         # targets that do support nopl and conditional mov (cmov)
-        i686|pentiumpro|pentium[23]|pentium-m|athlon|athlon-tbird|athlon-4|athlon-[mx]p|athlon64*|k8*|opteron*|athlon-fx|core2|corei7*|amdfam10|barcelona|atom|bdver*)
+        i686|pentiumpro|pentium[23]|pentium-m|athlon|athlon-tbird|athlon-4|athlon-[mx]p|athlon64*|k8*|opteron*|athlon-fx\
+        |core*|atom|bonnell|nehalem|westmere|silvermont|sandybridge|ivybridge|haswell|broadwell|amdfam10|barcelona|b[dt]ver*)
             cpuflags="-march=$cpu"
             enable i686
             enable fast_cmov
@@ -4297,7 +4322,7 @@ elif enabled parisc; then
 
 elif enabled ppc; then
 
-    enable local_aligned_8 local_aligned_16
+    enable local_aligned_8 local_aligned_16 local_aligned_32
 
     check_inline_asm dcbzl     '"dcbzl 0, %0" :: "r"(0)'
     check_inline_asm ibm_asm   '"add 0, 0, 0"'
@@ -4332,7 +4357,7 @@ elif enabled x86; then
     check_builtin rdtsc    intrin.h   "__rdtsc()"
     check_builtin mm_empty mmintrin.h "_mm_empty()"
 
-    enable local_aligned_8 local_aligned_16
+    enable local_aligned_8 local_aligned_16 local_aligned_32
 
     # check whether EBP is available on x86
     # As 'i' is stored on the stack, this program will crash
@@ -4491,6 +4516,7 @@ check_func_headers io.h setmode
 check_func_headers lzo/lzo1x.h lzo1x_999_compress
 check_func_headers stdlib.h getenv
 
+check_func_headers windows.h CoTaskMemFree -lole32
 check_func_headers windows.h GetProcessAffinityMask
 check_func_headers windows.h GetProcessTimes
 check_func_headers windows.h GetSystemTimeAsFileTime
@@ -4591,6 +4617,7 @@ enabled libiec61883       && require libiec61883 libiec61883/iec61883.h iec61883
 enabled libaacplus        && require "libaacplus >= 2.0.0" aacplus.h aacplusEncOpen -laacplus
 enabled libass            && require_pkg_config libass ass/ass.h ass_library_init
 enabled libbluray         && require_pkg_config libbluray libbluray/bluray.h bd_open
+enabled libbs2b           && require_pkg_config libbs2b bs2b.h bs2b_open
 enabled libcelt           && require libcelt celt/celt.h celt_decode -lcelt0 &&
                              { check_lib celt/celt.h celt_decoder_create_custom -lcelt0 ||
                                die "ERROR: libcelt must be installed and version must be >= 0.11.0."; }
@@ -4665,8 +4692,6 @@ enabled openal            && { { for al_libs in "${OPENAL_LIBS}" "-lopenal" "-lO
 enabled opencl            && { check_lib2 OpenCL/cl.h clEnqueueNDRangeKernel -Wl,-framework,OpenCL ||
                                check_lib2 CL/cl.h clEnqueueNDRangeKernel -lOpenCL ||
                                die "ERROR: opencl not found"; } &&
-                             { ! enabled_any w32threads os2threads ||
-                               die "opencl currently needs --enable-pthreads or --disable-w32threads"; } &&
                              { check_cpp_condition "OpenCL/cl.h" "defined(CL_VERSION_1_2)" ||
                                check_cpp_condition "CL/cl.h" "defined(CL_VERSION_1_2)" ||
                                die "ERROR: opencl must be installed and version must be 1.2 or compatible"; }
@@ -4889,6 +4914,7 @@ if enabled lto; then
     test "$cc_type" != "$ld_type" && die "LTO requires same compiler and linker"
     check_cflags  -flto
     check_ldflags -flto $cpuflags
+    disable inline_asm_direct_symbol_refs
 fi
 
 check_optflags $optflags
@@ -4983,10 +5009,11 @@ elif enabled_any msvc icl; then
         # (correctly) on icl 13.x.
         check_cpp_condition "windows.h" "__ICL < 1300 || __ICL >= 1400" &&
             add_cflags -Qansi-alias
-        # icl will pass the inline asm tests but inline asm is currently
-        # not supported (build will fail)
-        disabled inline_asm || warn "inline asm disabled due to issues with it in ICL"
-        disable inline_asm
+        # Some inline asm is not compilable in debug
+        if enabled debug; then
+            disable ebp_available
+            disable ebx_available
+        fi
     fi
 fi
 
@@ -5027,6 +5054,10 @@ if test $target_os = "haiku"; then
     disable memalign
     disable posix_memalign
 fi
+
+enabled_all dxva2 CoTaskMemFree &&
+    prepend ffmpeg_libs $($ldflags_filter "-lole32") &&
+    enable dxva2_lib
 
 ! enabled_any memalign posix_memalign aligned_malloc &&
     enabled_any $need_memalign && enable memalign_hack
