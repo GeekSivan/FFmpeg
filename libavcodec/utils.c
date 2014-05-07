@@ -474,7 +474,7 @@ int avcodec_fill_audio_frame(AVFrame *frame, int nb_channels,
 
     planar = av_sample_fmt_is_planar(sample_fmt);
     if (planar && nb_channels > AV_NUM_DATA_POINTERS) {
-        if (!(frame->extended_data = av_mallocz(nb_channels *
+        if (!(frame->extended_data = av_mallocz_array(nb_channels,
                                                 sizeof(*frame->extended_data))))
             return AVERROR(ENOMEM);
     } else {
@@ -609,9 +609,9 @@ static int audio_get_buffer(AVCodecContext *avctx, AVFrame *frame)
     frame->linesize[0] = pool->linesize[0];
 
     if (planes > AV_NUM_DATA_POINTERS) {
-        frame->extended_data = av_mallocz(planes * sizeof(*frame->extended_data));
+        frame->extended_data = av_mallocz_array(planes, sizeof(*frame->extended_data));
         frame->nb_extended_buf = planes - AV_NUM_DATA_POINTERS;
-        frame->extended_buf  = av_mallocz(frame->nb_extended_buf *
+        frame->extended_buf  = av_mallocz_array(frame->nb_extended_buf,
                                           sizeof(*frame->extended_buf));
         if (!frame->extended_data || !frame->extended_buf) {
             av_freep(&frame->extended_data);
@@ -747,11 +747,26 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
 int ff_init_buffer_info(AVCodecContext *avctx, AVFrame *frame)
 {
-    if (avctx->internal->pkt) {
-        frame->pkt_pts = avctx->internal->pkt->pts;
-        av_frame_set_pkt_pos     (frame, avctx->internal->pkt->pos);
-        av_frame_set_pkt_duration(frame, avctx->internal->pkt->duration);
-        av_frame_set_pkt_size    (frame, avctx->internal->pkt->size);
+    AVPacket *pkt = avctx->internal->pkt;
+
+    if (pkt) {
+        uint8_t *packet_sd;
+        AVFrameSideData *frame_sd;
+        int size;
+        frame->pkt_pts = pkt->pts;
+        av_frame_set_pkt_pos     (frame, pkt->pos);
+        av_frame_set_pkt_duration(frame, pkt->duration);
+        av_frame_set_pkt_size    (frame, pkt->size);
+
+        /* copy the replaygain data to the output frame */
+        packet_sd = av_packet_get_side_data(pkt, AV_PKT_DATA_REPLAYGAIN, &size);
+        if (packet_sd) {
+            frame_sd = av_frame_new_side_data(frame, AV_FRAME_DATA_REPLAYGAIN, size);
+            if (!frame_sd)
+                return AVERROR(ENOMEM);
+
+            memcpy(frame_sd->data, packet_sd, size);
+        }
     } else {
         frame->pkt_pts = AV_NOPTS_VALUE;
         av_frame_set_pkt_pos     (frame, -1);
@@ -830,31 +845,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
 int ff_decode_frame_props(AVCodecContext *avctx, AVFrame *frame)
 {
-    AVPacket *pkt = avctx->internal->pkt;
-    uint8_t *packet_sd;
-    int size;
-    AVFrameSideData *frame_sd;
-
-
-    frame->reordered_opaque = avctx->reordered_opaque;
-    if (!pkt) {
-        frame->pkt_pts = AV_NOPTS_VALUE;
-        return 0;
-    }
-
-    frame->pkt_pts = pkt->pts;
-
-    /* copy the replaygain data to the output frame */
-    packet_sd = av_packet_get_side_data(pkt, AV_PKT_DATA_REPLAYGAIN, &size);
-    if (packet_sd) {
-        frame_sd = av_frame_new_side_data(frame, AV_FRAME_DATA_REPLAYGAIN, size);
-        if (!frame_sd)
-            return AVERROR(ENOMEM);
-
-        memcpy(frame_sd->data, packet_sd, size);
-    }
-
-    return 0;
+    return ff_init_buffer_info(avctx, frame);
 }
 
 static int get_buffer_internal(AVCodecContext *avctx, AVFrame *frame, int flags)
@@ -964,7 +955,7 @@ do {                                                                    \
 
             if (planes > FF_ARRAY_ELEMS(frame->buf)) {
                 frame->nb_extended_buf = planes - FF_ARRAY_ELEMS(frame->buf);
-                frame->extended_buf = av_malloc(sizeof(*frame->extended_buf) *
+                frame->extended_buf = av_malloc_array(sizeof(*frame->extended_buf),
                                                 frame->nb_extended_buf);
                 if (!frame->extended_buf) {
                     ret = AVERROR(ENOMEM);
