@@ -25,7 +25,7 @@
 #ifndef AVCODEC_X86_HEVCDSP_H
 #define AVCODEC_X86_HEVCDSP_H
 
-#define OPTI_ASM
+//#define OPTI_ASM
 
 #include <stddef.h>
 #include <stdint.h>
@@ -49,7 +49,7 @@ dst ## _bi_w[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _ss
 PEL_LINK_ASM(dst, idx1, idx2, idx3, name, D, opt)
 
 #else
-#define PEL_LINK(dst, idx1, idx2, idx3, name, D) \
+#define PEL_LINK(dst, idx1, idx2, idx3, name, D, opt) \
 PEL_LINK_SSE(dst, idx1, idx2, idx3, name, D)
 #endif
 
