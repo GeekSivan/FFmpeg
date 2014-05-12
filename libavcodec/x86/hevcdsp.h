@@ -25,11 +25,6 @@
 #ifndef AVCODEC_X86_HEVCDSP_H
 #define AVCODEC_X86_HEVCDSP_H
 
-struct SAOParams;
-struct AVFrame;
-struct UpsamplInf;
-struct HEVCWindow;
-
 #define PEL_LINK(dst, idx1, idx2, idx3, name, D) \
 dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _sse4; \
 dst ## _bi[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_ ## name ## _ ## D ## _sse4; \
@@ -49,6 +44,7 @@ void ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _sse4(uint8_t *_dst, ptrdiff_t 
 ///////////////////////////////////////////////////////////////////////////////
 // MC functions
 ///////////////////////////////////////////////////////////////////////////////
+
 #define EPEL_PROTOTYPES(fname, bitd) \
         PEL_PROTOTYPE(fname##4,  bitd); \
         PEL_PROTOTYPE(fname##6,  bitd); \
@@ -86,6 +82,7 @@ void ff_hevc_put_hevc_bi_w##width##_##bitd##_sse4(uint8_t *dst, ptrdiff_t dststr
         WEIGHTING_PROTOTYPE(48, bitd); \
         WEIGHTING_PROTOTYPE(64, bitd)
 
+
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL_PIXELS EPEL_PIXELS
 ///////////////////////////////////////////////////////////////////////////////
@@ -115,7 +112,9 @@ QPEL_PROTOTYPES(qpel_v, 10);
 QPEL_PROTOTYPES(qpel_hv,  8);
 QPEL_PROTOTYPES(qpel_hv, 10);
 
+
 WEIGHTING_PROTOTYPES(8);
 WEIGHTING_PROTOTYPES(10);
+
 
 #endif // AVCODEC_X86_HEVCDSP_H

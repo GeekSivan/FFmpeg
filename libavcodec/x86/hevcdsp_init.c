@@ -19,6 +19,7 @@
  * License along with ffmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
+
 #include "config.h"
 #include "libavutil/cpu.h"
 #include "libavutil/x86/asm.h"
@@ -27,6 +28,7 @@
 #include "libavcodec/hevcdsp.h"
 #include "libavcodec/x86/hevcdsp.h"
 
+#if ARCH_X86_64
 
 #define mc_rep_func(name, bitd, step, W) \
 void ff_hevc_put_hevc_##name##W##_##bitd##_sse4(int16_t *_dst, ptrdiff_t dststride,                             \
@@ -315,6 +317,7 @@ mc_bi_w_funcs(qpel_h, 10);
 mc_bi_w_funcs(qpel_v, 10);
 mc_bi_w_funcs(qpel_hv, 10);
 
+#endif //ARCH_X86_64
 
 
 #define EPEL_LINKS(pointer, my, mx, fname, bitd)           \
@@ -343,42 +346,31 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
     int mm_flags = av_get_cpu_flags();
 
     if (bit_depth == 8) {
-        if (EXTERNAL_MMX(mm_flags)) {
+        if (EXTERNAL_SSE4(mm_flags) && ARCH_X86_64) {
 
-            if (EXTERNAL_MMXEXT(mm_flags)) {
+            EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels,  8);
+            EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h,      8);
+            EPEL_LINKS(c->put_hevc_epel, 1, 0, epel_v,      8);
+            EPEL_LINKS(c->put_hevc_epel, 1, 1, epel_hv,     8);
 
-                if (EXTERNAL_SSSE3(mm_flags) && ARCH_X86_64) {
+            QPEL_LINKS(c->put_hevc_qpel, 0, 0, pel_pixels, 8);
+            QPEL_LINKS(c->put_hevc_qpel, 0, 1, qpel_h,     8);
+            QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     8);
+            QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    8);
 
-                    EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels,  8);
-                    EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h,      8);
-                    EPEL_LINKS(c->put_hevc_epel, 1, 0, epel_v,      8);
-                    EPEL_LINKS(c->put_hevc_epel, 1, 1, epel_hv,     8);
-
-                    QPEL_LINKS(c->put_hevc_qpel, 0, 0, pel_pixels, 8);
-                    QPEL_LINKS(c->put_hevc_qpel, 0, 1, qpel_h,     8);
-                    QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     8);
-                    QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    8);
-
-                }
-
-            }
         }
     } else if (bit_depth == 10) {
-        if (EXTERNAL_MMX(mm_flags)) {
-            if (EXTERNAL_MMXEXT(mm_flags) && ARCH_X86_64) {
+        if (EXTERNAL_SSE4(mm_flags) && ARCH_X86_64) {
 
-                if (EXTERNAL_SSSE3(mm_flags)) {
-                    EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels, 10);
-                    EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h,     10);
-                    EPEL_LINKS(c->put_hevc_epel, 1, 0, epel_v,     10);
-                    EPEL_LINKS(c->put_hevc_epel, 1, 1, epel_hv,    10);
+            EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels, 10);
+            EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h,     10);
+            EPEL_LINKS(c->put_hevc_epel, 1, 0, epel_v,     10);
+            EPEL_LINKS(c->put_hevc_epel, 1, 1, epel_hv,    10);
 
-                    QPEL_LINKS(c->put_hevc_qpel, 0, 0, pel_pixels, 10);
-                    QPEL_LINKS(c->put_hevc_qpel, 0, 1, qpel_h,     10);
-                    QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     10);
-                    QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    10);
-                }
-            }
+            QPEL_LINKS(c->put_hevc_qpel, 0, 0, pel_pixels, 10);
+            QPEL_LINKS(c->put_hevc_qpel, 0, 1, qpel_h,     10);
+            QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     10);
+            QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    10);
         }
     }
 }
