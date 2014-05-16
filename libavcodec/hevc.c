@@ -375,7 +375,7 @@ static int hls_slice_header(HEVCContext *s)
             ff_hevc_clear_refs(s);
     }
     sh->no_output_of_prior_pics_flag = 0;
-    if (IS_IRAP(s)) {
+    if (IS_IRAP(s))
         sh->no_output_of_prior_pics_flag = get_bits1(gb);
     if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
         sh->no_output_of_prior_pics_flag = 1;
