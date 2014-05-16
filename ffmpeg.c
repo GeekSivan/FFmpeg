@@ -597,6 +597,9 @@ static void write_frame(AVFormatContext *s, AVPacket *pkt, OutputStream *ost)
         ost->frame_number++;
     }
 
+    if (bsfc)
+        av_packet_split_side_data(pkt);
+
     while (bsfc) {
         AVPacket new_pkt = *pkt;
         int a = av_bitstream_filter_filter(bsfc, avctx, NULL,
@@ -3116,7 +3119,7 @@ static void free_input_threads(void)
             av_fifo_generic_read(f->fifo, &pkt, sizeof(pkt), NULL);
             av_free_packet(&pkt);
         }
-        av_fifo_free(f->fifo);
+        av_fifo_freep(&f->fifo);
     }
 }
 
