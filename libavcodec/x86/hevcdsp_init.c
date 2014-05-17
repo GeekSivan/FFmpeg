@@ -395,14 +395,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 
     if (bit_depth == 8) {
         if (EXTERNAL_MMX(mm_flags)) {
-            /*if (mm_flags & AV_CPU_FLAG_CMOV)
-                c->h264_luma_dc_dequant_idct = ff_h264_luma_dc_dequant_idct_mmx; */
-
             if (EXTERNAL_MMXEXT(mm_flags)) {
-#if ARCH_X86_32 && HAVE_MMXEXT_EXTERNAL
-                /* MMEXT optimizations */
-#endif /* ARCH_X86_32 && HAVE_MMXEXT_EXTERNAL */
-
                 if (EXTERNAL_SSE2(mm_flags)) {
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_8_sse2;
                     c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_8_sse2;
@@ -415,12 +408,10 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     c->transform_add[2] = ff_hevc_transform_16x16_add_8_sse4;
                     c->transform_add[3] = ff_hevc_transform_32x32_add_8_sse4;
 
-/*                    c->transform_dc_add[0] = ff_hevc_transform_4x4_dc_add_8_sse4;
+                    c->transform_dc_add[0] = ff_hevc_transform_4x4_dc_add_8_sse4;
                     c->transform_dc_add[1] = ff_hevc_transform_8x8_dc_add_8_sse4;
                     c->transform_dc_add[2] = ff_hevc_transform_16x16_dc_add_8_sse4;
                     c->transform_dc_add[3] = ff_hevc_transform_32x32_dc_add_8_sse4;
-
-*/
 
 #if ARCH_X86_64
                     c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_8_ssse3;
@@ -478,9 +469,6 @@ c->upsample_filter_block_cr_v[0] = ff_upsample_filter_block_cr_v_all_sse;
                 if (EXTERNAL_SSE2(mm_flags)) {
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_sse2;
                     c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_10_sse2;
-#if HAVE_ALIGNED_STACK
-                    /*stuff that requires aligned stack */
-#endif /* HAVE_ALIGNED_STACK */
                 }
                 if (EXTERNAL_SSSE3(mm_flags)) {
 #if ARCH_X86_64
