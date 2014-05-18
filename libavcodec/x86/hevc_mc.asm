@@ -1098,19 +1098,32 @@ cglobal hevc_put_hevc_bi_qpel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
 %endmacro
 
 %macro WEIGHTING_FUNCS 2
-cglobal hevc_put_hevc_uni_w%1_%2, 8, 10, 11, dst, dststride, src, srcstride, height, denom, wx, ox, shift
-    lea          shiftd, [denomd+14-%2]          ; shift = 14 - bitd + denom
-    shl             oxd, %2-8                    ; ox << (bitd - 8)
-    movd             m2, wxd        ; WX
-    movd             m3, oxd        ; OX
-    movd             m4, shiftd     ; shift
+%if WIN64
+cglobal hevc_put_hevc_uni_w%1_%2, 4, 5, 7, dst, dststride, src, srcstride, height, denom, wx, ox
+    mov             r4d, denomm
+%define SHIFT  r4d
+%else
+cglobal hevc_put_hevc_uni_w%1_%2, 6, 6, 7, dst, dststride, src, srcstride, height, denom, wx, ox
+%define SHIFT  denomd
+%endif
+    lea           SHIFT, [SHIFT+14-%2]          ; shift = 14 - bitd + denom
+    movd             m2, wxm        ; WX
+    movd             m4, SHIFT      ; shift
     punpcklwd        m2, m2
-    pshufd           m3, m3, 0
-    pshufd           m2, m2, 0
-    sub          shiftd, 1
-    movd             m6, shiftd
+    dec           SHIFT
     movdqu           m5, [one_per_32]
+    movd             m6, SHIFT
+    pshufd           m2, m2, 0
+    mov           SHIFT, oxm
     pslld            m5, m6
+%if %2 != 8
+    shl           SHIFT, %2-8       ; ox << (bitd - 8)
+%endif
+    movd             m3, SHIFT      ; OX
+    pshufd           m3, m3, 0
+%if WIN64
+    mov           SHIFT, heightm
+%endif
 .loop
    SIMPLE_LOAD        %1, 10, srcq, m0
     pmulhw            m6, m0, m2
