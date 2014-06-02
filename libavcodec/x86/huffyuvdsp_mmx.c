@@ -20,14 +20,12 @@
 
 #include "config.h"
 #include "libavutil/x86/asm.h"
-#include "dsputil_x86.h"
+#include "huffyuvdsp.h"
 
-#if HAVE_INLINE_ASM
-
-#if HAVE_7REGS
-void ff_add_hfyu_median_prediction_cmov(uint8_t *dst, const uint8_t *top,
-                                        const uint8_t *diff, int w,
-                                        int *left, int *left_top)
+#if HAVE_INLINE_ASM && HAVE_7REGS && ARCH_X86_32
+void ff_add_hfyu_median_pred_cmov(uint8_t *dst, const uint8_t *top,
+                                  const uint8_t *diff, intptr_t w,
+                                  int *left, int *left_top)
 {
     x86_reg w2 = -w;
     x86_reg x;
@@ -61,5 +59,3 @@ void ff_add_hfyu_median_prediction_cmov(uint8_t *dst, const uint8_t *top,
     *left_top = tl;
 }
 #endif
-
-#endif /* HAVE_INLINE_ASM */

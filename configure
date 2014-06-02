@@ -417,7 +417,7 @@ EOF
     else
         cat <<EOF
 Include the log file "$logfile" produced by configure as this will help
-solving the problem.
+solve the problem.
 EOF
     fi
     exit 1
@@ -443,7 +443,7 @@ sh_quote(){
 }
 
 cleanws(){
-    echo "$@" | sed 's/^ *//;s/  */ /g;s/ *$//;s/\r//g'
+    echo "$@" | sed 's/^ *//;s/  */ /g;s/ *$//;s/\\r//g'
 }
 
 filter(){
@@ -1199,8 +1199,8 @@ require_libfreetype(){
     pkg="freetype2"
     check_cmd $pkg_config --exists --print-errors $pkg \
       || die "ERROR: $pkg not found"
-    pkg_cflags=$($pkg_config --cflags $pkg)
-    pkg_libs=$($pkg_config --libs $pkg)
+    pkg_cflags=$($pkg_config --cflags $pkg_config_flags $pkg)
+    pkg_libs=$($pkg_config --libs $pkg_config_flags $pkg)
     {
         echo "#include <ft2build.h>"
         echo "#include FT_FREETYPE_H"
@@ -1805,6 +1805,8 @@ CONFIG_EXTRA="
     h264qpel
     hpeldsp
     huffman
+    huffyuvdsp
+    huffyuvencdsp
     intrax8
     lgplv3
     llviddsp
@@ -1814,6 +1816,7 @@ CONFIG_EXTRA="
     mpegvideo
     mpegvideoenc
     nettle
+    qpeldsp
     rangecoder
     riffdec
     riffenc
@@ -1985,7 +1988,7 @@ rdft_select="fft"
 mpegaudio_select="mpegaudiodsp"
 mpegaudiodsp_select="dct"
 mpegvideo_select="dsputil h264chroma hpeldsp videodsp"
-mpegvideoenc_select="dsputil mpegvideo"
+mpegvideoenc_select="dsputil mpegvideo qpeldsp"
 
 # decoders / encoders
 aac_decoder_select="mdct sinewin"
@@ -2014,7 +2017,7 @@ avrn_decoder_select="exif"
 bink_decoder_select="dsputil hpeldsp"
 binkaudio_dct_decoder_select="mdct rdft dct sinewin"
 binkaudio_rdft_decoder_select="mdct rdft sinewin"
-cavs_decoder_select="dsputil golomb h264chroma videodsp"
+cavs_decoder_select="dsputil golomb h264chroma qpeldsp videodsp"
 cllc_decoder_select="dsputil"
 comfortnoise_encoder_select="lpc"
 cook_decoder_select="dsputil mdct sinewin"
@@ -2052,15 +2055,15 @@ g2m_decoder_select="dsputil zlib"
 g729_decoder_select="dsputil"
 h261_decoder_select="error_resilience mpegvideo"
 h261_encoder_select="aandcttables mpegvideoenc"
-h263_decoder_select="error_resilience h263_parser h263dsp mpegvideo"
+h263_decoder_select="error_resilience h263_parser h263dsp mpegvideo qpeldsp"
 h263_encoder_select="aandcttables h263dsp mpegvideoenc"
 h263i_decoder_select="h263_decoder"
 h263p_encoder_select="h263_encoder"
 h264_decoder_select="cabac golomb h264chroma h264dsp h264pred h264qpel videodsp"
 h264_decoder_suggest="error_resilience"
 hevc_decoder_select="cabac dsputil golomb videodsp"
-huffyuv_decoder_select="dsputil llviddsp"
-huffyuv_encoder_select="dsputil huffman llviddsp"
+huffyuv_decoder_select="dsputil huffyuvdsp llviddsp"
+huffyuv_encoder_select="dsputil huffman huffyuvencdsp llviddsp"
 iac_decoder_select="imc_decoder"
 imc_decoder_select="dsputil fft mdct sinewin"
 indeo3_decoder_select="hpeldsp"
@@ -2068,7 +2071,7 @@ interplay_video_decoder_select="hpeldsp"
 jpegls_decoder_select="golomb mjpeg_decoder"
 jpegls_encoder_select="golomb"
 jv_decoder_select="dsputil"
-lagarith_decoder_select="dsputil"
+lagarith_decoder_select="huffyuvdsp"
 ljpeg_encoder_select="aandcttables mpegvideoenc"
 loco_decoder_select="golomb"
 mdec_decoder_select="dsputil error_resilience mpegvideo"
@@ -2104,7 +2107,7 @@ msmpeg4v2_decoder_select="h263_decoder"
 msmpeg4v2_encoder_select="h263_encoder"
 msmpeg4v3_decoder_select="h263_decoder"
 msmpeg4v3_encoder_select="h263_encoder"
-mss2_decoder_select="error_resilience vc1_decoder"
+mss2_decoder_select="error_resilience qpeldsp vc1_decoder"
 mxpeg_decoder_select="mjpeg_decoder"
 nellymoser_decoder_select="mdct sinewin"
 nellymoser_encoder_select="audio_frame_queue mdct sinewin"
@@ -2112,7 +2115,7 @@ nuv_decoder_select="dsputil lzo"
 on2avc_decoder_select="mdct"
 opus_decoder_deps="swresample"
 png_decoder_select="zlib"
-png_encoder_select="dsputil zlib"
+png_encoder_select="huffyuvencdsp zlib"
 prores_decoder_select="dsputil"
 prores_encoder_select="dsputil"
 qcelp_decoder_select="lsp"
@@ -2150,9 +2153,9 @@ truespeech_decoder_select="dsputil"
 tscc_decoder_select="zlib"
 twinvq_decoder_select="mdct lsp sinewin"
 utvideo_decoder_select="dsputil"
-utvideo_encoder_select="dsputil huffman"
-vble_decoder_select="dsputil"
-vc1_decoder_select="error_resilience h263_decoder h264chroma h264qpel intrax8"
+utvideo_encoder_select="dsputil huffman huffyuvencdsp"
+vble_decoder_select="huffyuvdsp"
+vc1_decoder_select="error_resilience h263_decoder h264chroma h264qpel intrax8 qpeldsp"
 vc1image_decoder_select="vc1_decoder"
 vorbis_decoder_select="mdct"
 vorbis_encoder_select="mdct"
@@ -2163,7 +2166,7 @@ vp6a_decoder_select="vp6_decoder"
 vp6f_decoder_select="vp6_decoder"
 vp7_decoder_select="h264pred videodsp"
 vp8_decoder_select="h264pred videodsp"
-vp9_decoder_select="videodsp"
+vp9_decoder_select="videodsp vp9_parser"
 webp_decoder_select="vp8_decoder"
 wmapro_decoder_select="mdct sinewin"
 wmav1_decoder_select="mdct sinewin"
@@ -2256,8 +2259,8 @@ wmv3_vdpau_hwaccel_select="vc1_vdpau_hwaccel"
 # parsers
 h264_parser_select="h264_decoder"
 hevc_parser_select="hevc_decoder"
-mpeg4video_parser_select="error_resilience h263dsp mpegvideo"
 mpegvideo_parser_select="error_resilience mpegvideo"
+mpeg4video_parser_select="error_resilience h263dsp mpegvideo qpeldsp"
 vc1_parser_select="mpegvideo"
 
 # external libraries
@@ -2499,6 +2502,7 @@ hqdn3d_filter_deps="gpl"
 interlace_filter_deps="gpl"
 kerndeint_filter_deps="gpl"
 ladspa_filter_deps="ladspa dlopen"
+ladspa_filter_extralibs='$ldl'
 mcdeint_filter_deps="avcodec gpl"
 movie_filter_deps="avcodec avformat"
 mp_filter_deps="gpl avcodec swscale inline_asm"
@@ -2564,7 +2568,7 @@ ffmpeg_select="aformat_filter anull_filter atrim_filter format_filter
                setpts_filter trim_filter"
 ffplay_deps="avcodec avformat swscale swresample sdl"
 ffplay_libs='$sdl_libs'
-ffplay_select="rdft crop_filter"
+ffplay_select="rdft crop_filter transpose_filter hflip_filter vflip_filter rotate_filter"
 ffprobe_deps="avcodec avformat"
 ffserver_deps="avformat fork sarestart"
 ffserver_select="ffm_muxer rtp_protocol rtsp_demuxer"
@@ -3537,7 +3541,7 @@ case "$arch" in
     tilegx|tile-gx)
         arch="tilegx"
     ;;
-    i[3-6]86|i86pc|BePC|x86pc|x86_64|x86_32|amd64)
+    i[3-6]86*|i86pc|BePC|x86pc|x86_64|x86_32|amd64)
         arch="x86"
     ;;
 esac
@@ -3615,7 +3619,10 @@ elif enabled arm; then
 
     case "$subarch" in
         armv5t*)    enable fast_clz                ;;
-        armv[6-8]*) enable fast_clz fast_unaligned ;;
+        armv[6-8]*)
+            enable fast_clz
+            disabled fast_unaligned || enable fast_unaligned
+            ;;
     esac
 
 elif enabled avr32; then
@@ -4589,6 +4596,9 @@ if ! disabled pthreads && ! enabled w32threads && ! enabled os2threads; then
     elif check_func pthread_join -pthreads && check_func pthread_create -pthreads; then
         add_cflags -pthreads
         add_extralibs -pthreads
+    elif check_func pthread_join -ldl -pthread && check_func pthread_create -ldl -pthread; then
+        add_cflags -ldl -pthread
+        add_extralibs -ldl -pthread
     elif check_func pthread_join -lpthreadGC2 && check_func pthread_create -lpthreadGC2; then
         add_extralibs -lpthreadGC2
     elif check_lib pthread.h pthread_join -lpthread && check_lib pthread.h pthread_create -lpthread; then
@@ -5405,7 +5415,7 @@ get_version(){
 
 map 'get_version $v' $LIBRARY_LIST
 
-map 'eval echo "FFLIBS-${v}=\$${v}_deps" >> config.mak' $LIBRARY_LIST
+map 'eval echo "${v}_FFLIBS=\$${v}_deps" >> config.mak' $LIBRARY_LIST
 
 print_program_libs(){
     eval "program_libs=\$${1}_libs"

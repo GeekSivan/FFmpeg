@@ -40,9 +40,14 @@ static av_always_inline void FUNC(intra_pred)(HEVCContext *s, int x0, int y0,
     (MVF_PU(x, y).pred_flag == PF_INTRA)
 #define MIN_TB_ADDR_ZS(x, y) \
     s->pps->min_tb_addr_zs[(y) * s->sps->min_tb_width + (x)]
-#define EXTEND(ptr, start, length)                                             \
-        for (i = start; i < (start) + (length); i += 4)                        \
-            AV_WN4P(&(ptr[i]), a)
+
+#define EXTEND(ptr, val, len)         \
+do {                                  \
+    pixel4 pix = PIXEL_SPLAT_X4(val); \
+    for (i = 0; i < (len); i += 4)    \
+        AV_WN4P(ptr + i, pix);        \
+} while (0)
+
 #define EXTEND_RIGHT_CIP(ptr, start, length)                                   \
         for (i = start; i < (start) + (length); i += 4)                        \
             if (!IS_INTRA(i, -1))                                              \
@@ -162,25 +167,20 @@ static av_always_inline void FUNC(intra_pred)(HEVCContext *s, int x0, int y0,
         top[-1]  = left[-1];
     }
     if (cand_up)
-        for (i = 0; i <size; i+=4)
-            AV_WN4P(&top[i], AV_RN4P(&POS(i, -1)));
-
+        memcpy(top, src - stride, size * sizeof(pixel));
     if (cand_up_right) {
-        a = PIXEL_SPLAT_X4(POS(size + top_right_size - 1, -1));
-        for (i = size + top_right_size; i < (size << 1); i += 4)
-            AV_WN4P(&top[i], a);
-        for (i = size ; i < size+top_right_size; i+=4)
-            AV_WN4P(&top[i], AV_RN4P(&POS(i, -1)));
+        memcpy(top + size, src - stride + size, size * sizeof(pixel));
+        EXTEND(top + size + top_right_size, POS(size + top_right_size - 1, -1),
+               size - top_right_size);
     }
     if (cand_left)
         for (i = 0; i < size; i++)
             left[i] = POS(-1, i);
     if (cand_bottom_left) {
-        for (i = size ; i < size+bottom_left_size; i++)
+        for (i = size; i < size + bottom_left_size; i++)
             left[i] = POS(-1, i);
-        a = PIXEL_SPLAT_X4(POS(-1, size + bottom_left_size - 1));
-        for (i = size + bottom_left_size; i < (size << 1); i+=4)
-            AV_WN4P(&left[i], a);
+        EXTEND(left + size + bottom_left_size, POS(-1, size + bottom_left_size - 1),
+               size - bottom_left_size);
     }
 
     if (s->pps->constrained_intra_pred_flag == 1) {
@@ -228,14 +228,10 @@ static av_always_inline void FUNC(intra_pred)(HEVCContext *s, int x0, int y0,
                 a = PIXEL_SPLAT_X4(left[-1]);
                 EXTEND_DOWN_CIP(left, 0, size_max_y);
             }
-            if (!cand_left) {
-                a = PIXEL_SPLAT_X4(left[-1]);
-                EXTEND(left, 0, size);
-            }
-            if (!cand_bottom_left) {
-                a = PIXEL_SPLAT_X4(left[size - 1]);
-                EXTEND(left, size, size);
-            }
+            if (!cand_left)
+                EXTEND(left, left[-1], size);
+            if (!cand_bottom_left)
+                EXTEND(left + size, left[size - 1], size);
             if (x0 != 0 && y0 != 0) {
                 a = PIXEL_SPLAT_X4(left[size_max_y - 1]);
                 EXTEND_UP_CIP(left, size_max_y - 1, size_max_y);
@@ -258,49 +254,38 @@ static av_always_inline void FUNC(intra_pred)(HEVCContext *s, int x0, int y0,
     // Infer the unavailable samples
     if (!cand_bottom_left) {
         if (cand_left) {
-            a = PIXEL_SPLAT_X4(left[size-1]);
-            EXTEND(left, size, size);
+            EXTEND(left + size, left[size - 1], size);
         } else if (cand_up_left) {
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(left, left[-1], 2 * size);
             cand_left = 1;
         } else if (cand_up) {
             left[-1] = top[0];
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(left, left[-1], 2 * size);
             cand_up_left = 1;
             cand_left    = 1;
         } else if (cand_up_right) {
+            EXTEND(top, top[size], size);
             left[-1] = top[size];
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(top, 0, size);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(left, left[-1], 2 * size);
             cand_up      = 1;
             cand_up_left = 1;
             cand_left    = 1;
         } else { // No samples available
             left[-1] = (1 << (BIT_DEPTH - 1));
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(top, 0, 2 * size);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(top,  left[-1], 2 * size);
+            EXTEND(left, left[-1], 2 * size);
         }
     }
 
-    if (!cand_left) {
-        a = PIXEL_SPLAT_X4(left[size]);
-        EXTEND(left, 0, size);
-    }
+    if (!cand_left)
+        EXTEND(left, left[size], size);
     if (!cand_up_left) {
         left[-1] = left[0];
     }
-    if (!cand_up) {
-        a = PIXEL_SPLAT_X4(left[-1]);
-        EXTEND(top, 0, size);
-    }
-    if (!cand_up_right) {
-        a = PIXEL_SPLAT_X4(top[size-1]);
-        EXTEND(top, size, size);
-    }
+    if (!cand_up)
+        EXTEND(top, left[-1], size);
+    if (!cand_up_right)
+        EXTEND(top + size, top[size - 1], size);
 
     top[-1] = left[-1];
 
