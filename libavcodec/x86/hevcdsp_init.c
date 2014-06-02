@@ -28,6 +28,29 @@
 #include "libavcodec/hevcdsp.h"
 #include "libavcodec/x86/hevcdsp.h"
 
+/***********************************/
+/* deblocking */
+
+#define LFC_FUNC(DIR, DEPTH, OPT)                                        \
+void ff_hevc_ ## DIR ## _loop_filter_chroma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+
+#define LFL_FUNC(DIR, DEPTH, OPT)                                        \
+void ff_hevc_ ## DIR ## _loop_filter_luma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t stride, int *_beta, int *_tc, \
+uint8_t *_no_p, uint8_t *_no_q);
+
+#define LFC_FUNCS(type, depth) \
+LFC_FUNC(h, depth, sse2)  \
+LFC_FUNC(v, depth, sse2)
+
+#define LFL_FUNCS(type, depth) \
+LFL_FUNC(h, depth, ssse3)  \
+LFL_FUNC(v, depth, ssse3)
+
+LFC_FUNCS(uint8_t,   8)
+LFC_FUNCS(uint8_t,  10)
+LFL_FUNCS(uint8_t,   8)
+LFL_FUNCS(uint8_t,  10)
+
 #ifdef OPTI_ASM
 
 #define LFC_FUNC(DIR, DEPTH, OPT)                                        \
