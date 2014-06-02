@@ -80,8 +80,6 @@ void ff_hevc_put_transform32x32_dc_add_10_sse2(uint8_t *dst, int16_t *coeffs, pt
 
 }
 
-
-
 #ifdef OPTI_ASM
 
 #define LFC_FUNC(DIR, DEPTH, OPT)                                        \
