@@ -181,6 +181,18 @@ WEIGHTING_PROTOTYPES(8, sse4);
 WEIGHTING_PROTOTYPES(10, sse4);
 
 ///////////////////////////////////////////////////////////////////////////////
+// IDCT
+///////////////////////////////////////////////////////////////////////////////
+#define TRANSFORM_DC(bitd, opt) \
+void ff_hevc_put_transform4x4_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride); \
+void ff_hevc_put_transform8x8_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride); \
+void ff_hevc_put_transform16x16_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride); \
+void ff_hevc_put_transform32x32_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+
+TRANSFORM_DC(8,  sse2);
+TRANSFORM_DC(10, sse2);
+
+///////////////////////////////////////////////////////////////////////////////
 // SAO functions
 ///////////////////////////////////////////////////////////////////////////////
 void ff_hevc_sao_edge_filter_0_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao,int *borders, int _width, int _height, int c_idx, uint8_t *vert_edge, uint8_t *horiz_edge, uint8_t *diag_edge);
