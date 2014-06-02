@@ -2855,7 +2855,6 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     if ((s->temporal_id > s->temporal_layer_id) || (ret > s->quality_layer_id))
         return 0;
     s->nuh_layer_id = ret;
-    s->avctx->layers_size += length;
     
     s->nuh_layer_id = ret;
 
@@ -3677,7 +3676,6 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
 
     avctx->internal->allocate_progress = 1;
 
-    avctx->layers_size     = 0;
     ret = hevc_init_context(avctx);
     if (ret < 0)
         return ret;
