@@ -1,14 +1,18 @@
 #include "config.h"
 #include "libavutil/avassert.h"
 #include "libavutil/pixdesc.h"
-#include "libavcodec/get_bits.h"
 #include "libavcodec/hevc.h"
 #include "libavcodec/x86/hevcdsp.h"
 
-
+#if HAVE_SSE2
 #include <emmintrin.h>
+#endif
+#if HAVE_SSSE3
 #include <tmmintrin.h>
+#endif
+#if HAVE_SSE42
 #include <smmintrin.h>
+#endif
 
 DECLARE_ALIGNED(16, static const int16_t, transform4x4_luma[8][8] )=
 {
@@ -256,6 +260,7 @@ DECLARE_ALIGNED(16, static const int16_t, transform32x32[8][16][8] )=
 #define shift_1st 7
 #define add_1st (1 << (shift_1st - 1))
 
+#if HAVE_SSE42
 void ff_hevc_transform_skip_8_sse(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride)
 {
     uint8_t *dst = (uint8_t*)_dst;
@@ -303,7 +308,9 @@ void ff_hevc_transform_skip_8_sse(uint8_t *_dst, int16_t *coeffs, ptrdiff_t _str
     dst+=stride;
     *((uint32_t *)(dst)) = _mm_extract_epi32(r3, 3);
 }
+#endif //HAVE_SSE42
 
+#if HAVE_SSSE3
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -945,7 +952,7 @@ TRANSFORM_ADD2(32, 10);
 #define TRANSFORM_DC_ADD(H, D)                                                 \
 void ff_hevc_transform_ ## H ## x ## H ## _dc_add_ ## D ## _sse4 (             \
     uint8_t *_dst, int16_t *coeffs, ptrdiff_t _stride) {                       \
-    int i, j;                                                                  \
+    int j;                                                                     \
     int shift = 14 - D;                                                        \
     int add   = 1 << (shift - 1);                                              \
     int coeff = (((coeffs[0] + 1) >> 1) + add) >> shift;                       \
@@ -966,3 +973,4 @@ TRANSFORM_DC_ADD( 4,10)
 TRANSFORM_DC_ADD( 8,10)
 TRANSFORM_DC_ADD(16,10)
 TRANSFORM_DC_ADD(32,10)
+#endif

@@ -44,7 +44,7 @@ static int hevc_find_frame_end(AVCodecParserContext *s, const uint8_t *buf,
     ParseContext *pc = &((HEVCParseContext *)s->priv_data)->pc;
 
     for (i = 0; i < buf_size; i++) {
-        int nut;
+        int nut, layer_id;
 
         pc->state64 = (pc->state64 << 8) | buf[i];
 
@@ -52,17 +52,19 @@ static int hevc_find_frame_end(AVCodecParserContext *s, const uint8_t *buf,
             continue;
 
         nut = (pc->state64 >> 2 * 8 + 1) & 0x3F;
+        layer_id  =  (((pc->state64 >> 2 * 8) &0x01)<<5) + (((pc->state64 >> 1 * 8)&0xF8)>>3);
+
         // Beginning of access unit
         if ((nut >= NAL_VPS && nut <= NAL_AUD) || nut == NAL_SEI_PREFIX ||
             (nut >= 41 && nut <= 44) || (nut >= 48 && nut <= 55)) {
-            if (pc->frame_start_found) {
+            if (pc->frame_start_found && !layer_id) {
                 pc->frame_start_found = 0;
                 return i - 5;
             }
         } else if (nut <= NAL_RASL_R ||
                    (nut >= NAL_BLA_W_LP && nut <= NAL_CRA_NUT)) {
             int first_slice_segment_in_pic_flag = buf[i] >> 7;
-            if (first_slice_segment_in_pic_flag) {
+            if (first_slice_segment_in_pic_flag && !layer_id) {
                 if (!pc->frame_start_found) {
                     pc->frame_start_found = 1;
                 } else { // First slice of next frame found
@@ -124,6 +126,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, AVCodecContext *avctx
 
         h->nal_unit_type = (*buf >> 1) & 0x3f;
         h->temporal_id   = (*(buf + 1) & 0x07) - 1;
+        h->nuh_layer_id  =  (((*buf)&0x01)<<5) + (((*(buf+1))&0xF8)>>3);
         if (h->nal_unit_type <= NAL_CRA_NUT) {
             // Do not walk the whole buffer just to decode slice segment header
             if (src_length > 20)
@@ -165,6 +168,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, AVCodecContext *avctx
         case NAL_IDR_W_RADL:
         case NAL_IDR_N_LP:
         case NAL_CRA_NUT:
+            av_log(h->avctx, AV_LOG_DEBUG, "parsing NALU %d\n", h->decoder_id);
             sh->first_slice_in_pic_flag = get_bits1(gb);
             s->picture_structure = h->picture_struct;
             s->field_order = h->picture_struct;

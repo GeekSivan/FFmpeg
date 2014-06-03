@@ -37,7 +37,7 @@ cglobal hevc_put_transform%1x%1_dc_add_%2, 3, 4, 4, dst, coeffs, stride, temp
     pxor              m1, m1
     mov            tempd, %1
 .loop
-%if %2 == 8 && %1 <= mmsize/2
+%if (%2 == 8 && %1 <= 8)
     movh              m2, [dstq]
 %else
     movu              m2, [dstq]
@@ -49,7 +49,7 @@ cglobal hevc_put_transform%1x%1_dc_add_%2, 3, 4, 4, dst, coeffs, stride, temp
     punpcklbw         m2, m1
 %endif
     paddw             m2, m0
-%if %2 == 8 && %1 <= mmsize/2
+%if (%1 > 8 && %2 == 8)
     paddw             m3, m0
 %endif
 %if %2 == 8
@@ -57,7 +57,7 @@ cglobal hevc_put_transform%1x%1_dc_add_%2, 3, 4, 4, dst, coeffs, stride, temp
 %else
     CLIPW             m2, m1, [max_pixels_%2]
 %endif
-%if %2 == 8 && %1 <= mmsize/2
+%if (%2 == 8 && %1 <= 8)
     movh          [dstq], m2
 %else
     movu          [dstq], m2

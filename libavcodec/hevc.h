@@ -35,6 +35,7 @@
 #include "internal.h"
 #include "thread.h"
 #include "videodsp.h"
+#include "hevc_defs.h"
 
 #define MAX_DPB_SIZE 16 // A.4.1
 #define MAX_REFS 16
@@ -54,14 +55,19 @@
 
 //TODO: check if this is really the maximum
 #define MAX_TRANSFORM_DEPTH 5
+#define MIN_PB_LOG_SIZE 2
 
 #define MAX_TB_SIZE 32
 #define MAX_PB_SIZE 64
+
+#define MAX_EDGE_BUFFER_SIZE    ((MAX_PB_SIZE + 20) * (MAX_PB_SIZE+20) * 2)
+#define MAX_EDGE_BUFFER_STRIDE  ((MAX_PB_SIZE+20) * 2)
+
 #define MAX_LOG2_CTB_SIZE 6
 #define MAX_QP 51
 #define DEFAULT_INTRA_TC_OFFSET 2
 
-#define HEVC_CONTEXTS 186
+#define HEVC_CONTEXTS 183
 
 #define MRG_MAX_NUM_CANDS     5
 
@@ -74,6 +80,8 @@
 #define QPEL_EXTRA_BEFORE 3
 #define QPEL_EXTRA_AFTER  4
 #define QPEL_EXTRA        7
+#define ACTIVE_PU_UPSAMPLING     1
+#define ACTIVE_BOTH_FRAME_AND_PU 0
 
 #define EDGE_EMU_BUFFER_STRIDE 80
 
@@ -85,10 +93,16 @@
 #define SAMPLE_CBF(tab, x, y) ((tab)[((y) & ((1<<log2_trafo_size)-1)) * MAX_CU_SIZE + ((x) & ((1<<log2_trafo_size)-1))])
 #define SAMPLE_CBF2(tab, x, y) ((tab)[(y) * MAX_CU_SIZE +  (x)])
 
-#define IS_IDR(s) (s->nal_unit_type == NAL_IDR_W_RADL || s->nal_unit_type == NAL_IDR_N_LP)
-#define IS_BLA(s) (s->nal_unit_type == NAL_BLA_W_RADL || s->nal_unit_type == NAL_BLA_W_LP || \
-                   s->nal_unit_type == NAL_BLA_N_LP)
-#define IS_IRAP(s) (s->nal_unit_type >= 16 && s->nal_unit_type <= 23)
+#define IS_IDR(s) ((s)->nal_unit_type == NAL_IDR_W_RADL || (s)->nal_unit_type == NAL_IDR_N_LP)
+#define IS_BLA(s) ((s)->nal_unit_type == NAL_BLA_W_RADL || (s)->nal_unit_type == NAL_BLA_W_LP || \
+                   (s)->nal_unit_type == NAL_BLA_N_LP)
+#define IS_IRAP(s) ((s)->nal_unit_type >= 16 && (s)->nal_unit_type <= 23)
+
+enum ScalabilityType
+{
+    VIEW_ORDER_INDEX  = 1,
+    SCALABILITY_ID = 2,
+};
 
 /**
  * Table 7-3: NAL unit type codes
@@ -127,6 +141,8 @@ enum RPSType {
     ST_FOLL,
     LT_CURR,
     LT_FOLL,
+    IL_REF0,
+    IL_REF1,
     NB_RPS_TYPE,
 };
 
@@ -272,6 +288,27 @@ enum ScanType {
     SCAN_VERT,
 };
 
+#ifdef SVC_EXTENSION
+enum {
+    DEFAULT=0,
+    X2,
+    X1_5,
+    SNR,
+};
+
+typedef struct UpsamplInf {
+    int addXLum;
+    int addYLum;
+    int scaleXLum;
+    int scaleYLum;
+    int addXCr;
+    int addYCr;
+    int scaleXCr;
+    int scaleYCr;
+    int idx;
+} UpsamplInf;
+#endif
+
 typedef struct ShortTermRPS {
     unsigned int num_negative_pics;
     int num_delta_pocs;
@@ -364,13 +401,50 @@ typedef struct PTL {
 
     uint8_t sub_layer_profile_present_flag[MAX_SUB_LAYERS];
     uint8_t sub_layer_level_present_flag[MAX_SUB_LAYERS];
+
+    int sub_layer_profile_space[MAX_SUB_LAYERS];
+    uint8_t sub_layer_tier_flag[MAX_SUB_LAYERS];
+    int sub_layer_profile_idc[MAX_SUB_LAYERS];
+    uint8_t sub_layer_profile_compatibility_flags[MAX_SUB_LAYERS][32];
+    int sub_layer_level_idc[MAX_SUB_LAYERS];
 } PTL;
+
+enum ChromaFormat
+{
+    CHROMA_400  = 0,
+    CHROMA_420  = 1,
+    CHROMA_422  = 2,
+    CHROMA_444  = 3
+#if AUXILIARY_PICTURES
+    ,NUM_CHROMA_FORMAT = 4
+#endif
+};
+
+#if REPN_FORMAT_IN_VPS
+typedef struct RepFormat
+{
+#if REPN_FORMAT_CONTROL_FLAG
+    unsigned int m_chromaAndBitDepthVpsPresentFlag;
+#endif
+#if AUXILIARY_PICTURES
+    enum ChromaFormat m_chromaFormatVpsIdc;
+#else
+    int  m_chromaFormatVpsIdc;
+#endif
+    unsigned int m_separateColourPlaneVpsFlag;
+    int  m_picWidthVpsInLumaSamples;
+    int  m_picHeightVpsInLumaSamples;
+    int  m_bitDepthVpsLuma;               // coded as minus8
+    int  m_bitDepthVpsChroma;             // coded as minus8
+} RepFormat;
+#endif
 
 typedef struct HEVCVPS {
     uint8_t vps_temporal_id_nesting_flag;
     int vps_max_layers;
     int vps_max_sub_layers; ///< vps_max_temporal_layers_minus1 + 1
 
+    int m_extensionOffset; 
     PTL ptl;
     int vps_sub_layer_ordering_info_present_flag;
     unsigned int vps_max_dec_pic_buffering[MAX_SUB_LAYERS];
@@ -384,6 +458,182 @@ typedef struct HEVCVPS {
     uint8_t vps_poc_proportional_to_timing_flag;
     int vps_num_ticks_poc_diff_one; ///< vps_num_ticks_poc_diff_one_minus1 + 1
     int vps_num_hrd_parameters;
+    int m_layerIdIncludedFlag[MAX_VPS_LAYER_SETS_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+    
+    unsigned int       m_hrdOpSetIdx[10];
+    unsigned int       m_cprmsPresentFlag;
+    
+
+    int vps_extension_flag;
+#ifdef VPS_EXTENSION
+    int avc_base_layer_flag;
+    int splitting_flag;
+    int scalability_mask[MAX_VPS_NUM_SCALABILITY_TYPES];
+    int dimension_id_len[MAX_VPS_NUM_SCALABILITY_TYPES];
+    int m_numScalabilityTypes;
+    int nuh_layer_id_present_flag;
+    int layer_id_in_nuh[MAX_VPS_LAYER_ID_PLUS1];
+    int m_layerIdInVps[MAX_VPS_LAYER_ID_PLUS1];
+
+    int dimension_id[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_NUM_SCALABILITY_TYPES];
+#if DERIVE_LAYER_ID_LIST_VARIABLES
+    int         m_layerSetLayerIdList[MAX_VPS_LAYER_SETS_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+    int         m_numLayerInIdList[MAX_VPS_LAYER_SETS_PLUS1];
+#endif
+
+#if VIEW_ID_RELATED_SIGNALING
+    unsigned int         m_viewIdLenMinus1;
+    unsigned int         m_viewIdVal                [MAX_LAYERS];
+#endif
+
+#if VPS_EXTN_MASK_AND_DIM_INFO
+    unsigned int      m_avcBaseLayerFlag;                                // For now, always set to true.
+    unsigned int       m_splittingFlag;
+    unsigned int       m_scalabilityMask[MAX_VPS_NUM_SCALABILITY_TYPES];
+    unsigned int       m_dimensionIdLen[MAX_VPS_NUM_SCALABILITY_TYPES];
+    unsigned int       m_nuhLayerIdPresentFlag;
+    unsigned int       m_layerIdInNuh[MAX_VPS_LAYER_ID_PLUS1];            // Maps layer ID in the VPS with layer_id_in_nuh
+    unsigned int       m_dimensionId[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_NUM_SCALABILITY_TYPES];
+
+   // Below are derived variables
+   //  unsigned int       m_numScalabilityTypes;
+   //  unsigned int       m_layerIdInVps[MAX_VPS_LAYER_ID_PLUS1];            // Maps layer_id_in_nuh with the layer ID in the VPS
+#endif
+#if O0153_ALT_OUTPUT_LAYER_FLAG
+    unsigned int       m_altOutputLayerFlag;
+#endif
+#if REPN_FORMAT_IN_VPS
+    unsigned int       m_repFormatIdxPresentFlag;
+    int        m_vpsNumRepFormats;            // coded as minus1
+    RepFormat  m_vpsRepFormat[16];
+    int        m_vpsRepFormatIdx[16];
+#endif
+    
+#if N0120_MAX_TID_REF_PRESENT_FLAG
+    unsigned int      m_maxTidRefPresentFlag;
+#endif
+#if JCTVC_M0203_INTERLAYER_PRED_IDC
+#if O0225_MAX_TID_FOR_REF_LAYERS
+    unsigned int       m_maxTidIlRefPicsPlus1[MAX_VPS_LAYER_ID_PLUS1 - 1][MAX_VPS_LAYER_ID_PLUS1];
+#else
+    unsigned int       m_maxTidIlRefPicsPlus1[MAX_VPS_LAYER_ID_PLUS1 - 1];
+#endif
+#endif
+#if ILP_SSH_SIG
+    unsigned int       m_ilpSshSignalingEnabledFlag;
+#endif
+#if VPS_EXTN_PROFILE_INFO
+    unsigned int    vps_profile_present_flag[MAX_VPS_LAYER_SETS_PLUS1];    // The value with index 0 will not be used.
+    unsigned int    profile_ref[MAX_VPS_LAYER_SETS_PLUS1];    // The value with index 0 will not be used.
+    PTL     PTLExt[16]; //FIXME check consistence of the values 16
+#endif
+#if VPS_PROFILE_OUTPUT_LAYERS
+    unsigned int       vps_num_profile_tier_level;
+    int         more_output_layer_sets_than_default_flag;
+    int         num_add_output_layer_sets;
+    int         default_one_target_output_layer_flag;
+    int         profile_level_tier_idx[64];
+#endif
+#if M0040_ADAPTIVE_RESOLUTION_CHANGE
+    unsigned int       m_singleLayerForNonIrapFlag;
+#endif
+#if HIGHER_LAYER_IRAP_SKIP_FLAG
+    unsigned int       m_higherLayerIrapSkipFlag;
+#endif
+#if VPS_EXTN_OP_LAYER_SETS
+
+    unsigned int       m_numOutputLayerSets;
+    unsigned int       m_outputLayerSetIdx[MAX_VPS_LAYER_SETS_PLUS1];
+    unsigned int       m_outputLayerFlag[MAX_VPS_LAYER_SETS_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+
+#if VPS_EXTN_DIRECT_REF_LAYERS
+    unsigned int   m_directDependencyFlag[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+    unsigned int   m_numDirectRefLayers[MAX_VPS_LAYER_ID_PLUS1];
+    unsigned int   m_refLayerId[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+#if M0457_PREDICTION_INDICATIONS
+    unsigned int   m_directDepTypeLen;
+#if O0096_DEFAULT_DEPENDENCY_TYPE
+    unsigned int   m_defaultDirectDependencyTypeFlag;
+    unsigned int   m_defaultDirectDependencyType;
+#endif
+    unsigned int   m_directDependencyType[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+#endif
+#if VPS_TSLAYERS
+    unsigned int       m_maxTSLayersPresentFlag;
+    unsigned int       m_maxTSLayerMinus1[MAX_VPS_LAYER_ID_PLUS1 - 1];
+#endif
+#endif
+#endif
+    
+    
+#if JCTVC_M0458_INTERLAYER_RPS_SIG
+    int       max_one_active_ref_layer_flag;
+#endif
+#if O0062_POC_LSB_NOT_PRESENT_FLAG
+    int       m_pocLsbNotPresentFlag[MAX_VPS_LAYER_ID_PLUS1];
+#endif
+#if O0215_PHASE_ALIGNMENT
+    int       m_phaseAlignFlag;
+#endif
+#if O0092_0094_DEPENDENCY_CONSTRAINT
+    int        m_numberRefLayers[MAX_NUM_LAYER_IDS];  // number of direct and indirect reference layers of a coding layer
+    unsigned int       m_recursiveRefLayerFlag[MAX_NUM_LAYER_IDS][MAX_NUM_LAYER_IDS];  // flag to indicate if j-th layer is a direct or indirect reference layer of i-th layer
+#endif
+#if VPS_DPB_SIZE_TABLE
+    unsigned int    m_subLayerFlagInfoPresentFlag [MAX_VPS_OP_LAYER_SETS_PLUS1];
+    unsigned int    m_subLayerDpbInfoPresentFlag  [MAX_VPS_OP_LAYER_SETS_PLUS1][MAX_LAYERS];
+    int     m_maxVpsDecPicBufferingMinus1 [MAX_VPS_OP_LAYER_SETS_PLUS1][MAX_LAYERS][MAX_TLAYER];
+    int     m_maxVpsNumReorderPics        [MAX_VPS_OP_LAYER_SETS_PLUS1][MAX_LAYERS];
+    int     m_maxVpsLatencyIncreasePlus1  [MAX_VPS_OP_LAYER_SETS_PLUS1][MAX_LAYERS];
+    int     m_numSubDpbs                  [MAX_VPS_OP_LAYER_SETS_PLUS1];
+#endif
+
+#endif
+#if O0223_PICTURE_TYPES_ALIGN_FLAG
+    unsigned int       m_crossLayerPictureTypeAlignFlag;
+#endif
+#if N0147_IRAP_ALIGN_FLAG
+     unsigned int       m_crossLayerIrapAlignFlag;
+#endif
+#if VPS_VUI_BITRATE_PICRATE
+    unsigned char   m_bitRatePresentVpsFlag;
+    unsigned char   m_picRatePresentVpsFlag;
+    unsigned char   m_bitRatePresentFlag  [MAX_VPS_LAYER_SETS_PLUS1][MAX_TLAYER];
+    unsigned char   m_picRatePresentFlag  [MAX_VPS_LAYER_SETS_PLUS1][MAX_TLAYER];
+    unsigned char   m_avgBitRate          [MAX_VPS_LAYER_SETS_PLUS1][MAX_TLAYER];
+    unsigned char   m_maxBitRate          [MAX_VPS_LAYER_SETS_PLUS1][MAX_TLAYER];
+    unsigned char   m_constPicRateIdc     [MAX_VPS_LAYER_SETS_PLUS1][MAX_TLAYER];
+    unsigned char   m_avgPicRate          [MAX_VPS_LAYER_SETS_PLUS1][MAX_TLAYER];
+#endif
+#if VPS_VUI_TILES_NOT_IN_USE__FLAG
+    unsigned int       m_tilesNotInUseFlag;
+    unsigned int       m_tilesInUseFlag[MAX_VPS_LAYER_ID_PLUS1];
+    unsigned int       m_loopFilterNotAcrossTilesFlag[MAX_VPS_LAYER_ID_PLUS1];
+#endif
+#if TILE_BOUNDARY_ALIGNED_FLAG
+    unsigned int       m_tileBoundariesAlignedFlag[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+#endif
+#if VPS_VUI_WPP_NOT_IN_USE__FLAG
+    unsigned int       m_wppNotInUseFlag;
+    unsigned int       m_wppInUseFlag[MAX_VPS_LAYER_ID_PLUS1];
+#endif
+#if N0160_VUI_EXT_ILP_REF
+    unsigned int        m_numIlpRestrictedRefLayers;
+    unsigned int         m_minSpatialSegmentOffsetPlus1[MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+    unsigned int        m_ctuBasedOffsetEnabledFlag   [MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+    unsigned int         m_minHorizontalCtuOffsetPlus1 [MAX_VPS_LAYER_ID_PLUS1][MAX_VPS_LAYER_ID_PLUS1];
+#endif
+#if VPS_VUI_VIDEO_SIGNAL
+    unsigned int        m_vidSigPresentVpsFlag;
+    unsigned int         m_vpsVidSigInfo;
+    unsigned int         m_vpsVidSigIdx[MAX_VPS_LAYER_ID_PLUS1];
+    unsigned int         m_vpsVidFormat[16];
+    unsigned int        m_vpsFullRangeFlag[16];
+    unsigned int         m_vpsColorPrimaries[16];
+    unsigned int         m_vpsTransChar[16];
+    unsigned int         m_vpsMatCoeff[16];
+#endif
+
 } HEVCVPS;
 
 typedef struct ScalingList {
@@ -408,11 +658,14 @@ typedef struct HEVCSPS {
     int bit_depth;
     int pixel_shift;
     enum AVPixelFormat pix_fmt;
+    int m_updateRepFormatFlag;
+    int m_updateRepFormatIndex;
 
     unsigned int log2_max_poc_lsb;
     int pcm_enabled_flag;
 
     int max_sub_layers;
+    int m_bTemporalIdNestingFlag;
     struct {
         int max_dec_pic_buffering;
         int num_reorder_pics;
@@ -423,6 +676,9 @@ typedef struct HEVCSPS {
     PTL ptl;
 
     uint8_t scaling_list_enable_flag;
+    uint8_t m_inferScalingListFlag;
+    uint8_t m_scalingListPresentFlag; 
+    int m_scalingListRefLayerId; 
     ScalingList scaling_list;
 
     unsigned int nb_st_rps;
@@ -456,10 +712,9 @@ typedef struct HEVCSPS {
     int max_transform_hierarchy_depth_inter;
     int max_transform_hierarchy_depth_intra;
 
-    int intra_smoothing_disabled_flag;
-    int transform_skip_context_enabled_flag;
     int transform_skip_rotation_enabled_flag;
-    int intra_block_copy_enabled_flag;
+    int transform_skip_context_enabled_flag;
+    int intra_smoothing_disabled_flag;
 
     ///< coded frame dimension in various units
     int width;
@@ -478,6 +733,18 @@ typedef struct HEVCSPS {
     int vshift[3];
 
     int qp_bd_offset;
+
+#if SCALED_REF_LAYER_OFFSETS
+    HEVCWindow      scaled_ref_layer_window[MAX_LAYERS];
+    int             m_numScaledRefLayerOffsets;
+    
+#endif
+#if O0098_SCALED_REF_LAYER_ID
+    int        m_scaledRefLayerId[MAX_LAYERS];
+#endif
+#ifdef REF_IDX_MFM
+    int set_mfm_enabled_flag;
+#endif
 } HEVCSPS;
 
 typedef struct HEVCPPS {
@@ -518,6 +785,8 @@ typedef struct HEVCPPS {
 
     uint8_t deblocking_filter_control_present_flag;
     uint8_t deblocking_filter_override_enabled_flag;
+    uint8_t m_inferScalingListFlag;
+    int m_scalingListRefLayerId; 
     uint8_t disable_dbf;
     int beta_offset;    ///< beta_offset_div2 * 2
     int tc_offset;      ///< tc_offset_div2 * 2
@@ -529,6 +798,9 @@ typedef struct HEVCPPS {
     int log2_parallel_merge_level; ///< log2_parallel_merge_level_minus2 + 2
     int num_extra_slice_header_bits;
     uint8_t slice_header_extension_present_flag;
+
+    uint8_t pps_extension_flag;
+    uint8_t pps_extension_data_flag;
 
     // Inferred parameters
     unsigned int *column_width;  ///< ColumnWidth
@@ -614,6 +886,22 @@ typedef struct SliceHeader {
     int16_t luma_offset_l1[16];
     int16_t chroma_offset_l1[16][2];
 
+#ifdef REF_IDX_FRAMEWORK
+    int inter_layer_pred_enabled_flag;
+#endif
+
+#ifdef JCTVC_M0458_INTERLAYER_RPS_SIG
+    int     active_num_ILR_ref_idx;        //< Active inter-layer reference pictures
+    int     inter_layer_pred_layer_idc[MAX_VPS_LAYER_ID_PLUS1];
+#endif
+
+#ifdef SVC_EXTENSION
+    int ScalingFactor[MAX_LAYERS][2];
+ //   int ScalingPosition[MAX_LAYERS][2];
+    uint8_t m_bPocResetFlag;
+    uint8_t m_bCrossLayerBLAFlag; 
+#endif
+
     int slice_ctb_addr_rs;
 } SliceHeader;
 
@@ -636,7 +924,6 @@ typedef struct CodingUnit {
     uint8_t intra_split_flag;   ///< IntraSplitFlag
     uint8_t max_trafo_depth;    ///< MaxTrafoDepth
     uint8_t cu_transquant_bypass_flag;
-    uint8_t intra_bc_flag;
 } CodingUnit;
 
 typedef struct Mv {
@@ -721,6 +1008,11 @@ typedef struct HEVCFrame {
      * A combination of HEVC_FRAME_FLAG_*
      */
     uint8_t flags;
+    uint8_t active_el_frame;
+#if FRAME_CONCEALMENT
+    uint8_t is_concealment_frame;
+#endif
+
 } HEVCFrame;
 
 typedef struct HEVCNAL {
@@ -732,14 +1024,14 @@ typedef struct HEVCNAL {
 } HEVCNAL;
 
 typedef struct HEVCLocalContext {
-    GetBitContext gb;
-    CABACContext cc;
-    TransformTree tt;
-    TransformUnit tu;
-    CodingTree ct;
-    CodingUnit cu;
-    PredictionUnit pu;
-    NeighbourAvailable na;
+    GetBitContext       gb;
+    CABACContext        cc;
+    TransformTree       tt;
+    TransformUnit       tu;
+    CodingTree          ct;
+    CodingUnit          cu;
+    PredictionUnit      pu;
+    NeighbourAvailable  na;
 
     uint8_t cabac_state[HEVC_CONTEXTS];
 
@@ -760,6 +1052,7 @@ typedef struct HEVCLocalContext {
     /* +7 is for subpixel interpolation, *2 for high bit depths */
     DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
     DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer2)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
+    DECLARE_ALIGNED(16, int16_t, edge_emu_buffer_up_v[MAX_EDGE_BUFFER_SIZE]);
 
     uint8_t slice_or_tiles_left_boundary;
     uint8_t slice_or_tiles_up_boundary;
@@ -795,7 +1088,7 @@ typedef struct HEVCContext {
     DBParams *deblock;
 
     ///< candidate references for the current frame
-    RefPicList rps[5];
+    RefPicList rps[5+2]; // 2 for inter layer reference pictures
 
     enum NALUnitType nal_unit_type;
     int temporal_id;  ///< temporal_id_plus1 - 1
@@ -871,8 +1164,20 @@ typedef struct HEVCContext {
     uint8_t context_initialized;
     uint8_t is_nalff;       ///< this flag is != 0 if bitstream is encapsulated
                             ///< as a format defined in 14496-15
-    int apply_defdispwin;
 
+#ifdef SVC_EXTENSION
+    AVFrame     *EL_frame;
+    short       *buffer_frame[3];
+    UpsamplInf  up_filter_inf;
+    HEVCFrame   *BL_frame;
+    HEVCFrame   *inter_layer_ref;
+    int         active_el_frame;
+    uint8_t     *is_upsampled;
+#endif
+    int temporal_layer_id;
+    int decoder_id;
+    int apply_defdispwin;
+    int quality_layer_id;
     int active_seq_parameter_set_id;
 
     int nal_length_size;    ///< Number of bytes used for nal length (1, 2 or 4)
@@ -888,9 +1193,15 @@ typedef struct HEVCContext {
 
     /** 1 if the independent slice segment header was successfully parsed */
     uint8_t slice_initialized;
+    long unsigned int dynamic_alloc;
 
     uint8_t threads_type;
     uint8_t threads_number;
+#if FRAME_CONCEALMENT
+    int prev_display_poc;
+    int no_display_pic;
+#endif
+    int     decode_checksum_sei;
 } HEVCContext;
 
 int ff_hevc_decode_short_term_rps(HEVCContext *s, ShortTermRPS *rps,
@@ -961,14 +1272,13 @@ int ff_hevc_no_residual_syntax_flag_decode(HEVCContext *s);
 int ff_hevc_split_transform_flag_decode(HEVCContext *s, int log2_trafo_size);
 int ff_hevc_cbf_cb_cr_decode(HEVCContext *s, int trafo_depth);
 int ff_hevc_cbf_luma_decode(HEVCContext *s, int trafo_depth);
-int ff_hevc_intra_bc_flag_decode(HEVCContext *s);
-int ff_hevc_part_mode_bc_decode(HEVCContext *s, int log2_cb_size);
 
 /**
  * Get the number of candidate references for the current frame.
  */
 int ff_hevc_frame_nb_refs(HEVCContext *s);
 int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc);
+int ff_hevc_set_new_iter_layer_ref(HEVCContext *s, AVFrame **frame, int poc);
 
 /**
  * Find next frame in output order and put a reference to it in frame.
@@ -995,10 +1305,14 @@ void ff_hevc_deblocking_boundary_strengths_h(HEVCContext *s, int x0, int y0,
                                            int slice_up_boundary);
 void ff_hevc_deblocking_boundary_strengths_v(HEVCContext *s, int x0, int y0,
                                            int slice_left_boundary);
+
+void ff_upscale_mv_block(HEVCContext *s, int ctb_x, int ctb_y);
+
 int ff_hevc_cu_qp_delta_sign_flag(HEVCContext *s);
 int ff_hevc_cu_qp_delta_abs(HEVCContext *s);
 void ff_hevc_hls_filter(HEVCContext *s, int x, int y, int ctb_size);
 void ff_hevc_hls_filters(HEVCContext *s, int x_ctb, int y_ctb, int ctb_size);
+void ff_upsample_block(HEVCContext *s, HEVCFrame *ref0, int x0, int y0, int nPbW, int nPbH);
 void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                                  int log2_trafo_size, enum ScanType scan_idx,
                                  int c_idx);

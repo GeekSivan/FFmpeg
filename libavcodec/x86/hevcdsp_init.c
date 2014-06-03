@@ -27,6 +27,7 @@
 #include "libavcodec/get_bits.h" /* required for hevcdsp.h GetBitContext */
 #include "libavcodec/hevcdsp.h"
 #include "libavcodec/x86/hevcdsp.h"
+#include "libavcodec/hevc_defs.h"
 
 /***********************************/
 /* deblocking */
@@ -50,7 +51,6 @@ LFC_FUNCS(uint8_t,   8)
 LFC_FUNCS(uint8_t,  10)
 LFL_FUNCS(uint8_t,   8)
 LFL_FUNCS(uint8_t,  10)
-
 
 
 void ff_hevc_put_transform32x32_dc_add_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
@@ -398,24 +398,24 @@ mc_bi_w_funcs(qpel_hv, 10, sse4);
 
 
 #define EPEL_LINKS(pointer, my, mx, fname, bitd, opt )           \
-        PEL_LINK(pointer, 1, my , mx , fname##4 ,  bitd, sse4 ); \
-        PEL_LINK(pointer, 2, my , mx , fname##6 ,  bitd, sse4 ); \
-        PEL_LINK(pointer, 3, my , mx , fname##8 ,  bitd, sse4 ); \
-        PEL_LINK(pointer, 4, my , mx , fname##12,  bitd, sse4 ); \
-        PEL_LINK(pointer, 5, my , mx , fname##16,  bitd, sse4 ); \
-        PEL_LINK(pointer, 6, my , mx , fname##24,  bitd, sse4 ); \
-        PEL_LINK(pointer, 7, my , mx , fname##32,  bitd, sse4 ); \
-        PEL_LINK(pointer, 8, my , mx , fname##48,  bitd, sse4 ); \
-        PEL_LINK(pointer, 9, my , mx , fname##64,  bitd, sse4 )
-#define QPEL_LINKS(pointer, my, mx, fname, bitd, sse4)           \
-        PEL_LINK(pointer, 1, my , mx , fname##4 ,  bitd, sse4 ); \
-        PEL_LINK(pointer, 3, my , mx , fname##8 ,  bitd, sse4 ); \
-        PEL_LINK(pointer, 4, my , mx , fname##12,  bitd, sse4 ); \
-        PEL_LINK(pointer, 5, my , mx , fname##16,  bitd, sse4 ); \
-        PEL_LINK(pointer, 6, my , mx , fname##24,  bitd, sse4 ); \
-        PEL_LINK(pointer, 7, my , mx , fname##32,  bitd, sse4 ); \
-        PEL_LINK(pointer, 8, my , mx , fname##48,  bitd, sse4 ); \
-        PEL_LINK(pointer, 9, my , mx , fname##64,  bitd, sse4 )
+        PEL_LINK(pointer, 1, my , mx , fname##4 ,  bitd, opt ); \
+        PEL_LINK(pointer, 2, my , mx , fname##6 ,  bitd, opt ); \
+        PEL_LINK(pointer, 3, my , mx , fname##8 ,  bitd, opt ); \
+        PEL_LINK(pointer, 4, my , mx , fname##12,  bitd, opt ); \
+        PEL_LINK(pointer, 5, my , mx , fname##16,  bitd, opt ); \
+        PEL_LINK(pointer, 6, my , mx , fname##24,  bitd, opt ); \
+        PEL_LINK(pointer, 7, my , mx , fname##32,  bitd, opt ); \
+        PEL_LINK(pointer, 8, my , mx , fname##48,  bitd, opt ); \
+        PEL_LINK(pointer, 9, my , mx , fname##64,  bitd, opt )
+#define QPEL_LINKS(pointer, my, mx, fname, bitd, opt)           \
+        PEL_LINK(pointer, 1, my , mx , fname##4 ,  bitd, opt ); \
+        PEL_LINK(pointer, 3, my , mx , fname##8 ,  bitd, opt ); \
+        PEL_LINK(pointer, 4, my , mx , fname##12,  bitd, opt ); \
+        PEL_LINK(pointer, 5, my , mx , fname##16,  bitd, opt ); \
+        PEL_LINK(pointer, 6, my , mx , fname##24,  bitd, opt ); \
+        PEL_LINK(pointer, 7, my , mx , fname##32,  bitd, opt ); \
+        PEL_LINK(pointer, 8, my , mx , fname##48,  bitd, opt ); \
+        PEL_LINK(pointer, 9, my , mx , fname##64,  bitd, opt )
 
 
 void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
@@ -432,10 +432,12 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_8_sse2;
                     c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_8_sse2;
 
+#ifdef OPTI_ASM
                     c->transform_dc_add[1]    =  ff_hevc_put_transform8x8_dc_add_8_sse2;
                     c->transform_dc_add[2]    =  ff_hevc_put_transform16x16_dc_add_8_sse2;
                     c->transform_dc_add[3]    =  ff_hevc_put_transform32x32_dc_add_8_sse2;
-                }
+#endif
+                    }
                 if (EXTERNAL_SSSE3(mm_flags)) {
 
                     c->transform_4x4_luma_add = ff_hevc_transform_4x4_luma_add_8_sse4;
@@ -501,15 +503,18 @@ c->upsample_filter_block_cr_v[0] = ff_upsample_filter_block_cr_v_all_sse;
     } else if (bit_depth == 10) {
         if (EXTERNAL_MMX(mm_flags)) {
             if (EXTERNAL_MMXEXT(mm_flags)) {
+#ifdef OPTI_ASM
             	c->transform_dc_add[0]    =  ff_hevc_put_transform4x4_dc_add_10_mmx;
+#endif
                 if (EXTERNAL_SSE2(mm_flags)) {
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_sse2;
                     c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_10_sse2;
 
-
+#ifdef OPTI_ASM
                     c->transform_dc_add[1]    =  ff_hevc_put_transform8x8_dc_add_10_sse2;
                     c->transform_dc_add[2]    =  ff_hevc_put_transform16x16_dc_add_10_sse2;
                     c->transform_dc_add[3]    =  ff_hevc_put_transform32x32_dc_add_10_sse2;
+#endif
                 }
                 if (EXTERNAL_SSSE3(mm_flags)) {
 #if ARCH_X86_64

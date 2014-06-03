@@ -31,6 +31,7 @@
 
 #include "libavutil/attributes.h"
 #include "libavutil/channel_layout.h"
+#include "libavutil/display.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/intfloat.h"
 #include "libavutil/mathematics.h"
@@ -2156,7 +2157,7 @@ static void mov_build_index(MOVContext *mov, AVStream *st)
                 if (sc->keyframe_absent
                     && !sc->stps_count
                     && !rap_group_present
-                    && st->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+                    && (st->codec->codec_type == AVMEDIA_TYPE_AUDIO || (i==0 && j==0)))
                      keyframe = 1;
                 if (keyframe)
                     distance = 0;
@@ -2560,7 +2561,7 @@ static int mov_read_tkhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     int width;
     int height;
     int64_t disp_transform[2];
-    int display_matrix[3][2];
+    int display_matrix[3][3];
     AVStream *st;
     MOVStreamContext *sc;
     int version;
@@ -2597,11 +2598,12 @@ static int mov_read_tkhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     //read in the display matrix (outlined in ISO 14496-12, Section 6.2.2)
     // they're kept in fixed point format through all calculations
-    // ignore u,v,z b/c we don't need the scale factor to calc aspect ratio
+    // save u,v,z to store the whole matrix in the AV_PKT_DATA_DISPLAYMATRIX
+    // side data, but the scale factor is not needed to calculate aspect ratio
     for (i = 0; i < 3; i++) {
         display_matrix[i][0] = avio_rb32(pb);   // 16.16 fixed point
         display_matrix[i][1] = avio_rb32(pb);   // 16.16 fixed point
-        avio_rb32(pb);           // 2.30 fixed point (not used)
+        display_matrix[i][2] = avio_rb32(pb);   //  2.30 fixed point
     }
 
     width = avio_rb32(pb);       // 16.16 fixed point track width
@@ -2609,19 +2611,35 @@ static int mov_read_tkhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     sc->width = width >> 16;
     sc->height = height >> 16;
 
-    //Assign clockwise rotate values based on transform matrix so that
-    //we can compensate for iPhone orientation during capture.
+    // save the matrix and add rotate metadata when it is not the default
+    // identity
+    if (display_matrix[0][0] != (1 << 16) ||
+        display_matrix[1][1] != (1 << 16) ||
+        display_matrix[2][2] != (1 << 30) ||
+        display_matrix[0][1] || display_matrix[0][2] ||
+        display_matrix[1][0] || display_matrix[1][2] ||
+        display_matrix[2][0] || display_matrix[2][1]) {
+        int i, j;
+        double rotate;
 
-    if (display_matrix[1][0] == -65536 && display_matrix[0][1] == 65536) {
-         av_dict_set(&st->metadata, "rotate", "90", 0);
-    }
+        av_freep(&sc->display_matrix);
+        sc->display_matrix = av_malloc(sizeof(int32_t) * 9);
+        if (!sc->display_matrix)
+            return AVERROR(ENOMEM);
 
-    if (display_matrix[0][0] == -65536 && display_matrix[1][1] == -65536) {
-         av_dict_set(&st->metadata, "rotate", "180", 0);
-    }
+        for (i = 0; i < 3; i++)
+            for (j = 0; j < 3; j++)
+                sc->display_matrix[i * 3 + j] = display_matrix[j][i];
 
-    if (display_matrix[1][0] == 65536 && display_matrix[0][1] == -65536) {
-         av_dict_set(&st->metadata, "rotate", "270", 0);
+        rotate = av_display_rotation_get(sc->display_matrix);
+        if (!isnan(rotate)) {
+            char rotate_buf[64];
+            rotate = -rotate;
+            if (rotate < 0) // for backward compatibility
+                rotate += 360;
+            snprintf(rotate_buf, sizeof(rotate_buf), "%g", rotate);
+            av_dict_set(&st->metadata, "rotate", rotate_buf, 0);
+        }
     }
 
     // transform the display width/height according to the matrix
@@ -3102,6 +3120,19 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         if (atom.size >= 8) {
             a.size = avio_rb32(pb);
             a.type = avio_rl32(pb);
+            if (a.type == MKTAG('f','r','e','e') &&
+                a.size >= 8 &&
+                c->moov_retry) {
+                uint8_t buf[8];
+                uint32_t *type = (uint32_t *)buf + 1;
+                avio_read(pb, buf, 8);
+                avio_seek(pb, -8, SEEK_CUR);
+                if (*type == MKTAG('m','v','h','d') ||
+                    *type == MKTAG('c','m','o','v')) {
+                    av_log(c->fc, AV_LOG_ERROR, "Detected moov in a free atom.\n");
+                    a.type = MKTAG('m','o','o','v');
+                }
+            }
             if (atom.type != MKTAG('r','o','o','t') &&
                 atom.type != MKTAG('m','o','o','v'))
             {
@@ -3283,6 +3314,11 @@ static void mov_read_chapters(AVFormatContext *s)
         uint16_t ch;
         int len, title_len;
 
+        if (end < sample->timestamp) {
+            av_log(s, AV_LOG_WARNING, "ignoring stream duration which is shorter than chapters\n");
+            end = AV_NOPTS_VALUE;
+        }
+
         if (avio_seek(sc->pb, sample->pos, SEEK_SET) != sample->pos) {
             av_log(s, AV_LOG_ERROR, "Chapter %d not found in file\n", i);
             goto finish;
@@ -3395,6 +3431,7 @@ static int mov_read_close(AVFormatContext *s)
         av_freep(&sc->stts_data);
         av_freep(&sc->stps_data);
         av_freep(&sc->rap_group);
+        av_freep(&sc->display_matrix);
     }
 
     if (mov->dv_demux) {
@@ -3462,11 +3499,15 @@ static int mov_read_header(AVFormatContext *s)
         atom.size = INT64_MAX;
 
     /* check MOV header */
+    do {
+    if (mov->moov_retry)
+        avio_seek(pb, 0, SEEK_SET);
     if ((err = mov_read_default(mov, pb, atom)) < 0) {
         av_log(s, AV_LOG_ERROR, "error reading header: %d\n", err);
         mov_read_close(s);
         return err;
     }
+    } while (pb->seekable && !mov->found_moov && !mov->moov_retry++);
     if (!mov->found_moov) {
         av_log(s, AV_LOG_ERROR, "moov atom not found\n");
         mov_read_close(s);
@@ -3544,14 +3585,35 @@ static int mov_read_header(AVFormatContext *s)
 
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
+        MOVStreamContext *sc = st->priv_data;
 
-        if (st->codec->codec_type != AVMEDIA_TYPE_AUDIO)
-            continue;
+        switch (st->codec->codec_type) {
+        case AVMEDIA_TYPE_AUDIO:
+            err = ff_replaygain_export(st, s->metadata);
+            if (err < 0) {
+                mov_read_close(s);
+                return err;
+            }
+            break;
+        case AVMEDIA_TYPE_VIDEO:
+            if (sc->display_matrix) {
+                AVPacketSideData *sd, *tmp;
 
-        err = ff_replaygain_export(st, s->metadata);
-        if (err < 0) {
-            mov_read_close(s);
-            return err;
+                tmp = av_realloc_array(st->side_data,
+                                       st->nb_side_data + 1, sizeof(*tmp));
+                if (!tmp)
+                    return AVERROR(ENOMEM);
+
+                st->side_data = tmp;
+                st->nb_side_data++;
+
+                sd = &st->side_data[st->nb_side_data - 1];
+                sd->type = AV_PKT_DATA_DISPLAYMATRIX;
+                sd->size = sizeof(int32_t) * 9;
+                sd->data = (uint8_t*)sc->display_matrix;
+                sc->display_matrix = NULL;
+            }
+            break;
         }
     }
 

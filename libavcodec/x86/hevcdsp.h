@@ -25,7 +25,7 @@
 #ifndef AVCODEC_X86_HEVCDSP_H
 #define AVCODEC_X86_HEVCDSP_H
 
-//#define OPTI_ASM
+#define OPTI_ASM
 
 #include <stddef.h>
 #include <stdint.h>
