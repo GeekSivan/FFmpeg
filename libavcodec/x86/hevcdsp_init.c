@@ -27,6 +27,7 @@
 #include "libavcodec/get_bits.h" /* required for hevcdsp.h GetBitContext */
 #include "libavcodec/hevcdsp.h"
 #include "libavcodec/x86/hevcdsp.h"
+#include "libavcodec/hevc_defs.h"
 
 /***********************************/
 /* deblocking */
