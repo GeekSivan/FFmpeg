@@ -184,10 +184,13 @@ WEIGHTING_PROTOTYPES(10, sse4);
 // IDCT
 ///////////////////////////////////////////////////////////////////////////////
 #define TRANSFORM_DC(bitd, opt) \
-void ff_hevc_put_transform4x4_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride); \
 void ff_hevc_put_transform8x8_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride); \
 void ff_hevc_put_transform16x16_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride); \
 void ff_hevc_put_transform32x32_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+
+void ff_hevc_put_transform4x4_dc_add_8_mmx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+void ff_hevc_put_transform4x4_dc_add_10_mmx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+
 
 TRANSFORM_DC(8,  sse2);
 TRANSFORM_DC(10, sse2);
