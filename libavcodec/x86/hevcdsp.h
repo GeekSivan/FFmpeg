@@ -25,54 +25,54 @@
 #ifndef AVCODEC_X86_HEVCDSP_H
 #define AVCODEC_X86_HEVCDSP_H
 
+struct SAOParams;
+struct AVFrame;
+struct UpsamplInf;
+struct HEVCWindow;
+
 #define OPTI_ASM
 
-#include <stddef.h>
-#include <stdint.h>
-
-#define PEL_LINK_ASM(dst, idx1, idx2, idx3, name, D, opt) \
+#define PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt) \
 dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _ ## opt; \
 dst ## _bi[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_ ## name ## _ ## D ## _ ## opt; \
 dst ## _uni[idx1][idx2][idx3] = ff_hevc_put_hevc_uni_ ## name ## _ ## D ## _ ## opt; \
 dst ## _uni_w[idx1][idx2][idx3] = ff_hevc_put_hevc_uni_w_ ## name ## _ ## D ## _ ## opt; \
 dst ## _bi_w[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _ ## opt
 
-#define PEL_LINK_SSE(dst, idx1, idx2, idx3, name, D) \
-dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _sse; \
-dst ## _bi[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_ ## name ## _ ## D ## _sse; \
-dst ## _uni[idx1][idx2][idx3] = ff_hevc_put_hevc_uni_ ## name ## _ ## D ## _sse; \
-dst ## _uni_w[idx1][idx2][idx3] = ff_hevc_put_hevc_uni_w_ ## name ## _ ## D ## _sse; \
-dst ## _bi_w[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _sse
-
 #ifdef OPTI_ASM
 #define PEL_LINK(dst, idx1, idx2, idx3, name, D, opt) \
-PEL_LINK_ASM(dst, idx1, idx2, idx3, name, D, opt)
-
+PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt)
 #else
 #define PEL_LINK(dst, idx1, idx2, idx3, name, D, opt) \
-PEL_LINK_SSE(dst, idx1, idx2, idx3, name, D)
+PEL_LINK2(dst, idx1, idx2, idx3, name, D, sse)
 #endif
 
-#define PEL_PROTOTYPE_ASM(name, D, opt) \
+#define PEL_PROTOTYPE2(name, D, opt) \
 void ff_hevc_put_hevc_ ## name ## _ ## D ## _##opt(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width); \
 void ff_hevc_put_hevc_bi_ ## name ## _ ## D ## _##opt(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width); \
 void ff_hevc_put_hevc_uni_ ## name ## _ ## D ## _##opt(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my, int width); \
 void ff_hevc_put_hevc_uni_w_ ## name ## _ ## D ## _##opt(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int height, int denom, int wx, int ox, intptr_t mx, intptr_t my, int width); \
 void ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _##opt(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, int denom, int wx0, int wx1, int ox0, int ox1, intptr_t mx, intptr_t my, int width)
 
-#define PEL_PROTOTYPE_SSE(name, D) \
-void ff_hevc_put_hevc_ ## name ## _ ## D ## _sse(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width); \
-void ff_hevc_put_hevc_bi_ ## name ## _ ## D ## _sse(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width); \
-void ff_hevc_put_hevc_uni_ ## name ## _ ## D ## _sse(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my, int width); \
-void ff_hevc_put_hevc_uni_w_ ## name ## _ ## D ## _sse(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int height, int denom, int wx, int ox, intptr_t mx, intptr_t my, int width); \
-void ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _sse(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, int denom, int wx0, int wx1, int ox0, int ox1, intptr_t mx, intptr_t my, int width)
+
+#define WEIGHTING_PROTOTYPE2(width, bitd, opt) \
+void ff_hevc_put_hevc_uni_w##width##_##bitd##_##opt(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox); \
+void ff_hevc_put_hevc_bi_w##width##_##bitd##_##opt(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1)
+
+#ifdef OPTI_ASM
+#define WEIGHTING_PROTOTYPE(width, bitd, opt) \
+		WEIGHTING_PROTOTYPE2(width, bitd, opt)
+#else
+#define WEIGHTING_PROTOTYPE(width, bitd, opt) \
+		WEIGHTING_PROTOTYPE2(width, bitd, sse)
+#endif
 
 #ifdef OPTI_ASM
 #define PEL_PROTOTYPE(name, D, opt) \
-PEL_PROTOTYPE_ASM(name, D, opt)
+PEL_PROTOTYPE2(name, D, opt)
 #else
 #define PEL_PROTOTYPE(name, D, opt) \
-PEL_PROTOTYPE_SSE(name, D)
+PEL_PROTOTYPE2(name, D, sse)
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -108,7 +108,6 @@ void ff_hevc_transform_32x32_dc_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdi
 ///////////////////////////////////////////////////////////////////////////////
 // MC functions
 ///////////////////////////////////////////////////////////////////////////////
-
 #define EPEL_PROTOTYPES(fname, bitd, opt) \
         PEL_PROTOTYPE(fname##4,  bitd, opt); \
         PEL_PROTOTYPE(fname##6,  bitd, opt); \
@@ -130,10 +129,6 @@ void ff_hevc_transform_32x32_dc_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdi
         PEL_PROTOTYPE(fname##48, bitd, opt); \
         PEL_PROTOTYPE(fname##64, bitd, opt)
 
-#define WEIGHTING_PROTOTYPE(width, bitd, opt) \
-void ff_hevc_put_hevc_uni_w##width##_##bitd##_##opt(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox); \
-void ff_hevc_put_hevc_bi_w##width##_##bitd##_##opt(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1)
-
 #define WEIGHTING_PROTOTYPES(bitd, opt) \
         WEIGHTING_PROTOTYPE(2, bitd, opt); \
         WEIGHTING_PROTOTYPE(4, bitd, opt); \
@@ -145,7 +140,6 @@ void ff_hevc_put_hevc_bi_w##width##_##bitd##_##opt(uint8_t *dst, ptrdiff_t dstst
         WEIGHTING_PROTOTYPE(32, bitd, opt); \
         WEIGHTING_PROTOTYPE(48, bitd, opt); \
         WEIGHTING_PROTOTYPE(64, bitd, opt)
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL_PIXELS EPEL_PIXELS

@@ -2,7 +2,6 @@
  * Copyright (c) 2013 Seppo Tomperi
  * Copyright (c) 2013 - 2014 Pierre-Edouard Lepere
  *
- *
  * This file is part of ffmpeg.
  *
  * ffmpeg is free software; you can redistribute it and/or
@@ -53,6 +52,7 @@ LFL_FUNCS(uint8_t,   8)
 LFL_FUNCS(uint8_t,  10)
 
 
+#if !ARCH_X86_32 && defined(OPTI_ASM)
 void ff_hevc_put_transform32x32_dc_add_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
 {
     	ff_hevc_put_transform16x16_dc_add_8_sse2(dst, coeffs, stride);
@@ -80,27 +80,6 @@ void ff_hevc_put_transform32x32_dc_add_10_sse2(uint8_t *dst, int16_t *coeffs, pt
 
 }
 
-#ifdef OPTI_ASM
-
-#define LFC_FUNC(DIR, DEPTH, OPT)                                        \
-void ff_hevc_ ## DIR ## _loop_filter_chroma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-
-#define LFL_FUNC(DIR, DEPTH, OPT)                                        \
-void ff_hevc_ ## DIR ## _loop_filter_luma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t stride, int *_beta, int *_tc, \
-uint8_t *_no_p, uint8_t *_no_q);
-
-#define LFC_FUNCS(type, depth) \
-LFC_FUNC(h, depth, sse2)  \
-LFC_FUNC(v, depth, sse2)
-
-#define LFL_FUNCS(type, depth) \
-LFL_FUNC(h, depth, ssse3)  \
-LFL_FUNC(v, depth, ssse3)
-
-LFC_FUNCS(uint8_t,   8)
-LFC_FUNCS(uint8_t,  10)
-LFL_FUNCS(uint8_t,   8)
-LFL_FUNCS(uint8_t,  10)
 
 
 #define mc_rep_func(name, bitd, step, W, opt) \
@@ -156,7 +135,6 @@ void ff_hevc_put_hevc_bi_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t dst
     mc_rep_bi_func(name, bitd, step, W, opt)
 
 
-#if ARCH_X86_64 && HAVE_SSE4_EXTERNAL
 
 mc_rep_funcs(pel_pixels, 8, 16, 64, sse4);
 mc_rep_funcs(pel_pixels, 8, 16, 48, sse4);
@@ -392,7 +370,6 @@ mc_bi_w_funcs(qpel_h, 10, sse4);
 mc_bi_w_funcs(qpel_v, 10, sse4);
 mc_bi_w_funcs(qpel_hv, 10, sse4);
 
-#endif //ARCH_X86_64 && HAVE_SSE4_EXTERNAL
 
 #endif
 
@@ -426,7 +403,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
         if (EXTERNAL_MMX(mm_flags)) {
             if (EXTERNAL_MMXEXT(mm_flags)) {
 
-            	c->transform_dc_add[0]    =  ff_hevc_put_transform4x4_dc_add_8_mmx;
+                c->transform_dc_add[0]    =  ff_hevc_put_transform4x4_dc_add_8_mmx;
 
                 if (EXTERNAL_SSE2(mm_flags)) {
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_8_sse2;
