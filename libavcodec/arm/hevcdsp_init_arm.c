@@ -40,19 +40,19 @@ void ff_hevc_put_pixels_neon_8(int16_t *dst, ptrdiff_t dststride, uint8_t *src,
 int ff_hevc_put_weighted_pred_avg_neon_8(uint8_t *_dst, ptrdiff_t _dststride, int16_t *src1, int16_t *src2,
                                    ptrdiff_t srcstride, int width, int height);
 
-void ff_hevc_put_qpel_neon_wrapper(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+static void ff_hevc_put_qpel_neon_wrapper(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
                                    int height, intptr_t mx, intptr_t my, int width) {
 
     put_hevc_qpel_neon[my][mx](dst, dststride, src, srcstride, height, width);
 }
 
-void ff_hevc_put_qpel_uni_neon_wrapper(uint8_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+static void ff_hevc_put_qpel_uni_neon_wrapper(uint8_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
                                    int height, intptr_t mx, intptr_t my, int width) {
 
     put_hevc_qpel_uw_neon[my][mx](dst, dststride, src, srcstride, width, height, NULL, 0);
 }
 
-void ff_hevc_put_qpel_bi_neon_wrapper(uint8_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
+static void ff_hevc_put_qpel_bi_neon_wrapper(uint8_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
                                        int16_t *src2, ptrdiff_t src2stride,
                                        int height, intptr_t mx, intptr_t my, int width) {
     put_hevc_qpel_uw_neon[my][mx](dst, dststride, src, srcstride, width, height, src2, src2stride);
