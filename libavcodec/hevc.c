@@ -3016,7 +3016,7 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
                     ret = hevc_ref_frame(s, &s->Add_ref[i], s->ref);
                     if (ret < 0)
                         return ret;
-                    ff_thread_report_il_progress(s->avctx, s->poc_id, &s->Add_ref[i]);
+                    ff_thread_report_il_progress(s->avctx, s->poc_id, &s->Add_ref[i], s->ref);
                     break;
                 }
                 if(i==FF_ARRAY_ELEMS(s->Add_ref))
@@ -3323,7 +3323,7 @@ fail:
             ff_thread_report_il_status(s->avctx, s->poc_id, 2);
     }
     if (s->bl_decoder_el_exist)
-        ff_thread_report_il_progress(s->avctx, s->poc_id, NULL);
+        ff_thread_report_il_progress(s->avctx, s->poc_id, NULL, NULL);
 
     return ret;
 }
