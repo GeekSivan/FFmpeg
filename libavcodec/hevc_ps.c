@@ -428,11 +428,11 @@ static void parseRepFormat ( RepFormat *rep_format, GetBitContext *gb)
 #if DERIVE_LAYER_ID_LIST_VARIABLES
 static void deriveLayerIdListVariables(HEVCVPS *vps)
 {
+    int i, m, n;
     // For layer 0
     vps->m_numLayerInIdList[0] = 1;
     vps->m_layerSetLayerIdList[0][0] = 0;
 
-    int i, m, n;
     for (i = 1; i <= vps->vps_num_layer_sets - 1; i++) {
         n = 0;
         for (m = 0; m <= vps->vps_max_layer_id; m++) {
@@ -485,6 +485,10 @@ static void setTilesNotInUseFlag(HEVCVPS *vps, unsigned int x)
 static void parseVPSVUI(GetBitContext *gb, HEVCVPS *vps)
 {
     int i, j;
+#if VPS_VUI_TILES_NOT_IN_USE__FLAG
+    unsigned int layerIdx;
+    int refCode;
+#endif
 #if O0223_PICTURE_TYPES_ALIGN_FLAG
     vps->m_crossLayerPictureTypeAlignFlag = get_bits1(gb);
     if (!vps->m_crossLayerPictureTypeAlignFlag) {
@@ -498,10 +502,11 @@ static void parseVPSVUI(GetBitContext *gb, HEVCVPS *vps)
 
 #endif
 #if VPS_VUI_BITRATE_PICRATE
-    vps->m_bitRatePresentVpsFlag = get_bits1(gb);
-    vps->m_picRatePresentVpsFlag = get_bits1(gb);
-    int parseFlag = vps->m_bitRatePresentVpsFlag || vps->m_picRatePresentVpsFlag;
     {
+        int parseFlag;
+        vps->m_bitRatePresentVpsFlag = get_bits1(gb);
+        vps->m_picRatePresentVpsFlag = get_bits1(gb);
+        parseFlag = vps->m_bitRatePresentVpsFlag || vps->m_picRatePresentVpsFlag;
         for (i = 0; i < vps->vps_num_layer_sets; i++) {
             for (j = 0; j < vps->vps_max_sub_layers; j++) {
                 if (parseFlag && vps->m_bitRatePresentVpsFlag) {
@@ -531,8 +536,7 @@ static void parseVPSVUI(GetBitContext *gb, HEVCVPS *vps)
     }
 #endif
 #if VPS_VUI_TILES_NOT_IN_USE__FLAG
-    unsigned int layerIdx;
-    int refCode = get_bits1(gb);
+    refCode = get_bits1(gb);
     setTilesNotInUseFlag(vps, refCode == 1);
     if (!refCode) {
         for (i = 0; i < vps->vps_max_layers; i++) {
@@ -626,6 +630,7 @@ static void parseVPSVUI(GetBitContext *gb, HEVCVPS *vps)
 static void parse_vps_extension (HEVCContext *s, HEVCVPS *vps)  {
     int i, j, k;
     GetBitContext *gb = &s->HEVClc->gb;
+    int numOutputLayerSets;
 
 #if VPS_EXTN_MASK_AND_DIM_INFO
     int numScalabilityTypes = 0;
@@ -783,7 +788,7 @@ static void parse_vps_extension (HEVCContext *s, HEVCVPS *vps)  {
     }
 #endif
     vps->more_output_layer_sets_than_default_flag = get_bits1(gb);
-    int numOutputLayerSets = 0;
+    numOutputLayerSets = 0;
     if (!vps->more_output_layer_sets_than_default_flag) {
         numOutputLayerSets = vps->vps_num_layer_sets;
     } else {
@@ -796,8 +801,9 @@ static void parse_vps_extension (HEVCContext *s, HEVCVPS *vps)  {
     }
     vps->m_numOutputLayerSets = numOutputLayerSets;
     for (i = 1; i < numOutputLayerSets; i++) {
+        int numBits, lsIdx;
         if (i > (vps->vps_num_layer_sets - 1)) {
-            int numBits = 1, lsIdx;
+            numBits = 1;
             while ((1 << numBits) < (vps->vps_num_layer_sets - 1)) {
                 numBits++;
             }
@@ -810,7 +816,7 @@ static void parse_vps_extension (HEVCContext *s, HEVCVPS *vps)  {
 #if VPS_DPB_SIZE_TABLE
             vps->m_outputLayerSetIdx[i] = i;
 #endif
-            int lsIdx = i;
+            lsIdx = i;
             if (vps->default_one_target_output_layer_flag) {
                 for (j = 0; j < vps->m_numLayerInIdList[lsIdx]; j++) {
                     vps->m_outputLayerFlag[i][j] = (j == (vps->m_numLayerInIdList[lsIdx] - 1));
@@ -821,7 +827,7 @@ static void parse_vps_extension (HEVCContext *s, HEVCVPS *vps)  {
                 }
             }
         }
-        int numBits = 1;
+        numBits = 1;
         while ((1 << numBits) < (vps->vps_num_profile_tier_level)) {
             numBits++;
         }
@@ -1267,12 +1273,12 @@ static int scaling_list_data(HEVCContext *s, ScalingList *sl)
     return 0;
 }
 
-#if SPS_EXTENSION
+#if 0 //#if SPS_EXTENSION
 static void parseSPSExtension( HEVCContext *s, HEVCSPS *sps )
 {
     GetBitContext *gb = &s->HEVClc->gb;
     int i;
-    int inter_view = get_bits1(gb);
+    skip_bits1(gb); //inter_view
     if (s->nuh_layer_id > 0) {
         sps->m_numScaledRefLayerOffsets = get_ue_golomb_long(gb);
         for (i = 0; i < sps->m_numScaledRefLayerOffsets; i++) {
@@ -1376,8 +1382,7 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
         sps->chroma_array_type = sps->chroma_format_idc = 0;
         sps->m_updateRepFormatIndex = get_bits(gb, 8);
     }
-    int conformance_window_flag = get_bits1(gb);
-    if (conformance_window_flag) { // pic_conformance_flag
+    if (get_bits1(gb) /*conformance_window_flag*/ ) { // pic_conformance_flag
         //TODO: * 2 is only valid for 420
         sps->pic_conf_win.left_offset   = get_ue_golomb_long(gb) * 2;
         sps->pic_conf_win.right_offset  = get_ue_golomb_long(gb) * 2;
@@ -1627,20 +1632,19 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
 
     if (get_bits1(gb)) { // sps_extension_flag
         int sps_extension_flag[1];
-        int sps_extension_7bits;
         for (i = 0; i < 1; i++)
             sps_extension_flag[i] = get_bits1(gb);
-        sps_extension_7bits	= get_bits(gb, 7);
+        skip_bits(gb, 7); //sps_extension_7bits = get_bits(gb, 7);
         if (sps_extension_flag[0]) {
             sps->transform_skip_rotation_enabled_flag = get_bits1(gb);
             sps->transform_skip_context_enabled_flag  = get_bits1(gb);
-            int implicit_rdpcm_enabled_flag          = get_bits1(gb);
-            int explicit_rdpcm_enabled_flag          = get_bits1(gb);
-            int extended_precision_processing_flag   = get_bits1(gb);
+            skip_bits1(gb); // int implicit_rdpcm_enabled_flag          = get_bits1(gb);
+            skip_bits1(gb); // int explicit_rdpcm_enabled_flag          = get_bits1(gb);
+            skip_bits1(gb); // int extended_precision_processing_flag   = get_bits1(gb);
             sps->intra_smoothing_disabled_flag       = get_bits1(gb);
-            int high_precision_offsets_enabled_flag  = get_bits1(gb);
-            int fast_rice_adaptation_enabled_flag    = get_bits1(gb);
-            int cabac_bypass_alignment_enabled_flag  = get_bits1(gb);
+            skip_bits1(gb); // int high_precision_offsets_enabled_flag  = get_bits1(gb);
+            skip_bits1(gb); // int fast_rice_adaptation_enabled_flag    = get_bits1(gb);
+            skip_bits1(gb); // int cabac_bypass_alignment_enabled_flag  = get_bits1(gb);
         }
     }
     if (s->apply_defdispwin) {

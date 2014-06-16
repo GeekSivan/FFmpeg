@@ -513,7 +513,7 @@ void ff_thread_await_progress(ThreadFrame *f, int n, int field)
 }
 
 #ifdef SVC_EXTENSION
-void ff_thread_report_il_progress(AVCodecContext *avxt, int poc, void * in, int last_Tid) {
+void ff_thread_report_il_progress(AVCodecContext *avxt, int poc, void * in) {
 /*
     - Called by the  lower layer decoder to report that the frame used as reference at upper layers
       is either decoded or allocated in the frame-based.
