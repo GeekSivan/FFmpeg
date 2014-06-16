@@ -21,6 +21,7 @@
 %include "libavutil/x86/x86util.asm"
 
 SECTION_RODATA
+
 max_pixels_10:          times 8  dw ((1 << 10)-1)
 
 SECTION .text

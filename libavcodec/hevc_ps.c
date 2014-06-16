@@ -1430,9 +1430,19 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
             if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P10;
             if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P10;
             break;
+        case 12:
+            if (sps->chroma_format_idc == 1) sps->pix_fmt = AV_PIX_FMT_YUV420P12;
+            if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P12;
+            if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P12;
+            break;
+        case 14:
+            if (sps->chroma_format_idc == 1) sps->pix_fmt = AV_PIX_FMT_YUV420P14;
+            if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P14;
+            if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P14;
+            break;
         default:
             av_log(s->avctx, AV_LOG_ERROR,
-                   "4:2:0, 4:2:2, 4:4:4 supports are currently specified.\n");
+                   "4:2:0, 4:2:2, 4:4:4 supports are currently specified for 8, 10, 12 and 14 bits.\n");
             return AVERROR_PATCHWELCOME;
         }
     } else if(s->nuh_layer_id) {
