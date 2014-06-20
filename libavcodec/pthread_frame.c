@@ -46,6 +46,7 @@
 #include "libavutil/frame.h"
 #include "libavutil/log.h"
 #include "libavutil/mem.h"
+#include "libavcodec/hevc.h"
 
 #define MAX_POC      1024
 /**
@@ -120,7 +121,8 @@ typedef struct FrameThreadContext {
     int die;                       ///< Set when threads should exit.
     int is_decoded[MAX_POC];
     int last_Tid;
-    void* frames[MAX_POC];
+    void* frames_ref[MAX_POC];
+    void* frames_data[MAX_POC];
     pthread_mutex_t il_progress_mutex; ///< Mutex used to protect frame progress values and progress_cond.
     pthread_cond_t  il_progress_cond;   ///< Used by child threads to wait for progress to change.
 } FrameThreadContext;
@@ -513,7 +515,7 @@ void ff_thread_await_progress(ThreadFrame *f, int n, int field)
 }
 
 #ifdef SVC_EXTENSION
-void ff_thread_report_il_progress(AVCodecContext *avxt, int poc, void * in, void *in_data) {
+void ff_thread_report_il_progress(AVCodecContext *avxt, int poc, void * in_ref, void *in_data) {
 /*
     - Called by the  lower layer decoder to report that the frame used as reference at upper layers
       is either decoded or allocated in the frame-based.
@@ -524,47 +526,22 @@ void ff_thread_report_il_progress(AVCodecContext *avxt, int poc, void * in, void
     FrameThreadContext *fctx;
     p = avxt->internal->thread_ctx_frame;
     fctx = p->parent;
+
     poc = poc & (MAX_POC-1);
     if (avxt->debug&FF_DEBUG_THREADS)
         av_log(avxt, AV_LOG_DEBUG, "ff_thread_report_il_progress %d\n", poc);
     pthread_mutex_lock(&fctx->il_progress_mutex);
-    fctx->is_decoded[poc] = 1;
-    fctx->frames[poc]     = in;
-    pthread_cond_broadcast(&fctx->il_progress_cond);
+    if(fctx->is_decoded[poc] == 3 && in_ref) {
+        ff_hevc_unref_frame(avxt->priv_data, in_ref, ~0);
+        fctx->is_decoded[poc] = 0;
+    } else {
+            fctx->is_decoded[poc]     = 1;
+            fctx->frames_ref[poc]     = in_ref;
+            fctx->frames_data[poc]    = in_data;
+            pthread_cond_broadcast(&fctx->il_progress_cond);
+    }
+    
     pthread_mutex_unlock(&fctx->il_progress_mutex);
-}
-
-void ff_thread_report_last_Tid(AVCodecContext *avxt, int last_Tid) {
-/*
-    - Called by the  lower layer decoder to report that the frame used as reference at upper layers
-      is either decoded or allocated in the frame-based.
-    - Set the status to 1.
-    - This operation is signaled at the parent the frame-based thread.
-*/
-    PerThreadContext *p;
-    FrameThreadContext *fctx;
-    p = avxt->internal->thread_ctx_frame;
-    fctx = p->parent;
-    if (avxt->debug&FF_DEBUG_THREADS)
-        av_log(avxt, AV_LOG_DEBUG, "ff_thread_report_last_Tid %d\n", last_Tid);
-    pthread_mutex_lock(&fctx->il_progress_mutex);
-    fctx->last_Tid        = last_Tid;
-    pthread_cond_broadcast(&fctx->il_progress_cond);
-    pthread_mutex_unlock(&fctx->il_progress_mutex);
-}
-
-int ff_thread_get_last_Tid(AVCodecContext *avxt) {
-    /*
-     - Get the status of the lower layer picture used as reference for inter-layer prediction.
-     */
-    int res;
-    FrameThreadContext *fctx = ((AVCodecContext *)avxt->BL_avcontext)->internal->thread_ctx_frame;
-    if (avxt->debug&FF_DEBUG_THREADS)
-        av_log(avxt, AV_LOG_DEBUG, "ff_thread_get_last_Tid %d\n", fctx->last_Tid);
-    pthread_mutex_lock(&fctx->il_progress_mutex);
-    res = fctx->last_Tid;
-    pthread_mutex_unlock(&fctx->il_progress_mutex);
-    return res;
 }
 
 int ff_thread_get_il_up_status(AVCodecContext *avxt, int poc)
@@ -585,6 +562,7 @@ int ff_thread_get_il_up_status(AVCodecContext *avxt, int poc)
     pthread_mutex_unlock(&fctx->il_progress_mutex);
     return res;
 }
+
 void ff_thread_await_il_progress(AVCodecContext *avxt, int poc, void ** out) {
     /*
      - Wait untill the lower layer picture used for inter-layer reference picture is either allocated or decoded
@@ -600,7 +578,7 @@ void ff_thread_await_il_progress(AVCodecContext *avxt, int poc, void ** out) {
     pthread_mutex_lock(&fctx->il_progress_mutex);
     while(fctx->is_decoded[poc] == 0)
         pthread_cond_wait(&fctx->il_progress_cond, &fctx->il_progress_mutex);
-    *out = fctx->frames[poc];
+    *out = fctx->frames_data[poc];
     pthread_mutex_unlock(&fctx->il_progress_mutex);
 }
 
@@ -609,11 +587,19 @@ void ff_thread_report_il_status(AVCodecContext *avxt, int poc, int status) {
      - Called by the upper layer decoder to report that the picture using this reference frame is decoded and the lower layer is not any more required by upper layer decoder
      */
     FrameThreadContext *fctx = ((AVCodecContext *)avxt->BL_avcontext)->internal->thread_ctx_frame;
+    AVCodecContext *avxt_bl = (AVCodecContext *)avxt->BL_avcontext;
     poc = poc & (MAX_POC-1);
     if (avxt->debug&FF_DEBUG_THREADS)
         av_log(avxt, AV_LOG_DEBUG, "ff_thread_report_il_status poc %d status %d\n", poc, status);
     pthread_mutex_lock(&fctx->il_progress_mutex);
-    fctx->is_decoded[poc] = status;
+    if(fctx->is_decoded[poc]==1 ) {
+        if(fctx->frames_ref[poc])
+            ff_hevc_unref_frame(avxt_bl->priv_data, fctx->frames_ref[poc], ~0);
+        fctx->is_decoded[poc] = 0;
+    } else
+        fctx->is_decoded[poc] = 3;
+    fctx->frames_data[poc] = NULL;
+    fctx->frames_ref[poc] = NULL;
     pthread_mutex_unlock(&fctx->il_progress_mutex);
 }
 
@@ -631,8 +617,10 @@ void ff_thread_report_il_status2(AVCodecContext *avxt, int poc, int status) {
         av_log(avxt, AV_LOG_DEBUG, "ff_thread_report_il_status2\n");
     pthread_mutex_lock(&fctx->il_progress_mutex);
     fctx->is_decoded[poc] = status;
-    if(!status)
-        fctx->frames[poc] = NULL;
+    if(!status) {
+        fctx->frames_data[poc] = NULL;
+                fctx->frames_ref[poc] = NULL;
+    }
     pthread_mutex_unlock(&fctx->il_progress_mutex);
 }
 #endif

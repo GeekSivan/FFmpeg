@@ -628,8 +628,6 @@ static int hls_slice_header(HEVCContext *s)
             int poc;
 
             sh->pic_order_cnt_lsb = get_bits(gb, s->sps->log2_max_poc_lsb);
-            if(s->decoder_id>0 && (s->threads_type&FF_THREAD_FRAME))
-                s->pocTid0 = ff_thread_get_last_Tid(s->avctx);
             poc = ff_hevc_compute_poc(s, sh->pic_order_cnt_lsb);
             if (!sh->first_slice_in_pic_flag && poc != s->poc) {
                 av_log(s->avctx, AV_LOG_WARNING,
