@@ -582,7 +582,7 @@ static av_cold int initFilter(int16_t **outFilter, int32_t **filterPos,
         goto fail;
     if (filterSize >= MAX_FILTER_SIZE * 16 /
                       ((flags & SWS_ACCURATE_RND) ? APCK_SIZE : 16)) {
-        av_log(NULL, AV_LOG_ERROR, "sws: filterSize %d is too large, try less extreme scaling or increase MAX_FILTER_SIZE and recompile\n",
+        av_log(NULL, AV_LOG_ERROR, "sws: filterSize %d is too large, try less extreme scaling or set --sws-max-filter-size and recompile\n",
                FF_CEIL_RSHIFT((filterSize+1) * ((flags & SWS_ACCURATE_RND) ? APCK_SIZE : 16), 4));
         goto fail;
     }
@@ -1004,6 +1004,8 @@ int sws_setColorspaceDetails(struct SwsContext *c, const int inv_table[4],
     c->srcRange   = srcRange;
     c->dstRange   = dstRange;
 
+    //The srcBpc check is possibly wrong but we seem to lack a definitive reference to test this
+    //and what we have in ticket 2939 looks better with this check
     if (need_reinit && c->srcBpc == 8)
         ff_sws_init_range_convert(c);
 

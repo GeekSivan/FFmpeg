@@ -28,6 +28,7 @@
 
 #include "asv.h"
 #include "avcodec.h"
+#include "blockdsp.h"
 #include "internal.h"
 #include "mathops.h"
 #include "mpeg12data.h"
@@ -163,7 +164,7 @@ static inline int decode_mb(ASV1Context *a, int16_t block[6][64])
 {
     int i;
 
-    a->dsp.clear_blocks(block[0]);
+    a->bdsp.clear_blocks(block[0]);
 
     if (a->avctx->codec_id == AV_CODEC_ID_ASV1) {
         for (i = 0; i < 6; i++) {
@@ -220,7 +221,8 @@ static int decode_frame(AVCodecContext *avctx,
         return AVERROR(ENOMEM);
 
     if (avctx->codec_id == AV_CODEC_ID_ASV1)
-        a->dsp.bswap_buf((uint32_t*)a->bitstream_buffer, (const uint32_t*)buf, buf_size/4);
+        a->bbdsp.bswap_buf((uint32_t *) a->bitstream_buffer,
+                           (const uint32_t *) buf, buf_size / 4);
     else {
         int i;
         for (i = 0; i < buf_size; i++)
@@ -276,6 +278,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     }
 
     ff_asv_common_init(avctx);
+    ff_blockdsp_init(&a->bdsp, avctx);
     init_vlcs(a);
     ff_init_scantable(a->dsp.idct_permutation, &a->scantable, ff_asv_scantab);
     avctx->pix_fmt = AV_PIX_FMT_YUV420P;

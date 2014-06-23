@@ -28,12 +28,16 @@
  */
 
 #include "avcodec.h"
+#include "blockdsp.h"
+#include "bswapdsp.h"
 #include "mpegvideo.h"
 #include "mpeg12.h"
 #include "thread.h"
 
 typedef struct MDECContext {
     AVCodecContext *avctx;
+    BlockDSPContext bdsp;
+    BswapDSPContext bbdsp;
     DSPContext dsp;
     ThreadFrame frame;
     GetBitContext gb;
@@ -123,7 +127,7 @@ static inline int decode_mb(MDECContext *a, int16_t block[6][64])
     int i, ret;
     static const int block_index[6] = { 5, 4, 0, 1, 2, 3 };
 
-    a->dsp.clear_blocks(block[0]);
+    a->bdsp.clear_blocks(block[0]);
 
     for (i = 0; i < 6; i++) {
         if ((ret = mdec_decode_block_intra(a, block[block_index[i]],
@@ -173,7 +177,7 @@ static int decode_frame(AVCodecContext *avctx,
     av_fast_padded_malloc(&a->bitstream_buffer, &a->bitstream_buffer_size, buf_size);
     if (!a->bitstream_buffer)
         return AVERROR(ENOMEM);
-    a->dsp.bswap16_buf((uint16_t *)a->bitstream_buffer, (uint16_t *)buf, (buf_size + 1) / 2);
+    a->bbdsp.bswap16_buf((uint16_t *)a->bitstream_buffer, (uint16_t *)buf, (buf_size + 1) / 2);
     if ((ret = init_get_bits8(&a->gb, a->bitstream_buffer, buf_size)) < 0)
         return ret;
 
@@ -208,6 +212,8 @@ static av_cold int decode_init(AVCodecContext *avctx)
 
     a->avctx           = avctx;
 
+    ff_blockdsp_init(&a->bdsp, avctx);
+    ff_bswapdsp_init(&a->bbdsp);
     ff_dsputil_init(&a->dsp, avctx);
     ff_mpeg12_init_vlcs();
     ff_init_scantable(a->dsp.idct_permutation, &a->scantable, ff_zigzag_direct);

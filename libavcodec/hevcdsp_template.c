@@ -249,15 +249,15 @@ static void FUNC(transform_##H ##x ##H ##_add)(                                \
     int      shift   = 7;                                                      \
     int      add     = 1 << (shift - 1);                                       \
     int16_t *src     = coeffs;                                                 \
-    int      limit   = FFMIN(col_limit, H);                                    \
-    int      limit2   = FFMIN(col_limit + 4, H);                               \
+    int      limit   = FFMIN(col_limit + 4, H);                                \
                                                                                \
     for (i = 0; i < H; i++) {                                                  \
-        TR_ ## H(src, src, H, H, SCALE, limit2);                               \
-        if (limit2 < H && i%4 == 0 && !!i)                                     \
-            limit2 -= 4;                                                       \
+        TR_ ## H(src, src, H, H, SCALE, limit);                                \
+        if (limit < H && i%4 == 0 && !!i)                                      \
+            limit -= 4;                                                        \
         src++;                                                                 \
     }                                                                          \
+    limit   = FFMIN(col_limit, H);                                             \
                                                                                \
     shift   = 20 - BIT_DEPTH;                                                  \
     add     = 1 << (shift - 1);                                                \
@@ -294,15 +294,6 @@ TRANSFORM_DC_ADD( 4)
 TRANSFORM_DC_ADD( 8)
 TRANSFORM_DC_ADD(16)
 TRANSFORM_DC_ADD(32)
-
-#undef TR_4
-#undef TR_8
-#undef TR_16
-#undef TR_32
-
-#undef SET
-#undef SCALE
-#undef ADD_AND_SCALE
 
 
 static void FUNC(sao_band_filter)(uint8_t *_dst, uint8_t *_src,

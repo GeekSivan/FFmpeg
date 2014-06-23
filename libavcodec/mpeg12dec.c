@@ -37,6 +37,7 @@
 #include "dsputil.h"
 #include "error_resilience.h"
 #include "internal.h"
+#include "mpeg_er.h"
 #include "mpeg12.h"
 #include "mpeg12data.h"
 #include "mpegutils.h"
@@ -799,10 +800,10 @@ static int mpeg_decode_mb(MpegEncContext *s, int16_t block[12][64])
     av_dlog(s->avctx, "mb_type=%x\n", mb_type);
 //    motion_type = 0; /* avoid warning */
     if (IS_INTRA(mb_type)) {
-        s->dsp.clear_blocks(s->block[0]);
+        s->bdsp.clear_blocks(s->block[0]);
 
         if (!s->chroma_y_shift)
-            s->dsp.clear_blocks(s->block[6]);
+            s->bdsp.clear_blocks(s->block[6]);
 
         /* compute DCT type */
         // FIXME: add an interlaced_dct coded var?
@@ -1039,13 +1040,13 @@ static int mpeg_decode_mb(MpegEncContext *s, int16_t block[12][64])
 
         s->mb_intra = 0;
         if (HAS_CBP(mb_type)) {
-            s->dsp.clear_blocks(s->block[0]);
+            s->bdsp.clear_blocks(s->block[0]);
 
             cbp = get_vlc2(&s->gb, ff_mb_pat_vlc.table, MB_PAT_VLC_BITS, 1);
             if (mb_block_count > 6) {
                 cbp <<= mb_block_count - 6;
                 cbp  |= get_bits(&s->gb, mb_block_count - 6);
-                s->dsp.clear_blocks(s->block[6]);
+                s->bdsp.clear_blocks(s->block[6]);
             }
             if (cbp <= 0) {
                 av_log(s->avctx, AV_LOG_ERROR,
@@ -1346,6 +1347,8 @@ static int mpeg_decode_postinit(AVCodecContext *avctx)
                     ff_mpeg2_aspect[s->aspect_ratio_info];
             }
         } // MPEG-2
+
+        ff_set_sar(s->avctx, s->avctx->sample_aspect_ratio);
 
         avctx->pix_fmt = mpeg_get_pixelformat(avctx);
         setup_hwaccel_for_pixfmt(avctx);

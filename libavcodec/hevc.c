@@ -32,9 +32,9 @@
 #include "libavutil/pixdesc.h"
 #include "libavutil/stereo3d.h"
 
+#include "bswapdsp.h"
 #include "bytestream.h"
 #include "cabac_functions.h"
-#include "dsputil.h"
 #include "golomb.h"
 #include "hevc.h"
 
@@ -293,8 +293,9 @@ static int set_sps(HEVCContext *s, const HEVCSPS *sps)
     s->avctx->width               = sps->output_width;
     s->avctx->height              = sps->output_height;
     s->avctx->pix_fmt             = sps->pix_fmt;
-    s->avctx->sample_aspect_ratio = sps->vui.sar;
     s->avctx->has_b_frames        = sps->temporal_layer[sps->max_sub_layers - 1].num_reorder_pics;
+
+    ff_set_sar(s->avctx, sps->vui.sar);
 
     if (sps->vui.video_signal_type_present_flag)
         s->avctx->color_range = sps->vui.video_full_range_flag ? AVCOL_RANGE_JPEG
@@ -834,18 +835,18 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
         int trafo_size = 1 << log2_trafo_size;
         ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
 
-        s->hpc.intra_pred(s, x0, y0, log2_trafo_size, 0);
+        s->hpc.intra_pred[log2_trafo_size - 2](s, x0, y0, 0);
         if (log2_trafo_size > 2) {
             trafo_size = trafo_size << (s->sps->hshift[1] - 1);
             ff_hevc_set_neighbour_available(s, x0, y0, trafo_size, trafo_size);
-            s->hpc.intra_pred(s, x0, y0, log2_trafo_size - 1, 1);
-            s->hpc.intra_pred(s, x0, y0, log2_trafo_size - 1, 2);
+            s->hpc.intra_pred[log2_trafo_size - 3](s, x0, y0, 1);
+            s->hpc.intra_pred[log2_trafo_size - 3](s, x0, y0, 2);
         } else if (blk_idx == 3) {
             trafo_size = trafo_size << s->sps->hshift[1];
             ff_hevc_set_neighbour_available(s, xBase, yBase,
                                             trafo_size, trafo_size);
-            s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 1);
-            s->hpc.intra_pred(s, xBase, yBase, log2_trafo_size, 2);
+            s->hpc.intra_pred[log2_trafo_size - 2](s, xBase, yBase, 1);
+            s->hpc.intra_pred[log2_trafo_size - 2](s, xBase, yBase, 2);
         }
     }
 
@@ -2802,8 +2803,8 @@ static int verify_md5(HEVCContext *s, AVFrame *frame)
             const uint8_t *src = frame->data[i] + j * frame->linesize[i];
 #if HAVE_BIGENDIAN
             if (pixel_shift) {
-                s->dsp.bswap16_buf((uint16_t*)s->checksum_buf,
-                                   (const uint16_t*)src, w);
+                s->bdsp.bswap16_buf((uint16_t *) s->checksum_buf,
+                                    (const uint16_t *) src, w);
                 src = s->checksum_buf;
             }
 #endif
@@ -3004,7 +3005,7 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
     if (!s->md5_ctx)
         goto fail;
 
-    ff_dsputil_init(&s->dsp, avctx);
+    ff_bswapdsp_init(&s->bdsp);
 
     s->context_initialized = 1;
     s->eos = 0;

@@ -31,12 +31,16 @@
 #include "libavutil/mem.h"
 
 #include "avcodec.h"
+#include "blockdsp.h"
+#include "bswapdsp.h"
 #include "dsputil.h"
 #include "get_bits.h"
 #include "put_bits.h"
 
 typedef struct ASV1Context{
     AVCodecContext *avctx;
+    BlockDSPContext bdsp;
+    BswapDSPContext bbdsp;
     DSPContext dsp;
     PutBitContext pb;
     GetBitContext gb;

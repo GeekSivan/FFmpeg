@@ -289,14 +289,18 @@ static int decode_gop_header(IVI45DecContext *ctx, AVCodecContext *avctx)
  *
  *  @param[in,out]  gb  the GetBit context
  */
-static inline void skip_hdr_extension(GetBitContext *gb)
+static inline int skip_hdr_extension(GetBitContext *gb)
 {
     int i, len;
 
     do {
         len = get_bits(gb, 8);
+        if (8*len > get_bits_left(gb))
+            return AVERROR_INVALIDDATA;
         for (i = 0; i < len; i++) skip_bits(gb, 8);
     } while(len);
+
+    return 0;
 }
 
 
@@ -335,7 +339,7 @@ static int decode_pic_hdr(IVI45DecContext *ctx, AVCodecContext *avctx)
     }
 
     if (ctx->frame_type == FRAMETYPE_INTER_SCAL && !ctx->is_scalable) {
-        av_log(avctx, AV_LOG_ERROR, "Scalable inter frame in non scaleable stream\n");
+        av_log(avctx, AV_LOG_ERROR, "Scalable inter frame in non scalable stream\n");
         ctx->frame_type = FRAMETYPE_INTER;
         return AVERROR_INVALIDDATA;
     }
@@ -667,6 +671,8 @@ static av_cold int decode_init(AVCodecContext *avctx)
     ctx->decode_mb_info   = decode_mb_info;
     ctx->switch_buffers   = switch_buffers;
     ctx->is_nonnull_frame = is_nonnull_frame;
+
+    ctx->is_indeo4 = 0;
 
     avctx->pix_fmt = AV_PIX_FMT_YUV410P;
 

@@ -551,7 +551,13 @@ static int mov_write_dvc1_structs(MOVTrack *track, uint8_t *buf)
     put_bits(&pbc, 1, !slices); /* no slice code */
     put_bits(&pbc, 1, 0); /* no bframe */
     put_bits(&pbc, 1, 0); /* reserved */
-    put_bits32(&pbc, track->enc->time_base.den); /* framerate */
+
+    /* framerate */
+    if (track->st->avg_frame_rate.num > 0 && track->st->avg_frame_rate.den > 0)
+        put_bits32(&pbc, track->st->avg_frame_rate.num / track->st->avg_frame_rate.den);
+    else
+        put_bits32(&pbc, 0xffffffff);
+
     flush_put_bits(&pbc);
 
     av_free(unescaped);
@@ -901,10 +907,10 @@ static int mov_get_dv_codec_tag(AVFormatContext *s, MOVTrack *track)
         else if (track->enc->pix_fmt == AV_PIX_FMT_YUV420P) tag = MKTAG('d','v','c','p');
         else                                                tag = MKTAG('d','v','p','p');
     } else if (track->enc->height == 720) { /* HD 720 line */
-        if  (track->enc->time_base.den == 50)               tag = MKTAG('d','v','h','q');
+        if  (track->st->time_base.den == 50)                tag = MKTAG('d','v','h','q');
         else                                                tag = MKTAG('d','v','h','p');
     } else if (track->enc->height == 1080) { /* HD 1080 line */
-        if  (track->enc->time_base.den == 25)               tag = MKTAG('d','v','h','5');
+        if  (track->st->time_base.den == 25)                tag = MKTAG('d','v','h','5');
         else                                                tag = MKTAG('d','v','h','6');
     } else {
         av_log(s, AV_LOG_ERROR, "unsupported height for dv codec\n");
@@ -1184,12 +1190,14 @@ static int mov_write_pasp_tag(AVIOContext *pb, MOVTrack *track)
 
 static void find_compressor(char * compressor_name, int len, MOVTrack *track)
 {
+    AVDictionaryEntry *encoder;
     int xdcam_res =  (track->enc->width == 1280 && track->enc->height == 720)
                   || (track->enc->width == 1440 && track->enc->height == 1080)
                   || (track->enc->width == 1920 && track->enc->height == 1080);
 
-    if (track->mode == MODE_MOV && track->enc->codec && track->enc->codec->name) {
-        av_strlcpy(compressor_name, track->enc->codec->name, 32);
+    if (track->mode == MODE_MOV &&
+        (encoder = av_dict_get(track->st->metadata, "encoder", NULL, 0))) {
+        av_strlcpy(compressor_name, encoder->value, 32);
     } else if (track->enc->codec_id == AV_CODEC_ID_MPEG2VIDEO && xdcam_res) {
         int interlaced = track->enc->field_order > AV_FIELD_PROGRESSIVE;
         AVStream *st = track->st;
@@ -1373,7 +1381,7 @@ static int mov_write_ctts_tag(AVIOContext *pb, MOVTrack *track)
     uint32_t atom_size;
     int i;
 
-    ctts_entries = av_malloc((track->entry + 1) * sizeof(*ctts_entries)); /* worst case */
+    ctts_entries = av_malloc_array((track->entry + 1), sizeof(*ctts_entries)); /* worst case */
     ctts_entries[0].count = 1;
     ctts_entries[0].duration = track->cluster[0].cts;
     for (i = 1; i < track->entry; i++) {
@@ -1414,7 +1422,7 @@ static int mov_write_stts_tag(AVIOContext *pb, MOVTrack *track)
         entries = 1;
     } else {
         stts_entries = track->entry ?
-                       av_malloc(track->entry * sizeof(*stts_entries)) : /* worst case */
+                       av_malloc_array(track->entry, sizeof(*stts_entries)) : /* worst case */
                        NULL;
         for (i = 0; i < track->entry; i++) {
             int duration = get_cluster_duration(track, i);
@@ -3049,10 +3057,12 @@ static int mov_write_ftyp_tag(AVIOContext *pb, AVFormatContext *s)
 
 static void mov_write_uuidprof_tag(AVIOContext *pb, AVFormatContext *s)
 {
+    AVStream       *video_st    = s->streams[0];
     AVCodecContext *video_codec = s->streams[0]->codec;
     AVCodecContext *audio_codec = s->streams[1]->codec;
     int audio_rate = audio_codec->sample_rate;
-    int frame_rate = ((video_codec->time_base.den) * (0x10000)) / (video_codec->time_base.num);
+    // TODO: should be avg_frame_rate
+    int frame_rate = ((video_st->time_base.den) * (0x10000)) / (video_st->time_base.num);
     int audio_kbitrate = audio_codec->bit_rate / 1000;
     int video_kbitrate = FFMIN(video_codec->bit_rate / 1000, 800 - audio_kbitrate);
 
@@ -3330,6 +3340,10 @@ int ff_mov_write_packet(AVFormatContext *s, AVPacket *pkt)
 
             pkt->dts = trk->cluster[trk->entry - 1].dts + 1;
             pkt->pts = AV_NOPTS_VALUE;
+        }
+        if (pkt->duration < 0) {
+            av_log(s, AV_LOG_ERROR, "Application provided duration: %d is invalid\n", pkt->duration);
+            return AVERROR(EINVAL);
         }
     }
     if (mov->flags & FF_MOV_FLAG_FRAGMENT) {
@@ -3975,7 +3989,7 @@ static int mov_write_header(AVFormatContext *s)
 
     // Reserve an extra stream for chapters for the case where chapters
     // are written in the trailer
-    mov->tracks = av_mallocz((mov->nb_streams + 1) * sizeof(*mov->tracks));
+    mov->tracks = av_mallocz_array((mov->nb_streams + 1), sizeof(*mov->tracks));
     if (!mov->tracks)
         return AVERROR(ENOMEM);
 
@@ -3984,8 +3998,8 @@ static int mov_write_header(AVFormatContext *s)
         MOVTrack *track= &mov->tracks[i];
         AVDictionaryEntry *lang = av_dict_get(st->metadata, "language", NULL,0);
 
+        track->st  = st;
         track->enc = st->codec;
-        track->st = st;
         track->language = ff_mov_iso639_to_lang(lang?lang->value:"und", mov->mode!=MODE_MOV);
         if (track->language < 0)
             track->language = 0;
@@ -4016,7 +4030,7 @@ static int mov_write_header(AVFormatContext *s)
             if (mov->video_track_timescale) {
                 track->timescale = mov->video_track_timescale;
             } else {
-                track->timescale = st->codec->time_base.den;
+                track->timescale = st->time_base.den;
                 while(track->timescale < 10000)
                     track->timescale *= 2;
             }
@@ -4056,9 +4070,9 @@ static int mov_write_header(AVFormatContext *s)
                 goto error;
             }
         } else if (st->codec->codec_type == AVMEDIA_TYPE_SUBTITLE) {
-            track->timescale = st->codec->time_base.den;
+            track->timescale = st->time_base.den;
         } else if (st->codec->codec_type == AVMEDIA_TYPE_DATA) {
-            track->timescale = st->codec->time_base.den;
+            track->timescale = st->time_base.den;
         } else {
             track->timescale = MOV_TIMESCALE;
         }

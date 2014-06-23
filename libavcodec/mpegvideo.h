@@ -29,6 +29,7 @@
 #define AVCODEC_MPEGVIDEO_H
 
 #include "avcodec.h"
+#include "blockdsp.h"
 #include "dsputil.h"
 #include "error_resilience.h"
 #include "get_bits.h"
@@ -39,6 +40,7 @@
 #include "ratecontrol.h"
 #include "parser.h"
 #include "mpeg12data.h"
+#include "qpeldsp.h"
 #include "rl.h"
 #include "thread.h"
 #include "videodsp.h"
@@ -85,6 +87,10 @@ enum OutputFormat {
 #define SLICE_MAX_START_CODE    0x000001af
 #define EXT_START_CODE          0x000001b5
 #define USER_START_CODE         0x000001b2
+
+/* encoding scans */
+extern const uint8_t ff_alternate_horizontal_scan[64];
+extern const uint8_t ff_alternate_vertical_scan[64];
 
 struct MpegEncContext;
 
@@ -138,6 +144,8 @@ typedef struct Picture{
 
     int reference;
     int shared;
+
+    uint64_t error[AV_NUM_DATA_POINTERS];
 } Picture;
 
 /**
@@ -349,9 +357,11 @@ typedef struct MpegEncContext {
     int unrestricted_mv;        ///< mv can point outside of the coded picture
     int h263_long_vectors;      ///< use horrible h263v1 long vector mode
 
+    BlockDSPContext bdsp;
     DSPContext dsp;             ///< pointers for accelerated dsp functions
     H264ChromaContext h264chroma;
     HpelDSPContext hdsp;
+    QpelDSPContext qdsp;
     VideoDSPContext vdsp;
     H263DSPContext h263dsp;
     int f_code;                 ///< forward MV resolution
@@ -580,6 +590,7 @@ typedef struct MpegEncContext {
     int q_scale_type;
     int intra_vlc_format;
     int alternate_scan;
+    int seq_disp_ext;
     int repeat_first_field;
     int chroma_420_type;
     int chroma_format;
@@ -741,10 +752,6 @@ int ff_MPV_lowest_referenced_row(MpegEncContext *s, int dir);
 void ff_MPV_report_decode_progress(MpegEncContext *s);
 int ff_mpeg_update_thread_context(AVCodecContext *dst, const AVCodecContext *src);
 void ff_set_qscale(MpegEncContext * s, int qscale);
-
-/* Error resilience */
-void ff_mpeg_er_frame_start(MpegEncContext *s);
-void ff_mpeg_set_erpic(ERPicture *dst, Picture *src);
 
 int ff_dct_common_init(MpegEncContext *s);
 int ff_dct_encode_init(MpegEncContext *s);
