@@ -20,7 +20,7 @@
 ; */
 %include "libavutil/x86/x86util.asm"
 
-SECTION_RODATA
+SECTION_RODATA 32
 pw_8:                   times 16 dw 512
 pw_10:                  times 16 dw 2048
 pw_bi_8:                times 16 dw 256
@@ -29,7 +29,7 @@ max_pixels_10:          times 16 dw 1023
 zero:                   times 4  dd 0
 one_per_32:             times 4  dd 1
 
-SECTION .text
+SECTION_TEXT 32
 %macro EPEL_TABLE 4
 hevc_epel_filters_%4_%1 times %2 d%3 -2, 58
                         times %2 d%3 10, -2
