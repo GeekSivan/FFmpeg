@@ -1,6 +1,6 @@
 ; /*
 ; * Provide SSE luma and chroma mc functions for HEVC decoding
-; * Copyright (c) 2013 Pierre-Edouard LEPERE
+; * Copyright (c) 2013-2014 Pierre-Edouard LEPERE
 ; *
 ; * This file is part of FFmpeg.
 ; *
@@ -1337,6 +1337,7 @@ HEVC_PUT_HEVC_QPEL_HV 4, 10
 HEVC_PUT_HEVC_QPEL_HV 6, 10
 HEVC_PUT_HEVC_QPEL_HV 8, 10
 
+%if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2  ; adds ff_ and _avx2 to function name & enables 256b registers : m0 for 256b, xm0 for 128b. avx_enabled = 1 / notcpuflag(avx) = 0
 
 HEVC_PUT_HEVC_PEL_PIXELS 32, 8
@@ -1346,4 +1347,5 @@ HEVC_PEL_PIXELS 16, 10
 
 HEVC_BI_PEL_PIXELS 16, 8
 HEVC_BI_PEL_PIXELS 16, 10
+%endif
 %endif ; ARCH_X86_64
