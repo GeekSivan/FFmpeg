@@ -21,11 +21,11 @@
 %include "libavutil/x86/x86util.asm"
 
 SECTION_RODATA
-pw_8:                   times 8 dw 512
-pw_10:                  times 8 dw 2048
-pw_bi_8:                times 8 dw 256
-pw_bi_10:               times 8 dw 1024
-max_pixels_10:          times 8  dw 1023
+pw_8:                   times 16 dw 512
+pw_10:                  times 16 dw 2048
+pw_bi_8:                times 16 dw 256
+pw_bi_10:               times 16 dw 1024
+max_pixels_10:          times 16 dw 1023
 zero:                   times 4  dd 0
 one_per_32:             times 4  dd 1
 
@@ -80,11 +80,22 @@ QPEL_TABLE 10, 4, w, sse4
 %elif %1 <= 8
     movdqa            %3, [%2]                                              ; load data from source2
 %elif %1 <= 12
+%if avx_enabled
+    mova              %3, [%2]
+%else
     movdqa            %3, [%2]                                              ; load data from source2
     movq              %4, [%2+16]                                           ; load data from source2
+%endif ;avx
+%elif %1 <= 16
+%if avx_enabled
+    movu              %3, [%2]
 %else
     movdqa            %3, [%2]                                              ; load data from source2
     movdqa            %4, [%2+16]                                           ; load data from source2
+%endif ; avx
+%else ; %1 = 32
+    movu              %3, [%2]
+    movu              %4, [%2+32]
 %endif
 %endmacro
 
@@ -93,8 +104,12 @@ QPEL_TABLE 10, 4, w, sse4
     movd              %4, [%3]                                               ; load data from source
 %elif %1 == 4 || (%2 == 8 && %1 <= 8)
     movq              %4, [%3]                                               ; load data from source
+%elif notcpuflag(avx)
+    movu              %4, [%3]                                               ; load data from source
+%elif %1 <= 8 || (%2 == 8 && %1 <= 16)
+    movdqu            %4, [%3]
 %else
-    movdqu            %4, [%3]                                               ; load data from source
+    movu              %4, [%3]                                               ; load data from source
 %endif
 %endmacro
 
@@ -314,8 +329,17 @@ QPEL_TABLE 10, 4, w, sse4
     movq        [%1+16], %3
 %endmacro
 %macro PEL_10STORE16 3
+%if avx_enabled
+    movu            [%1], %2
+%else
     PEL_10STORE8      %1, %2, %3
     movdqa       [%1+16], %3
+%endif ;avx
+%endmacro
+
+%macro PEL_10STORE32 3
+    PEL_10STORE16     %1, %2, %3
+    movu         [%1+32], %3
 %endmacro
 
 %macro PEL_8STORE2 3
@@ -337,7 +361,14 @@ QPEL_TABLE 10, 4, w, sse4
     movd          [%1+8], %2
 %endmacro
 %macro PEL_8STORE16 3
-    movdqa          [%1], %2
+%if avx_enabled
+    movdqu        [%1], %2
+%else
+    mova          [%1], %2
+%endif ; avx
+%endmacro
+%macro PEL_8STORE32 3
+    movu          [%1], %2
 %endmacro
 
 %macro LOOP_END 4
@@ -348,16 +379,25 @@ QPEL_TABLE 10, 4, w, sse4
 %endmacro
 
 
-%macro MC_PIXEL_COMPUTE 2 ;width, bitdepth
-%if %2 == 8
-%if %1 > 8
-    punpckhbw         m1, m0, m2
+ %macro MC_PIXEL_COMPUTE 2 ;width, bitdepth
+ %if %2 == 8
+%if avx_enabled
+%if %1 > 16
+    vextracti128     xm1, m0, 1
+    pmovzxbw          m1, xm1
     psllw             m1, 14-%2
 %endif
-    punpcklbw         m0, m2
-%endif
-    psllw             m0, 14-%2
-%endmacro
+    pmovzxbw          m0, xm0
+%else   ; not avx
+ %if %1 > 8
+     punpckhbw         m1, m0, m2
+     psllw             m1, 14-%2
+ %endif
+     punpcklbw         m0, m2
+ %endif
+%endif ;avx
+     psllw             m0, 14-%2
+ %endmacro
 
 
 %macro EPEL_COMPUTE 4 ; bitdepth, width, filter1, filter2
@@ -488,6 +528,9 @@ QPEL_TABLE 10, 4, w, sse4
 %endif
 %if %2 == 8
     packuswb          %3, %4
+%if avx_enabled
+    vpermq            %3, %3, 216
+%endif ;avx
 %else
     pminsw            %3, [max_pixels_%2]
     pmaxsw            %3, [zero]
@@ -498,7 +541,6 @@ QPEL_TABLE 10, 4, w, sse4
 %endif
 %endmacro
 
-INIT_XMM sse4                                    ; adds ff_ and _sse4 to function name
 ; ******************************
 ; void put_hevc_mc_pixels(int16_t *dst, ptrdiff_t dststride,
 ;                         uint8_t *_src, ptrdiff_t _srcstride,
@@ -506,6 +548,12 @@ INIT_XMM sse4                                    ; adds ff_ and _sse4 to functio
 ; ******************************
 
 %macro HEVC_PUT_HEVC_PEL_PIXELS 2
+HEVC_PEL_PIXELS     %1, %2
+HEVC_UNI_PEL_PIXELS %1, %2
+HEVC_BI_PEL_PIXELS  %1, %2
+%endmacro
+
+%macro HEVC_PEL_PIXELS 2
 cglobal hevc_put_hevc_pel_pixels%1_%2, 5, 5, 3, dst, dststride, src, srcstride,height
     pxor               m2, m2
 .loop
@@ -514,7 +562,9 @@ cglobal hevc_put_hevc_pel_pixels%1_%2, 5, 5, 3, dst, dststride, src, srcstride,h
     PEL_10STORE%1     dstq, m0, m1
     LOOP_END         dst, dststride, src, srcstride
     RET
+%endmacro
 
+%macro HEVC_UNI_PEL_PIXELS 2
 cglobal hevc_put_hevc_uni_pel_pixels%1_%2, 5, 5, 3, dst, dststride, src, srcstride,height
     pxor              m2, m2
 .loop
@@ -525,7 +575,9 @@ cglobal hevc_put_hevc_uni_pel_pixels%1_%2, 5, 5, 3, dst, dststride, src, srcstri
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
+%endmacro
 
+%macro HEVC_BI_PEL_PIXELS 2
 cglobal hevc_put_hevc_bi_pel_pixels%1_%2, 7, 7, 6, dst, dststride, src, srcstride, src2, src2stride,height
     pxor              m2, m2
     movdqa            m5, [pw_bi_%2]
@@ -1218,6 +1270,7 @@ cglobal hevc_put_hevc_bi_w%1_%2, 6, 7, 10, dst, dststride, src, srcstride, src2,
     jnz               .loop                      ; height loop
     RET
 %endmacro
+INIT_XMM sse4                                    ; adds ff_ and _sse4 to function name
 
 WEIGHTING_FUNCS 2, 8
 WEIGHTING_FUNCS 4, 8
@@ -1284,4 +1337,13 @@ HEVC_PUT_HEVC_QPEL_HV 4, 10
 HEVC_PUT_HEVC_QPEL_HV 6, 10
 HEVC_PUT_HEVC_QPEL_HV 8, 10
 
+INIT_YMM avx2  ; adds ff_ and _avx2 to function name & enables 256b registers : m0 for 256b, xm0 for 128b. avx_enabled = 1 / notcpuflag(avx) = 0
+
+HEVC_PUT_HEVC_PEL_PIXELS 32, 8
+
+HEVC_PEL_PIXELS 16, 8
+HEVC_PEL_PIXELS 16, 10
+
+HEVC_BI_PEL_PIXELS 16, 8
+HEVC_BI_PEL_PIXELS 16, 10
 %endif ; ARCH_X86_64
