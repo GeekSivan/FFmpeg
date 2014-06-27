@@ -50,6 +50,7 @@ hevc_epel_filters_%4_%1 times %2 d%3 -2, 58
 
 
 EPEL_TABLE  8,16, b, avx2
+EPEL_TABLE 10, 8, w, avx2
 
 EPEL_TABLE  8, 8, b, sse4
 EPEL_TABLE 10, 4, w, sse4
@@ -74,6 +75,8 @@ QPEL_TABLE  8, 8, b, sse4
 QPEL_TABLE 10, 4, w, sse4
 
 QPEL_TABLE  8,16, b, avx2
+QPEL_TABLE 10, 8, w, avx2
+
 
 %define hevc_qpel_filters_sse4_14 hevc_qpel_filters_sse4_10
 
@@ -216,6 +219,7 @@ QPEL_TABLE  8,16, b, avx2
     movu            m2, [rfilterq+2*%3q]       ;load 128bit of x+2*stride
     movu            m3, [rfilterq+r3srcq]      ;load 128bit of x+2*stride
 %endif
+%if %1 == 8
 %if avx_enabled
     punpckhbw         m10, m0, m1
     punpcklbw         m0, m1
@@ -233,7 +237,6 @@ QPEL_TABLE  8,16, b, avx2
 %endif
     vinserti128       m2, m2, xm10, 1
 %else
-%if %1 == 8
 %if %4 > 8
     SBUTTERFLY        bw, 0, 1, 10
     SBUTTERFLY        bw, 2, 3, 10
@@ -241,6 +244,24 @@ QPEL_TABLE  8,16, b, avx2
     punpcklbw         m0, m1
     punpcklbw         m2, m3
 %endif
+%endif ;avx
+%else
+%if avx_enabled
+    punpckhwd         m10, m0, m1
+    punpcklwd         m0, m1
+%if %4 > 8
+   vextracti128      xm1, m0, 1
+    vinserti128       m1, m10, xm1, 0
+%endif
+    vinserti128       m0, m0, xm10, 1
+
+    punpckhwd         m10, m2, m3
+    punpcklwd         m2, m3
+%if %4 > 8
+    vextracti128      xm3, m2, 1
+    vinserti128       m3, m10, xm3, 0
+%endif
+    vinserti128       m2, m2, xm10, 1
 %else
 %if %4 > 4
     SBUTTERFLY        wd, 0, 1, 10
@@ -249,8 +270,8 @@ QPEL_TABLE  8,16, b, avx2
     punpcklwd         m0, m1
     punpcklwd         m2, m3
 %endif
-%endif
 %endif ; avx
+%endif
 %endmacro
 
 
@@ -1389,8 +1410,11 @@ HEVC_PEL_PIXELS 16, 10
 HEVC_BI_PEL_PIXELS 16, 8
 HEVC_BI_PEL_PIXELS 16, 10
 
+HEVC_PUT_HEVC_EPEL 16, 10
+
 HEVC_PUT_HEVC_EPEL 16, 8
 HEVC_PUT_HEVC_EPEL 32, 8
+
 
 
 %endif ;AVX2
