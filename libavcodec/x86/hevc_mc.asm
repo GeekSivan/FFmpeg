@@ -1,6 +1,6 @@
 ; /*
 ; * Provide SSE luma and chroma mc functions for HEVC decoding
-; * Copyright (c) 2013-2014 Pierre-Edouard LEPERE
+; * Copyright (c) 2013 Pierre-Edouard LEPERE
 ; *
 ; * This file is part of FFmpeg.
 ; *
@@ -26,6 +26,7 @@ pw_10:                  times 16 dw 2048
 pw_bi_8:                times 16 dw 256
 pw_bi_10:               times 16 dw 1024
 max_pixels_10:          times 16 dw 1023
+max_pixels_8:           times 16 dw 255
 zero:                   times 4  dd 0
 one_per_32:             times 4  dd 1
 
@@ -48,9 +49,11 @@ hevc_epel_filters_%4_%1 times %2 d%3 -2, 58
 %endmacro
 
 
+EPEL_TABLE  8,16, b, avx2
 
 EPEL_TABLE  8, 8, b, sse4
 EPEL_TABLE 10, 4, w, sse4
+
 
 %macro QPEL_TABLE 4
 hevc_qpel_filters_%4_%1 times %2 d%3  -1,  4
@@ -69,6 +72,8 @@ hevc_qpel_filters_%4_%1 times %2 d%3  -1,  4
 
 QPEL_TABLE  8, 8, b, sse4
 QPEL_TABLE 10, 4, w, sse4
+
+QPEL_TABLE  8,16, b, avx2
 
 %define hevc_qpel_filters_sse4_14 hevc_qpel_filters_sse4_10
 
@@ -96,6 +101,7 @@ QPEL_TABLE 10, 4, w, sse4
 %else ; %1 = 32
     movu              %3, [%2]
     movu              %4, [%2+32]
+
 %endif
 %endmacro
 
@@ -107,9 +113,9 @@ QPEL_TABLE 10, 4, w, sse4
 %elif notcpuflag(avx)
     movu              %4, [%3]                                               ; load data from source
 %elif %1 <= 8 || (%2 == 8 && %1 <= 16)
-    movdqu            %4, [%3]
+    movdqu           %4, [%3]
 %else
-    movu              %4, [%3]                                               ; load data from source
+    movu              %4, [%3]
 %endif
 %endmacro
 
@@ -128,19 +134,33 @@ QPEL_TABLE 10, 4, w, sse4
 %endmacro
 
 %macro EPEL_FILTER 2-4                            ; bit depth, filter index
+%if avx_enabled
+%assign %%offset 32
+%ifdef PIC
+    lea         rfilterq, [hevc_epel_filters_avx2_%1]
+%else
+    %define rfilterq hevc_epel_filters_avx2_%1
+%endif
+%else
+%assign %%offset 16
 %ifdef PIC
     lea         rfilterq, [hevc_epel_filters_sse4_%1]
 %else
     %define rfilterq hevc_epel_filters_sse4_%1
 %endif
+%endif ;avx_enabled
     sub              %2q, 1
+%if avx_enabled
+    shl              %2q, 6                      ; multiply by 64
+  %else
     shl              %2q, 5                      ; multiply by 32
+%endif
 %if %0 == 2
-    movdqa           m14, [rfilterq + %2q]        ; get 2 first values of filters
-    movdqa           m15, [rfilterq + %2q+16]     ; get 2 last values of filters
+    mova           m14, [rfilterq + %2q]        ; get 2 first values of filters
+    mova           m15, [rfilterq + %2q+%%offset]     ; get 2 last values of filters
 %else
-    movdqa           %3, [rfilterq + %2q]        ; get 2 first values of filters
-    movdqa           %4, [rfilterq + %2q+16]     ; get 2 last values of filters
+    mova           %3, [rfilterq + %2q]        ; get 2 first values of filters
+    mova           %4, [rfilterq + %2q+%%offset]     ; get 2 last values of filters
 %endif
 %endmacro
 
@@ -186,17 +206,33 @@ QPEL_TABLE 10, 4, w, sse4
 %else
     %define rfilterq %2
 %endif
-    movdqu            m0, [rfilterq ]            ;load 128bit of x
+    movu            m0, [rfilterq ]            ;load 128bit of x
 %ifnum %3
-    movdqu            m1, [rfilterq+  %3]        ;load 128bit of x+stride
-    movdqu            m2, [rfilterq+2*%3]        ;load 128bit of x+2*stride
-    movdqu            m3, [rfilterq+3*%3]        ;load 128bit of x+3*stride
+    movu            m1, [rfilterq+  %3]        ;load 128bit of x+stride
+    movu            m2, [rfilterq+2*%3]        ;load 128bit of x+2*stride
+    movu            m3, [rfilterq+3*%3]        ;load 128bit of x+3*stride
 %else
-    movdqu            m1, [rfilterq+  %3q]       ;load 128bit of x+stride
-    movdqu            m2, [rfilterq+2*%3q]       ;load 128bit of x+2*stride
-    movdqu            m3, [rfilterq+r3srcq]      ;load 128bit of x+2*stride
+    movu            m1, [rfilterq+  %3q]       ;load 128bit of x+stride
+    movu            m2, [rfilterq+2*%3q]       ;load 128bit of x+2*stride
+    movu            m3, [rfilterq+r3srcq]      ;load 128bit of x+2*stride
 %endif
+%if avx_enabled
+    punpckhbw         m10, m0, m1
+    punpcklbw         m0, m1
+%if %4 > 16
+   vextracti128      xm1, m0, 1
+    vinserti128       m1, m10, xm1, 0
+%endif
+    vinserti128       m0, m0, xm10, 1
 
+    punpckhbw         m10, m2, m3
+    punpcklbw         m2, m3
+%if %4 > 16
+    vextracti128      xm3, m2, 1
+    vinserti128       m3, m10, xm3, 0
+%endif
+    vinserti128       m2, m2, xm10, 1
+%else
 %if %1 == 8
 %if %4 > 8
     SBUTTERFLY        bw, 0, 1, 10
@@ -214,6 +250,7 @@ QPEL_TABLE 10, 4, w, sse4
     punpcklwd         m2, m3
 %endif
 %endif
+%endif ; avx
 %endmacro
 
 
@@ -334,7 +371,7 @@ QPEL_TABLE 10, 4, w, sse4
 %else
     PEL_10STORE8      %1, %2, %3
     movdqa       [%1+16], %3
-%endif ;avx
+%endif
 %endmacro
 
 %macro PEL_10STORE32 3
@@ -379,8 +416,8 @@ QPEL_TABLE 10, 4, w, sse4
 %endmacro
 
 
- %macro MC_PIXEL_COMPUTE 2 ;width, bitdepth
- %if %2 == 8
+%macro MC_PIXEL_COMPUTE 2 ;width, bitdepth
+%if %2 == 8
 %if avx_enabled
 %if %1 > 16
     vextracti128     xm1, m0, 1
@@ -389,15 +426,15 @@ QPEL_TABLE 10, 4, w, sse4
 %endif
     pmovzxbw          m0, xm0
 %else   ; not avx
- %if %1 > 8
-     punpckhbw         m1, m0, m2
-     psllw             m1, 14-%2
- %endif
-     punpcklbw         m0, m2
- %endif
+%if %1 > 8
+    punpckhbw         m1, m0, m2
+    psllw             m1, 14-%2
+%endif
+    punpcklbw         m0, m2
+%endif
 %endif ;avx
-     psllw             m0, 14-%2
- %endmacro
+    psllw             m0, 14-%2
+%endmacro
 
 
 %macro EPEL_COMPUTE 4 ; bitdepth, width, filter1, filter2
@@ -424,6 +461,9 @@ QPEL_TABLE 10, 4, w, sse4
     psrad             m1, %1-8
 %endif
     packssdw          m0, m1
+%if avx_enabled
+    vpermq            m0, m0, 216
+%endif ;avx
 %endif
 %endmacro
 
@@ -562,7 +602,7 @@ cglobal hevc_put_hevc_pel_pixels%1_%2, 5, 5, 3, dst, dststride, src, srcstride,h
     PEL_10STORE%1     dstq, m0, m1
     LOOP_END         dst, dststride, src, srcstride
     RET
-%endmacro
+ %endmacro
 
 %macro HEVC_UNI_PEL_PIXELS 2
 cglobal hevc_put_hevc_uni_pel_pixels%1_%2, 5, 5, 3, dst, dststride, src, srcstride,height
@@ -593,7 +633,6 @@ cglobal hevc_put_hevc_bi_pel_pixels%1_%2, 7, 7, 6, dst, dststride, src, srcstrid
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
-
 %endmacro
 
 
@@ -1270,6 +1309,7 @@ cglobal hevc_put_hevc_bi_w%1_%2, 6, 7, 10, dst, dststride, src, srcstride, src2,
     jnz               .loop                      ; height loop
     RET
 %endmacro
+
 INIT_XMM sse4                                    ; adds ff_ and _sse4 to function name
 
 WEIGHTING_FUNCS 2, 8
@@ -1301,6 +1341,7 @@ HEVC_PUT_HEVC_EPEL 6,  8
 HEVC_PUT_HEVC_EPEL 8,  8
 HEVC_PUT_HEVC_EPEL 12, 8
 HEVC_PUT_HEVC_EPEL 16, 8
+
 
 HEVC_PUT_HEVC_EPEL 2, 10
 HEVC_PUT_HEVC_EPEL 4, 10
@@ -1347,5 +1388,10 @@ HEVC_PEL_PIXELS 16, 10
 
 HEVC_BI_PEL_PIXELS 16, 8
 HEVC_BI_PEL_PIXELS 16, 10
-%endif
+
+HEVC_PUT_HEVC_EPEL 16, 8
+HEVC_PUT_HEVC_EPEL 32, 8
+
+
+%endif ;AVX2
 %endif ; ARCH_X86_64

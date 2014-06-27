@@ -190,6 +190,13 @@ void ff_hevc_put_hevc_bi_pel_pixels64_10_avx2(uint8_t *_dst, ptrdiff_t _dststrid
 EPEL_PROTOTYPES(epel_h ,  8, sse4);
 EPEL_PROTOTYPES(epel_h , 10, sse4);
 
+#ifdef OPTI_ASM
+PEL_PROTOTYPE(epel_h16, 8, avx2);
+PEL_PROTOTYPE(epel_h24, 8, avx2);
+PEL_PROTOTYPE(epel_h32, 8, avx2);
+PEL_PROTOTYPE(epel_h48, 8, avx2);
+PEL_PROTOTYPE(epel_h64, 8, avx2);
+#endif
 EPEL_PROTOTYPES(epel_v ,  8, sse4);
 EPEL_PROTOTYPES(epel_v , 10, sse4);
 
