@@ -220,6 +220,18 @@ PEL_PROTOTYPE(epel_v24,10, avx2);
 PEL_PROTOTYPE(epel_v32,10, avx2);
 PEL_PROTOTYPE(epel_v48,10, avx2);
 PEL_PROTOTYPE(epel_v64,10, avx2);
+
+PEL_PROTOTYPE(epel_hv16, 8, avx2);
+PEL_PROTOTYPE(epel_hv24, 8, avx2);
+PEL_PROTOTYPE(epel_hv32, 8, avx2);
+PEL_PROTOTYPE(epel_hv48, 8, avx2);
+PEL_PROTOTYPE(epel_hv64, 8, avx2);
+
+PEL_PROTOTYPE(epel_hv16,10, avx2);
+PEL_PROTOTYPE(epel_hv24,10, avx2);
+PEL_PROTOTYPE(epel_hv32,10, avx2);
+PEL_PROTOTYPE(epel_hv48,10, avx2);
+PEL_PROTOTYPE(epel_hv64,10, avx2);
 #endif
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL

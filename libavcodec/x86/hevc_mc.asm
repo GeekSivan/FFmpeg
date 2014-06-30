@@ -168,26 +168,41 @@ QPEL_TABLE 10, 8, w, avx2
 %endmacro
 
 %macro EPEL_HV_FILTER 1
-%ifdef PIC
-    lea         rfilterq, [hevc_epel_filters_sse4_%1]
+%if avx_enabled
+%assign %%offset 32
+%assign %%shift  6
+%define %%table  hevc_epel_filters_avx2_%1
 %else
-    %define rfilterq hevc_epel_filters_sse4_%1
+%assign %%offset 16
+%assign %%shift  5
+%define %%table  hevc_epel_filters_sse4_%1
+%endif
+
+%ifdef PIC
+    lea         rfilterq, [%%table]
+%else
+    %define rfilterq %%table
 %endif
     sub              mxq, 1
     sub              myq, 1
-    shl              mxq, 5                      ; multiply by 32
-    shl              myq, 5                      ; multiply by 32
-    movdqa           m14, [rfilterq + mxq]        ; get 2 first values of filters
-    movdqa           m15, [rfilterq + mxq+16]     ; get 2 last values of filters
+    shl              mxq, %%shift                ; multiply by 32
+    shl              myq, %%shift                ; multiply by 32
+    mova             m14, [rfilterq + mxq]        ; get 2 first values of filters
+    mova             m15, [rfilterq + mxq+%%offset]     ; get 2 last values of filters
     lea           r3srcq, [srcstrideq*3]
 
-%ifdef PIC
-    lea         rfilterq, [hevc_epel_filters_sse4_10]
+%if avx_enabled
+%define %%table  hevc_epel_filters_avx2_10
 %else
-    %define rfilterq hevc_epel_filters_sse4_10
+%define %%table  hevc_epel_filters_sse4_10
 %endif
-    movdqa           m12, [rfilterq + myq]        ; get 2 first values of filters
-    movdqa           m13, [rfilterq + myq+16]     ; get 2 last values of filters
+%ifdef PIC
+    lea         rfilterq, [%%table]
+%else
+    %define rfilterq %%table
+%endif
+    mova             m12, [rfilterq + myq]        ; get 2 first values of filters
+    mova             m13, [rfilterq + myq+%%offset]     ; get 2 last values of filters
 %endmacro
 
 %macro QPEL_FILTER 2
@@ -789,12 +804,26 @@ cglobal hevc_put_hevc_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstride, h
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
     SWAP              m7, m0
+%if avx_enabled
+    punpckhwd        m10, m4, m5
+    punpcklwd         m0, m4, m5
+   vextracti128      xm1, m0, 1
+    vinserti128       m1, m10, xm1, 0
+    vinserti128       m0, m0, xm10, 1
+
+    punpckhwd        m10, m6, m7
+    punpcklwd         m2, m6, m7
+    vextracti128     xm3, m2, 1
+    vinserti128       m3, m10, xm3, 0
+    vinserti128       m2, m2, xm10, 1
+%else
     punpcklwd         m0, m4, m5
     punpcklwd         m2, m6, m7
 %if %1 > 4
     punpckhwd         m1, m4, m5
     punpckhwd         m3, m6, m7
 %endif
+%endif ;avx
     EPEL_COMPUTE      14, %1, m12, m13
     PEL_10STORE%1     dstq, m0, m1
     movdqa            m4, m5
@@ -1415,7 +1444,8 @@ HEVC_PUT_HEVC_EPEL 16, 10
 HEVC_PUT_HEVC_EPEL 16, 8
 HEVC_PUT_HEVC_EPEL 32, 8
 
-
+HEVC_PUT_HEVC_EPEL_HV 16, 8
+HEVC_PUT_HEVC_EPEL_HV 16,10
 
 %endif ;AVX2
 %endif ; ARCH_X86_64
