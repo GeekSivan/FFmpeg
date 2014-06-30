@@ -852,11 +852,25 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
     SWAP              m7, m0
+%if avx_enabled
+    punpckhwd        m10, m4, m5
+    punpcklwd         m0, m4, m5
+   vextracti128      xm1, m0, 1
+    vinserti128       m1, m10, xm1, 0
+    vinserti128       m0, m0, xm10, 1
+
+    punpckhwd        m10, m6, m7
+    punpcklwd         m2, m6, m7
+    vextracti128     xm3, m2, 1
+    vinserti128       m3, m10, xm3, 0
+    vinserti128       m2, m2, xm10, 1
+%else
     punpcklwd         m0, m4, m5
     punpcklwd         m2, m6, m7
 %if %1 > 4
     punpckhwd         m1, m4, m5
     punpckhwd         m3, m6, m7
+%endif
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
     UNI_COMPUTE       %1, %2, m0, m1, [pw_%2]
@@ -891,11 +905,25 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
     SWAP              m7, m0
+%if avx_enabled
+    punpckhwd        m10, m4, m5
+    punpcklwd         m0, m4, m5
+   vextracti128      xm1, m0, 1
+    vinserti128       m1, m10, xm1, 0
+    vinserti128       m0, m0, xm10, 1
+
+    punpckhwd        m10, m6, m7
+    punpcklwd         m2, m6, m7
+    vextracti128     xm3, m2, 1
+    vinserti128       m3, m10, xm3, 0
+    vinserti128       m2, m2, xm10, 1
+%else
     punpcklwd         m0, m4, m5
     punpcklwd         m2, m6, m7
 %if %1 > 4
     punpckhwd         m1, m4, m5
     punpckhwd         m3, m6, m7
+%endif
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
     SIMPLE_BILOAD     %1, src2q, m8, m9
@@ -1445,7 +1473,7 @@ HEVC_PUT_HEVC_EPEL 16, 8
 HEVC_PUT_HEVC_EPEL 32, 8
 
 HEVC_PUT_HEVC_EPEL_HV 16, 8
-HEVC_PUT_HEVC_EPEL_HV 16,10
+HEVC_PUT_HEVC_EPEL_HV 16, 10
 
 %endif ;AVX2
 %endif ; ARCH_X86_64
