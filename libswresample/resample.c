@@ -238,7 +238,7 @@ static ResampleContext *resample_init(ResampleContext *c, int out_rate, int in_r
     c->index= -phase_count*((c->filter_length-1)/2);
     c->frac= 0;
 
-    swresample_dsp_init(c);
+    swri_resample_dsp_init(c);
 
     return c;
 error:
@@ -297,10 +297,14 @@ static int swri_resample(ResampleContext *c,
         int delta_n = (delta_frac + c->dst_incr - 1) / c->dst_incr;
 
         dst_size = FFMIN(dst_size, delta_n);
-        if (!c->linear) {
-            *consumed = c->dsp.resample_common[fn_idx](c, dst, src, dst_size, update_ctx);
+        if (dst_size > 0) {
+            if (!c->linear) {
+                *consumed = c->dsp.resample_common[fn_idx](c, dst, src, dst_size, update_ctx);
+            } else {
+                *consumed = c->dsp.resample_linear[fn_idx](c, dst, src, dst_size, update_ctx);
+            }
         } else {
-            *consumed = c->dsp.resample_linear[fn_idx](c, dst, src, dst_size, update_ctx);
+            *consumed = 0;
         }
     }
 

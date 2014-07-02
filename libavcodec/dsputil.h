@@ -34,9 +34,6 @@
 
 extern uint32_t ff_square_tab[512];
 
-void ff_gmc_c(uint8_t *dst, uint8_t *src, int stride, int h, int ox, int oy,
-              int dxx, int dxy, int dyx, int dyy, int shift, int r,
-              int width, int height);
 
 /* minimum alignment rules ;)
  * If you notice errors in the align stuff, need more alignment for some ASM code
@@ -62,20 +59,6 @@ typedef int (*me_cmp_func)(struct MpegEncContext *c,
                            uint8_t *blk2 /* align 1 */, int line_size, int h);
 
 /**
- * Scantable.
- */
-typedef struct ScanTable {
-    const uint8_t *scantable;
-    uint8_t permutated[64];
-    uint8_t raster_end[64];
-} ScanTable;
-
-void ff_init_scantable(uint8_t *permutation, ScanTable *st,
-                       const uint8_t *src_scantable);
-void ff_init_scantable_permutation(uint8_t *idct_permutation,
-                                   int idct_permutation_type);
-
-/**
  * DSPContext.
  */
 typedef struct DSPContext {
@@ -87,28 +70,7 @@ typedef struct DSPContext {
                         const uint8_t *s1 /* align 8 */,
                         const uint8_t *s2 /* align 8 */,
                         int stride);
-    void (*put_pixels_clamped)(const int16_t *block /* align 16 */,
-                               uint8_t *pixels /* align 8 */,
-                               int line_size);
-    void (*put_signed_pixels_clamped)(const int16_t *block /* align 16 */,
-                                      uint8_t *pixels /* align 8 */,
-                                      int line_size);
-    void (*add_pixels_clamped)(const int16_t *block /* align 16 */,
-                               uint8_t *pixels /* align 8 */,
-                               int line_size);
     int (*sum_abs_dctelem)(int16_t *block /* align 16 */);
-    /**
-     * translational global motion compensation.
-     */
-    void (*gmc1)(uint8_t *dst /* align 8 */, uint8_t *src /* align 1 */,
-                 int srcStride, int h, int x16, int y16, int rounder);
-    /**
-     * global motion compensation.
-     */
-    void (*gmc)(uint8_t *dst /* align 8 */, uint8_t *src /* align 1 */,
-                int stride, int h, int ox, int oy,
-                int dxx, int dxy, int dyx, int dyy,
-                int shift, int r, int width, int height);
 
     int (*pix_sum)(uint8_t *pix, int line_size);
     int (*pix_norm1)(uint8_t *pix, int line_size);
@@ -140,47 +102,6 @@ typedef struct DSPContext {
     /* (I)DCT */
     void (*fdct)(int16_t *block /* align 16 */);
     void (*fdct248)(int16_t *block /* align 16 */);
-
-    /* IDCT really */
-    void (*idct)(int16_t *block /* align 16 */);
-
-    /**
-     * block -> idct -> clip to unsigned 8 bit -> dest.
-     * (-1392, 0, 0, ...) -> idct -> (-174, -174, ...) -> put -> (0, 0, ...)
-     * @param line_size size in bytes of a horizontal line of dest
-     */
-    void (*idct_put)(uint8_t *dest /* align 8 */,
-                     int line_size, int16_t *block /* align 16 */);
-
-    /**
-     * block -> idct -> add dest -> clip to unsigned 8 bit -> dest.
-     * @param line_size size in bytes of a horizontal line of dest
-     */
-    void (*idct_add)(uint8_t *dest /* align 8 */,
-                     int line_size, int16_t *block /* align 16 */);
-
-    /**
-     * IDCT input permutation.
-     * Several optimized IDCTs need a permutated input (relative to the
-     * normal order of the reference IDCT).
-     * This permutation must be performed before the idct_put/add.
-     * Note, normally this can be merged with the zigzag/alternate scan<br>
-     * An example to avoid confusion:
-     * - (->decode coeffs -> zigzag reorder -> dequant -> reference IDCT -> ...)
-     * - (x -> reference DCT -> reference IDCT -> x)
-     * - (x -> reference DCT -> simple_mmx_perm = idct_permutation
-     *    -> simple_idct_mmx -> x)
-     * - (-> decode coeffs -> zigzag reorder -> simple_mmx_perm -> dequant
-     *    -> simple_idct_mmx -> ...)
-     */
-    uint8_t idct_permutation[64];
-    int idct_permutation_type;
-#define FF_NO_IDCT_PERM 1
-#define FF_LIBMPEG2_IDCT_PERM 2
-#define FF_SIMPLE_IDCT_PERM 3
-#define FF_TRANSPOSE_IDCT_PERM 4
-#define FF_PARTTRANS_IDCT_PERM 5
-#define FF_SSE2_IDCT_PERM 6
 
     int (*try_8x8basis)(int16_t rem[64], int16_t weight[64],
                         int16_t basis[64], int scale);

@@ -7708,7 +7708,7 @@ ffprobe -f lavfi movie=example.mov,signalstats -show_entries frame_tags=lavfi.si
 @item
 Playback video while highlighting pixels that are outside of broadcast range in red.
 @example
-ffplay example.mov -vf values="out=brng:color=red"
+ffplay example.mov -vf signalstats="out=brng:color=red"
 @end example
 @end itemize
 
@@ -10429,6 +10429,9 @@ Default value is @code{1.0}.
 Specify gamma. Lower gamma makes the spectrum more contrast, higher gamma
 makes the spectrum having more range. Acceptable value is [1.0, 7.0].
 Default value is @code{3.0}.
+
+@item fontfile
+Specify font file for use with freetype. If not specified, use embedded font.
 
 @item fullhd
 If set to 1 (the default), the video size is 1920x1080 (full HD),

@@ -36,8 +36,6 @@ av_cold void ff_dsputil_init_ppc(DSPContext *c, AVCodecContext *avctx,
     if (PPC_ALTIVEC(mm_flags)) {
         ff_dsputil_init_altivec(c, avctx, high_bit_depth);
 
-        c->gmc1 = ff_gmc1_altivec;
-
         if (!high_bit_depth) {
 #if CONFIG_ENCODERS
             if (avctx->dct_algo == FF_DCT_AUTO ||
@@ -45,15 +43,6 @@ av_cold void ff_dsputil_init_ppc(DSPContext *c, AVCodecContext *avctx,
                 c->fdct = ff_fdct_altivec;
             }
 #endif //CONFIG_ENCODERS
-          if (avctx->lowres == 0) {
-            if ((avctx->idct_algo == FF_IDCT_AUTO) ||
-                (avctx->idct_algo == FF_IDCT_ALTIVEC)) {
-                c->idct                  = ff_idct_altivec;
-                c->idct_put              = ff_idct_put_altivec;
-                c->idct_add              = ff_idct_add_altivec;
-                c->idct_permutation_type = FF_TRANSPOSE_IDCT_PERM;
-            }
-          }
         }
     }
 }
