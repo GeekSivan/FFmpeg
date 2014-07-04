@@ -133,24 +133,24 @@ static void FUNC(transform_rdpcm)(uint8_t *_dst, int16_t *_coeffs,
         _coeffs[x] = (_coeffs[x] + offset) >> shift;
 
     if (mode) {
-        for (y = 0; y < size; y++) {
-            for (x = 1; x < size; x++)
-                coeffs[x] += coeffs[x - 1];
-            coeffs += size;
-        }
-    } else {
         coeffs += size;
         for (y = 0; y < size - 1; y++) {
             for (x = 0; x < size; x++)
                 coeffs[x] += coeffs[x - size];
             coeffs += size;
         }
+    } else {
+        for (y = 0; y < size; y++) {
+            for (x = 1; x < size; x++)
+                coeffs[x] += coeffs[x - 1];
+            coeffs += size;
+        }
     }
 
 
-    for (y = 0; y < 4 * 4; y += 4) {
-        for (x = 0; x < 4; x++)
-            dst[x] = av_clip_pixel(dst[x] + _coeffs[y + x]);
+    for (y = 0; y < size; y ++) {
+        for (x = 0; x < size; x++)
+            dst[x] = av_clip_pixel(dst[x] + _coeffs[size * y + x]);
         dst += stride;
     }
 }
