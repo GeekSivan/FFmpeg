@@ -995,22 +995,26 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
     const uint8_t level_scale[] = { 40, 45, 51, 57, 64, 72 };
     const uint8_t *scale_matrix = NULL;
     uint8_t dc_scale;
+    int pred_mode_intra = (c_idx == 0) ? lc->tu.cur_intra_pred_mode :
+                                         lc->tu.cur_intra_pred_mode_c;
 
     memset(coeffs, 0, trafo_size * trafo_size * sizeof(int16_t));
 
     // Derive QP for dequant
     if (!lc->cu.cu_transquant_bypass_flag) {
         static const int qp_c[] = { 29, 30, 31, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37 };
-        static const uint8_t rem6[51 + 2 * 6 + 1] = {
+        static const uint8_t rem6[51 + 4 * 6 + 1] = {
             0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2,
             3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
             0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3,
+            4, 5, 0, 1, 2, 3, 4, 5, 0, 1
         };
 
-        static const uint8_t div6[51 + 2 * 6 + 1] = {
+        static const uint8_t div6[51 + 4 * 6 + 1] = {
             0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3,  3,  3,
             3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6,  6,  6,
             7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10,
+            10, 10, 11, 11, 11, 11, 11, 11, 12, 12
         };
         int qp_y = lc->qp_y;
 
@@ -1296,8 +1300,14 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                 }
             }
             first_nz_pos_in_cg = significant_coeff_flag_idx[n_end - 1];
-            sign_hidden = (last_nz_pos_in_cg - first_nz_pos_in_cg >= 4 &&
-                           !lc->cu.cu_transquant_bypass_flag);
+
+            if (lc->cu.cu_transquant_bypass_flag ||
+                (lc->cu.pred_mode ==  MODE_INTRA  &&
+                 s->sps->implicit_rdpcm_enabled_flag  &&  transform_skip_flag  &&
+                 (pred_mode_intra == 10 || pred_mode_intra  ==  26 )) /*|| explicit_rdpcm_flag[x0][y0][cIdx]*/)
+                sign_hidden = 0;
+            else
+                sign_hidden = (last_nz_pos_in_cg - first_nz_pos_in_cg >= 4);
 
             if (first_greater1_coeff_idx != -1) {
                 coeff_abs_level_greater1_flag[first_greater1_coeff_idx] += coeff_abs_level_greater2_flag_decode(s, c_idx, ctx_set);
@@ -1371,7 +1381,16 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
             int rot = s->sps->transform_skip_rotation_enabled_flag &&
                       log2_trafo_size == 2 &&
                       lc->cu.pred_mode == MODE_INTRA;
-            s->hevcdsp.transform_skip[!!rot](dst, coeffs, stride);
+            if (rot) {
+                for (i = 0; i < (trafo_size * trafo_size  >> 1); i++)
+                    FFSWAP(int16_t, coeffs[i], coeffs[trafo_size * trafo_size - i - 1]);
+            }
+            if (s->sps->implicit_rdpcm_enabled_flag && (pred_mode_intra == 10 || pred_mode_intra == 26)) {
+                int mode = pred_mode_intra == 10;
+                
+                s->hevcdsp.transform_rdpcm(dst, coeffs, stride, trafo_size, mode);
+            } else
+                s->hevcdsp.transform_skip(dst, coeffs, stride);
         } else if (lc->cu.pred_mode == MODE_INTRA && c_idx == 0 && log2_trafo_size == 2)
             s->hevcdsp.transform_4x4_luma_add(dst, coeffs, stride);
         else {
