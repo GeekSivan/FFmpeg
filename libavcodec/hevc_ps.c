@@ -2030,6 +2030,9 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
 
     pps->slice_header_extension_present_flag = get_bits1(gb);
     pps->pps_extension_flag                  = get_bits1(gb);
+    if (pps->pps_extension_flag)
+        av_log(s->avctx, AV_LOG_ERROR,
+               "PPS extension flag not yet implemented.\n");
 
     // Inferred parameters
     pps->col_bd   = av_malloc_array(pps->num_tile_columns + 1, sizeof(*pps->col_bd));
