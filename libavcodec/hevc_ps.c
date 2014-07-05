@@ -1665,10 +1665,10 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
                 av_log(s->avctx, AV_LOG_WARNING,
                    "high_precision_offsets_enabled_flag not yet implemented\n");
 
-            fast_rice_adaptation_enabled_flag = get_bits1(gb);
-            if (fast_rice_adaptation_enabled_flag)
+            sps->persistent_rice_adaptation_enabled_flag = get_bits1(gb);
+            if (sps->persistent_rice_adaptation_enabled_flag)
                 av_log(s->avctx, AV_LOG_WARNING,
-                   "fast_rice_adaptation_enabled_flag not yet implemented\n");
+                   "persistent_rice_adaptation_enabled_flag not yet implemented\n");
 
             cabac_bypass_alignment_enabled_flag  = get_bits1(gb);
             if (cabac_bypass_alignment_enabled_flag)

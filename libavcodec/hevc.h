@@ -721,6 +721,7 @@ typedef struct HEVCSPS {
     int implicit_rdpcm_enabled_flag;
     int explicit_rdpcm_enabled_flag;
     int intra_smoothing_disabled_flag;
+    int persistent_rice_adaptation_enabled_flag;
 
     ///< coded frame dimension in various units
     int width;
@@ -1041,6 +1042,8 @@ typedef struct HEVCLocalContext {
     NeighbourAvailable  na;
 
     uint8_t cabac_state[HEVC_CONTEXTS];
+
+    uint8_t stat_coeff[4];
 
     uint8_t first_qp_group;
 
