@@ -1381,10 +1381,10 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                         if (trans_coeff_level > (3 << c_rice_param))
                             c_rice_param = s->sps->persistent_rice_adaptation_enabled_flag ? c_rice_param + 1 : FFMIN(c_rice_param + 1, 4);
                         if (s->sps->persistent_rice_adaptation_enabled_flag && !rice_init) {
-                            int c_rice_init = lc->stat_coeff[sb_type] / 4;
-                            if (last_coeff_abs_level_remaining >= (3 << c_rice_init))
+                            int c_rice_p_init = lc->stat_coeff[sb_type] / 4;
+                            if (last_coeff_abs_level_remaining >= (3 << c_rice_p_init))
                                 lc->stat_coeff[sb_type]++;
-                            else if (2 * last_coeff_abs_level_remaining < (1 << c_rice_init))
+                            else if (2 * last_coeff_abs_level_remaining < (1 << c_rice_p_init))
                                 if (lc->stat_coeff[sb_type] > 0)
                                     lc->stat_coeff[sb_type]--;
                             rice_init = 1;
@@ -1397,10 +1397,10 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                     if (trans_coeff_level > (3 << c_rice_param))
                         c_rice_param = s->sps->persistent_rice_adaptation_enabled_flag ? c_rice_param + 1 : FFMIN(c_rice_param + 1, 4);
                     if (s->sps->persistent_rice_adaptation_enabled_flag && !rice_init) {
-                        int c_rice_init = lc->stat_coeff[sb_type] / 4;
-                        if (last_coeff_abs_level_remaining >= (3 << c_rice_init))
+                        int c_rice_p_init = lc->stat_coeff[sb_type] / 4;
+                        if (last_coeff_abs_level_remaining >= (3 << c_rice_p_init))
                             lc->stat_coeff[sb_type]++;
-                        else if (2 * last_coeff_abs_level_remaining < (1 << c_rice_init))
+                        else if (2 * last_coeff_abs_level_remaining < (1 << c_rice_p_init))
                             if (lc->stat_coeff[sb_type] > 0)
                                 lc->stat_coeff[sb_type]--;
                         rice_init = 1;
