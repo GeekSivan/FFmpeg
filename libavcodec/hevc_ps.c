@@ -1817,6 +1817,65 @@ static void hevc_pps_free(void *opaque, uint8_t *data)
     av_freep(&pps);
 }
 
+static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps) {
+    GetBitContext *gb = &s->HEVClc->gb;
+    int i;
+
+    if (pps->transform_skip_enabled_flag) {
+        pps->log2_max_transform_skip_block_size = get_ue_golomb_long(gb) + 2;
+        if (pps->log2_max_transform_skip_block_size > 2) {
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "log2_max_transform_skip_block_size_minus2 is not yet implemented.\n");
+        }
+    }
+    int cross_component_prediction_enabled_flag = get_bits1(gb);
+    if (cross_component_prediction_enabled_flag) {
+        av_log(s->avctx, AV_LOG_ERROR,
+               "cross_component_prediction_enabled_flag is not yet implemented.\n");
+    }
+    int chroma_qp_offset_list_enabled_flag = get_bits1(gb);
+    if (chroma_qp_offset_list_enabled_flag) {
+        av_log(s->avctx, AV_LOG_ERROR,
+               "chroma_qp_offset_list_enabled_flag is not yet implemented.\n");
+    }
+    if (chroma_qp_offset_list_enabled_flag) {
+        int diff_cu_chroma_qp_offset_depth = get_ue_golomb_long(gb);
+        if (diff_cu_chroma_qp_offset_depth) {
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "diff_cu_chroma_qp_offset_depths is not yet implemented.\n");
+        }
+        int chroma_qp_offset_list_len_minus1 = get_ue_golomb_long(gb);
+        if (chroma_qp_offset_list_len_minus1) {
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "chroma_qp_offset_list_len_minus1 is not yet implemented.\n");
+        }
+        for (i = 0; i <= chroma_qp_offset_list_len_minus1; i++) {
+            int cb_qp_offset_list = get_se_golomb_long(gb);
+            if (cb_qp_offset_list) {
+                av_log(s->avctx, AV_LOG_ERROR,
+                       "cb_qp_offset_list is not yet implemented.\n");
+            }
+            int cr_qp_offset_list = get_se_golomb_long(gb);
+            if (cr_qp_offset_list) {
+                av_log(s->avctx, AV_LOG_ERROR,
+                       "cr_qp_offset_list is not yet implemented.\n");
+            }
+        }
+    }
+	int log2_sao_offset_scale_luma = get_ue_golomb_long(gb);
+    if (log2_sao_offset_scale_luma) {
+        av_log(s->avctx, AV_LOG_ERROR,
+               "log2_sao_offset_scale_luma is not yet implemented.\n");
+    }
+	int log2_sao_offset_scale_chroma = get_ue_golomb_long(gb);
+    if (log2_sao_offset_scale_chroma) {
+        av_log(s->avctx, AV_LOG_ERROR,
+               "log2_sao_offset_scale_chroma is not yet implemented.\n");
+    }
+
+    return(0);
+}
+
 int ff_hevc_decode_nal_pps(HEVCContext *s)
 {
     GetBitContext *gb = &s->HEVClc->gb;
@@ -1850,6 +1909,7 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
     pps->disable_dbf                           = 0;
     pps->beta_offset                           = 0;
     pps->tc_offset                             = 0;
+    pps->log2_max_transform_skip_block_size    = 2;
 
     // Coded parameters
     pps_id = get_ue_golomb_long(gb);
@@ -2029,10 +2089,16 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
     }
 
     pps->slice_header_extension_present_flag = get_bits1(gb);
-    pps->pps_extension_flag                  = get_bits1(gb);
-    if (pps->pps_extension_flag)
-        av_log(s->avctx, AV_LOG_ERROR,
-               "PPS extension flag not yet implemented.\n");
+
+    if (get_bits1(gb)) { // pps_extension_present_flag
+        int pps_range_extensions_flag = get_bits1(gb);
+        int pps_extension_7bits = get_bits(gb, 7);
+        if (pps_range_extensions_flag) {
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "PPS extension flag is partially implemented.\n");
+            pps_range_extensions(s, pps);
+        }
+	}
 
     // Inferred parameters
     pps->col_bd   = av_malloc_array(pps->num_tile_columns + 1, sizeof(*pps->col_bd));
