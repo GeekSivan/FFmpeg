@@ -69,7 +69,7 @@
 #define MAX_QP 51
 #define DEFAULT_INTRA_TC_OFFSET 2
 
-#define HEVC_CONTEXTS 191
+#define HEVC_CONTEXTS 197
 
 #define MRG_MAX_NUM_CANDS     5
 
@@ -200,6 +200,8 @@ enum SyntaxElement {
     COEFF_ABS_LEVEL_GREATER2_FLAG,
     COEFF_ABS_LEVEL_REMAINING,
     COEFF_SIGN_FLAG,
+    LOG2_RES_SCALE_ABS,
+    RES_SCALE_SIGN_FLAG,
 };
 
 enum PartMode {
@@ -721,6 +723,7 @@ typedef struct HEVCSPS {
     int implicit_rdpcm_enabled_flag;
     int explicit_rdpcm_enabled_flag;
     int intra_smoothing_disabled_flag;
+    int persistent_rice_adaptation_enabled_flag;
 
     ///< coded frame dimension in various units
     int width;
@@ -805,9 +808,11 @@ typedef struct HEVCPPS {
     int log2_parallel_merge_level; ///< log2_parallel_merge_level_minus2 + 2
     int num_extra_slice_header_bits;
     uint8_t slice_header_extension_present_flag;
+    uint8_t log2_max_transform_skip_block_size;
+    uint8_t cross_component_prediction_enabled_flag;
+    uint8_t log2_sao_offset_scale_luma;
+    uint8_t log2_sao_offset_scale_chroma;
 
-    uint8_t pps_extension_flag;
-    uint8_t pps_extension_data_flag;
 
     // Inferred parameters
     unsigned int *column_width;  ///< ColumnWidth
@@ -961,6 +966,7 @@ typedef struct PredictionUnit {
     Mv mvd;
     uint8_t merge_flag;
     uint8_t intra_pred_mode_c[4];
+    uint8_t chroma_mode_c[4];
 } PredictionUnit;
 
 typedef struct TransformTree {
@@ -976,8 +982,9 @@ typedef struct TransformUnit {
     int cu_qp_delta;
 
     // Inferred parameters;
-    int cur_intra_pred_mode;
-    int cur_intra_pred_mode_c;
+    int intra_pred_mode;
+    int intra_pred_mode_c;
+    int chroma_mode_c;
     uint8_t is_cu_qp_delta_coded;
 } TransformUnit;
 
@@ -1041,6 +1048,8 @@ typedef struct HEVCLocalContext {
     NeighbourAvailable  na;
 
     uint8_t cabac_state[HEVC_CONTEXTS];
+
+    uint8_t stat_coeff[4];
 
     uint8_t first_qp_group;
 
@@ -1284,6 +1293,8 @@ int ff_hevc_no_residual_syntax_flag_decode(HEVCContext *s);
 int ff_hevc_split_transform_flag_decode(HEVCContext *s, int log2_trafo_size);
 int ff_hevc_cbf_cb_cr_decode(HEVCContext *s, int trafo_depth);
 int ff_hevc_cbf_luma_decode(HEVCContext *s, int trafo_depth);
+int ff_hevc_log2_res_scale_abs(HEVCContext *s, int idx);
+int ff_hevc_res_scale_sign_flag(HEVCContext *s, int idx);
 
 /**
  * Get the number of candidate references for the current frame.
