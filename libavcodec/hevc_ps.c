@@ -1845,18 +1845,19 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
                    "diff_cu_chroma_qp_offset_depths is not yet implemented.\n");
         }
         pps->chroma_qp_offset_list_len_minus1 = get_ue_golomb_long(gb);
-        if (pps->chroma_qp_offset_list_len_minus1) {
+        if (pps->chroma_qp_offset_list_len_minus1 && pps->chroma_qp_offset_list_len_minus1 >= 5) {
             av_log(s->avctx, AV_LOG_ERROR,
-                   "chroma_qp_offset_list_len_minus1 is not yet implemented.\n");
+                   "chroma_qp_offset_list_len_minus1 shall be in the range [0, 5].\n");
+            return AVERROR_INVALIDDATA;
         }
         for (i = 0; i <= pps->chroma_qp_offset_list_len_minus1; i++) {
-            int cb_qp_offset_list = get_se_golomb_long(gb);
-            if (cb_qp_offset_list) {
+            pps->cb_qp_offset_list[i] = get_se_golomb_long(gb);
+            if (pps->cb_qp_offset_list[i]) {
                 av_log(s->avctx, AV_LOG_ERROR,
                        "cb_qp_offset_list is not yet implemented.\n");
             }
-            int cr_qp_offset_list = get_se_golomb_long(gb);
-            if (cr_qp_offset_list) {
+            pps->cr_qp_offset_list[i] = get_se_golomb_long(gb);
+            if (pps->cr_qp_offset_list[i]) {
                 av_log(s->avctx, AV_LOG_ERROR,
                        "cr_qp_offset_list is not yet implemented.\n");
             }
