@@ -824,6 +824,11 @@ static int hls_slice_header(HEVCContext *s)
             sh->slice_cr_qp_offset = 0;
         }
 
+        if (s->pps->chroma_qp_offset_list_enabled_flag)
+            sh->cu_chroma_qp_offset_enabled_flag = get_bits1(gb);
+        else
+            sh->cu_chroma_qp_offset_enabled_flag = 0;
+
         if (s->pps->deblocking_filter_control_present_flag) {
             int deblocking_filter_override_flag = 0;
 
@@ -1069,6 +1074,11 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
         int scan_idx   = SCAN_DIAG;
         int scan_idx_c = SCAN_DIAG;
         int cbf_luma = lc->tt.cbf_luma;
+        int cbf_chroma = SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0) ||
+                         SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0) ||
+                         (s->sps->chroma_array_type == 2 &&
+                         (SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0 + (1 << log2_trafo_size_c)) ||
+                         SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0 + (1 << log2_trafo_size_c))));
 
         if (s->pps->cu_qp_delta_enabled_flag && !lc->tu.is_cu_qp_delta_coded) {
             lc->tu.cu_qp_delta = ff_hevc_cu_qp_delta_abs(s);
@@ -1089,6 +1099,18 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
             }
 
             ff_hevc_set_qPy(s, x0, y0, cb_xBase, cb_yBase, log2_cb_size);
+
+        }
+
+        if (s->sh.cu_chroma_qp_offset_enabled_flag && cbf_chroma &&
+           !lc->cu.cu_transquant_bypass_flag  &&  !lc->tu.is_cu_chroma_qp_offset_coded) {
+            int cu_chroma_qp_offset_flag = ff_hevc_cu_chroma_qp_offset_flag(s);
+            if (cu_chroma_qp_offset_flag && s->pps->chroma_qp_offset_list_len_minus1 > 0) {
+                int cu_chroma_qp_offset_idx = ff_hevc_cu_chroma_qp_offset_idx(s);
+                av_log(s->avctx, AV_LOG_ERROR,
+                       "cu_chroma_qp_offset_idx not yet tested.\n");
+            }
+            lc->tu.is_cu_chroma_qp_offset_coded = 1;
         }
 
         if (lc->cu.pred_mode == MODE_INTRA && log2_trafo_size < 4) {
@@ -1240,8 +1262,8 @@ static int hls_transform_tree(HEVCContext *s, int x0, int y0,
         SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0) =
         SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0) = 0;
         if (s->sps->chroma_array_type == 2) {
-                SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0 + (1 << (log2_trafo_size - 1))) =
-                SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0 + (1 << (log2_trafo_size - 1))) = 0;
+            SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0 + (1 << (log2_trafo_size - 1))) =
+            SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0 + (1 << (log2_trafo_size - 1))) = 0;
         }
     }
 
@@ -2312,6 +2334,10 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
         lc->tu.cu_qp_delta          = 0;
     }
 
+	if (s->sh.cu_chroma_qp_offset_enabled_flag &&
+        log2_cb_size >= s->sps->log2_ctb_size - s->pps->diff_cu_chroma_qp_offset_depth) {
+        lc->tu.is_cu_chroma_qp_offset_coded = 0;
+	}
     if (split_cu_flag) {
         const int cb_size_split = cb_size >> 1;
         const int x1 = x0 + cb_size_split;

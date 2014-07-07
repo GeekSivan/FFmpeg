@@ -1833,27 +1833,23 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
         av_log(s->avctx, AV_LOG_ERROR,
                "cross_component_prediction_enabled_flag is not yet implemented.\n");
     }
-    int chroma_qp_offset_list_enabled_flag = get_bits1(gb);
-    if (chroma_qp_offset_list_enabled_flag) {
+    pps->chroma_qp_offset_list_enabled_flag = get_bits1(gb);
+    if (pps->chroma_qp_offset_list_enabled_flag) {
         av_log(s->avctx, AV_LOG_ERROR,
                "chroma_qp_offset_list_enabled_flag is not yet implemented.\n");
     }
-    if (chroma_qp_offset_list_enabled_flag) {
-        av_log(s->avctx, AV_LOG_ERROR,
-               "chroma_qp_offset_list_enabled_flag is not yet implemented.\n");
-    }
-    if (chroma_qp_offset_list_enabled_flag) {
-        int diff_cu_chroma_qp_offset_depth = get_ue_golomb_long(gb);
-        if (diff_cu_chroma_qp_offset_depth) {
+    if (pps->chroma_qp_offset_list_enabled_flag) {
+        pps->diff_cu_chroma_qp_offset_depth = get_ue_golomb_long(gb);
+        if (pps->diff_cu_chroma_qp_offset_depth) {
             av_log(s->avctx, AV_LOG_ERROR,
                    "diff_cu_chroma_qp_offset_depths is not yet implemented.\n");
         }
-        int chroma_qp_offset_list_len_minus1 = get_ue_golomb_long(gb);
-        if (chroma_qp_offset_list_len_minus1) {
+        pps->chroma_qp_offset_list_len_minus1 = get_ue_golomb_long(gb);
+        if (pps->chroma_qp_offset_list_len_minus1) {
             av_log(s->avctx, AV_LOG_ERROR,
                    "chroma_qp_offset_list_len_minus1 is not yet implemented.\n");
         }
-        for (i = 0; i <= chroma_qp_offset_list_len_minus1; i++) {
+        for (i = 0; i <= pps->chroma_qp_offset_list_len_minus1; i++) {
             int cb_qp_offset_list = get_se_golomb_long(gb);
             if (cb_qp_offset_list) {
                 av_log(s->avctx, AV_LOG_ERROR,
