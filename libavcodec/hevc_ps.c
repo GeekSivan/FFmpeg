@@ -1839,6 +1839,10 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps) {
                "chroma_qp_offset_list_enabled_flag is not yet implemented.\n");
     }
     if (chroma_qp_offset_list_enabled_flag) {
+        av_log(s->avctx, AV_LOG_ERROR,
+               "chroma_qp_offset_list_enabled_flag is not yet implemented.\n");
+    }
+    if (chroma_qp_offset_list_enabled_flag) {
         int diff_cu_chroma_qp_offset_depth = get_ue_golomb_long(gb);
         if (diff_cu_chroma_qp_offset_depth) {
             av_log(s->avctx, AV_LOG_ERROR,

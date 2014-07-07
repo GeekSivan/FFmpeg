@@ -1452,7 +1452,6 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
     } else {
         if (transform_skip_flag) {
             int rot = s->sps->transform_skip_rotation_enabled_flag &&
-                      log2_trafo_size == 2 &&
                       lc->cu.pred_mode == MODE_INTRA;
             if (rot) {
                 for (i = 0; i < (trafo_size * trafo_size  >> 1); i++)
