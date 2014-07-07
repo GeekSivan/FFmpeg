@@ -832,13 +832,11 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
 %if avx_enabled
-    punpcklwd         m4, m8, m5
-    punpcklwd         m2, m6, m7
-%if %1 > 4
-    punpckhwd         m8, m4, m5
-    punpckhwd         m3, m6, m7
-%endif
-    EPEL_COMPUTE      14, %1, m12, m13, m4, m6, m5, m7
+    punpcklwd         m4, m8, m9
+    punpcklwd         m2, m10, m11
+    punpckhwd         m8, m8, m9
+    punpckhwd         m3, m10, m11
+    EPEL_COMPUTE      14, %1, m12, m13, m4, m2, m8, m3
     UNI_COMPUTE       %1, %2, m0, m4, [pw_%2]
 %else
     UNI_COMPUTE       %1, %2, m0, m1, [pw_%2]
@@ -847,6 +845,11 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
     mova              m4, m5
     mova              m5, m6
     mova              m6, m7
+%if avx_enabled
+    mova              m8, m9
+    mova              m9, m10
+    mova             m10, m11
+%endif
     lea             dstq, [dstq+dststrideq]      ; dst += dststride
     lea             srcq, [srcq+srcstrideq]      ; src += srcstride
     dec          heightd                         ; cmp height
