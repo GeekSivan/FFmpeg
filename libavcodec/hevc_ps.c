@@ -1828,8 +1828,8 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
                    "log2_max_transform_skip_block_size_minus2 is partially implemented.\n");
         }
     }
-    int cross_component_prediction_enabled_flag = get_bits1(gb);
-    if (cross_component_prediction_enabled_flag) {
+    pps->cross_component_prediction_enabled_flag = get_bits1(gb);
+    if (pps->cross_component_prediction_enabled_flag) {
         av_log(s->avctx, AV_LOG_ERROR,
                "cross_component_prediction_enabled_flag is not yet implemented.\n");
     }
