@@ -1825,7 +1825,7 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps) {
         pps->log2_max_transform_skip_block_size = get_ue_golomb_long(gb) + 2;
         if (pps->log2_max_transform_skip_block_size > 2) {
             av_log(s->avctx, AV_LOG_ERROR,
-                   "log2_max_transform_skip_block_size_minus2 is not yet implemented.\n");
+                   "log2_max_transform_skip_block_size_minus2 is partially implemented.\n");
         }
     }
     int cross_component_prediction_enabled_flag = get_bits1(gb);
@@ -1866,15 +1866,15 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps) {
             }
         }
     }
-	int log2_sao_offset_scale_luma = get_ue_golomb_long(gb);
-    if (log2_sao_offset_scale_luma) {
+    pps->log2_sao_offset_scale_luma = get_ue_golomb_long(gb);
+    if (pps->log2_sao_offset_scale_luma > s->sps->bit_depth - 10) {
         av_log(s->avctx, AV_LOG_ERROR,
-               "log2_sao_offset_scale_luma is not yet implemented.\n");
+               "log2_sao_offset_scale_luma must be in range [0, %d]\n", s->sps->bit_depth - 10);
     }
-	int log2_sao_offset_scale_chroma = get_ue_golomb_long(gb);
-    if (log2_sao_offset_scale_chroma) {
+    pps->log2_sao_offset_scale_chroma = get_ue_golomb_long(gb);
+    if (pps->log2_sao_offset_scale_luma > s->sps->bit_depth - 10) {
         av_log(s->avctx, AV_LOG_ERROR,
-               "log2_sao_offset_scale_chroma is not yet implemented.\n");
+               "log2_sao_offset_scale_luma must be in range [0, %d]\n", s->sps->bit_depth - 10);
     }
 
     return(0);
