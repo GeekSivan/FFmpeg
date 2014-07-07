@@ -1068,7 +1068,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
          SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0 + (1 << log2_trafo_size_c))))) {
         int scan_idx   = SCAN_DIAG;
         int scan_idx_c = SCAN_DIAG;
-        int cbf_luma = SAMPLE_CBF(lc->tt.cbf_flags[trafo_depth], x0, y0) & CBF_LUMA_FLAG;
+        int cbf_luma = lc->tt.cbf_luma;
 
         if (s->pps->cu_qp_delta_enabled_flag && !lc->tu.is_cu_qp_delta_coded) {
             lc->tu.cu_qp_delta = ff_hevc_cu_qp_delta_abs(s);
