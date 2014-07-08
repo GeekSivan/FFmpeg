@@ -400,6 +400,16 @@ void ff_hevc_put_hevc_bi_epel_hv24_10_avx2(uint8_t *dst, ptrdiff_t dststride, ui
                                                          _src2stride, height, mx, my, width);
 }
 
+void ff_hevc_put_hevc_bi_epel_hv48_8_avx2(uint8_t *dst, ptrdiff_t dststride, uint8_t *src,
+                                                   ptrdiff_t _srcstride, int16_t*src2, ptrdiff_t _src2stride,
+                                                   int height, intptr_t mx, intptr_t my, int width)
+{
+        ff_hevc_put_hevc_bi_epel_hv32_8_avx2(dst, dststride, src, _srcstride, src2,
+                                                         _src2stride, height, mx, my, width);
+        ff_hevc_put_hevc_bi_epel_hv16_8_sse4(dst+32, dststride, src+32, _srcstride, src2+32,
+                                                         _src2stride, height, mx, my, width);
+}
+
 mc_rep_uni_func(pel_pixels, 8, 64, 128, avx2);//used for 10bit
 mc_rep_uni_func(pel_pixels, 8, 32, 96, avx2); //used for 10bit
 
@@ -872,11 +882,11 @@ c->upsample_filter_block_cr_v[0] = ff_upsample_filter_block_cr_v_all_sse;
             c->put_hevc_epel_uni[8][1][1] = ff_hevc_put_hevc_uni_epel_hv48_8_avx2;
             c->put_hevc_epel_uni[9][1][1] = ff_hevc_put_hevc_uni_epel_hv64_8_avx2;
 
-  //          c->put_hevc_epel_bi[5][1][1] = ff_hevc_put_hevc_bi_epel_hv16_8_avx2;
-  //          c->put_hevc_epel_bi[6][1][1] = ff_hevc_put_hevc_bi_epel_hv24_8_avx2;
-  //          c->put_hevc_epel_bi[7][1][1] = ff_hevc_put_hevc_bi_epel_hv32_8_avx2;
-  //          c->put_hevc_epel_bi[8][1][1] = ff_hevc_put_hevc_bi_epel_hv48_8_avx2;
-  //          c->put_hevc_epel_bi[9][1][1] = ff_hevc_put_hevc_bi_epel_hv64_8_avx2;
+            c->put_hevc_epel_bi[5][1][1] = ff_hevc_put_hevc_bi_epel_hv16_8_avx2;
+            c->put_hevc_epel_bi[6][1][1] = ff_hevc_put_hevc_bi_epel_hv24_8_avx2;
+            c->put_hevc_epel_bi[7][1][1] = ff_hevc_put_hevc_bi_epel_hv32_8_avx2;
+            c->put_hevc_epel_bi[8][1][1] = ff_hevc_put_hevc_bi_epel_hv48_8_avx2;
+            c->put_hevc_epel_bi[9][1][1] = ff_hevc_put_hevc_bi_epel_hv64_8_avx2;
 
 #endif
         }

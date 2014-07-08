@@ -926,14 +926,17 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
     punpckhwd         m3, m6, m7
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
-%if avx_enabled
+%if avx_enabled && (%2 == 8)
     punpcklwd         m4, m8, m9
     punpcklwd         m2, m10, m11
     punpckhwd         m8, m8, m9
     punpckhwd         m3, m10, m11
     EPEL_COMPUTE      14, %1, m12, m13, m4, m2, m8, m3
     SIMPLE_BILOAD     %1, src2q, m8, m3
-    BI_COMPUTE        %1, %2, m0, m4, m8, m3, [pw_bi_%2]
+    vinserti128       m1, m8, xm3, 1
+    vextracti128      xm8, m8, 1
+    vinserti128       m2, m3, xm8, 0
+    BI_COMPUTE        %1, %2, m0, m4, m1, m2, [pw_bi_%2]
 %else
     SIMPLE_BILOAD     %1, src2q, m8, m9
     BI_COMPUTE        %1, %2, m0, m1, m8, m9, [pw_bi_%2]
