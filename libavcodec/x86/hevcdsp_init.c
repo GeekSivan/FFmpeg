@@ -406,7 +406,7 @@ void ff_hevc_put_hevc_bi_epel_hv48_8_avx2(uint8_t *dst, ptrdiff_t dststride, uin
 {
         ff_hevc_put_hevc_bi_epel_hv32_8_avx2(dst, dststride, src, _srcstride, src2,
                                                          _src2stride, height, mx, my, width);
-        ff_hevc_put_hevc_bi_epel_hv16_8_sse4(dst+32, dststride, src+32, _srcstride, src2+32,
+        ff_hevc_put_hevc_bi_epel_hv16_8_avx2(dst+32, dststride, src+32, _srcstride, src2+32,
                                                          _src2stride, height, mx, my, width);
 }
 
@@ -489,7 +489,7 @@ mc_rep_funcs(epel_hv, 8,  8, 64, sse4);
 mc_rep_funcs(epel_hv, 8,  8, 48, sse4);
 mc_rep_funcs(epel_hv, 8,  8, 32, sse4);
 mc_rep_funcs(epel_hv, 8,  8, 24, sse4);
-mc_rep_funcs(epel_hv, 8,  8, 16, sse4);
+//mc_rep_funcs(epel_hv, 8,  8, 16, sse4);
 mc_rep_funcs(epel_hv, 8,  4, 12, sse4);
 mc_rep_funcs(epel_hv,10,  8, 64, sse4);
 mc_rep_funcs(epel_hv,10,  8, 48, sse4);
