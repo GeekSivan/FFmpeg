@@ -113,24 +113,26 @@ static void FUNC(transquant_bypass32x32)(uint8_t *_dst, int16_t *coeffs,
 
 
 static void FUNC(transform_rdpcm)(uint8_t *_dst, int16_t *_coeffs,
-                                 ptrdiff_t stride, int16_t size, int mode)
+                                 ptrdiff_t stride, int16_t log2_size, int mode)
 {
     pixel *dst = (pixel *)_dst;
     int16_t *coeffs = (int16_t *) _coeffs;
-    int shift  = 13 - BIT_DEPTH;
-#if BIT_DEPTH <= 13
-    int offset = 1 << (shift - 1);
-#else
-    int offset = 0;
-#endif
+    int shift  = 15 - BIT_DEPTH - log2_size;
     int x, y;
+    int size = 1 << log2_size;
 
     stride /= sizeof(pixel);
 
 
 
-    for (x = 0; x < size * size; x ++)
-        _coeffs[x] = (_coeffs[x] + offset) >> shift;
+    if (shift > 0) {
+        int offset = 1 << (shift - 1);
+        for (x = 0; x < size * size; x ++)
+            _coeffs[x] = (_coeffs[x] + offset) >> shift;
+    } else {
+        for (x = 0; x < size * size; x ++)
+            _coeffs[x] = (_coeffs[x]) << -shift;
+    }
 
     if (mode) {
         coeffs += size;
@@ -157,23 +159,28 @@ static void FUNC(transform_rdpcm)(uint8_t *_dst, int16_t *_coeffs,
 
 
 static void FUNC(transform_skip)(uint8_t *_dst, int16_t *coeffs,
-                                 ptrdiff_t stride, int16_t size)
+                                 ptrdiff_t stride, int16_t log2_size)
 {
     pixel *dst = (pixel *)_dst;
-    int shift  = 13 - BIT_DEPTH;
-#if BIT_DEPTH <= 13
-    int offset = 1 << (shift - 1);
-#else
-    int offset = 0;
-#endif
+    int shift  = 15 - BIT_DEPTH - log2_size;
     int x, y;
+    int size = 1 << log2_size;
 
     stride /= sizeof(pixel);
 
-    for (y = 0; y < size; y++) {
-        for (x = 0; x < size; x++)
-            dst[x] = av_clip_pixel(dst[x] + ((coeffs[y * size + x] + offset) >> shift));
-        dst += stride;
+    if (shift > 0) {
+        int offset = 1 << (shift - 1);
+        for (y = 0; y < size; y++) {
+            for (x = 0; x < size; x++)
+                dst[x] = av_clip_pixel(dst[x] + ((coeffs[y * size + x] + offset) >> shift));
+            dst += stride;
+        }
+    } else {
+        for (y = 0; y < size; y++) {
+            for (x = 0; x < size; x++)
+                dst[x] = av_clip_pixel(dst[x] + ((coeffs[y * size + x]) << -shift));
+            dst += stride;
+        }
     }
 }
 
