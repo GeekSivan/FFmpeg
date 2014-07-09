@@ -1636,23 +1636,15 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
             sps_extension_flag[i] = get_bits1(gb);
         skip_bits(gb, 7); //sps_extension_7bits = get_bits(gb, 7);
         if (sps_extension_flag[0]) {
-            int explicit_rdpcm_enabled_flag;
             int extended_precision_processing_flag;
             int high_precision_offsets_enabled_flag;
-            int fast_rice_adaptation_enabled_flag;
             int cabac_bypass_alignment_enabled_flag;
 
             sps->transform_skip_rotation_enabled_flag = get_bits1(gb);
             sps->transform_skip_context_enabled_flag  = get_bits1(gb);
             sps->implicit_rdpcm_enabled_flag = get_bits1(gb);
-            if (sps->implicit_rdpcm_enabled_flag)
-                av_log(s->avctx, AV_LOG_WARNING,
-                   "implicit_rdpcm_enabled_flag is partially implemented\n");
 
             sps->explicit_rdpcm_enabled_flag = get_bits1(gb);
-            if (sps->explicit_rdpcm_enabled_flag)
-                av_log(s->avctx, AV_LOG_WARNING,
-                   "explicit_rdpcm_enabled_flag is partially implemented\n");
 
             extended_precision_processing_flag = get_bits1(gb);
             if (extended_precision_processing_flag)
@@ -1666,9 +1658,6 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
                    "high_precision_offsets_enabled_flag not yet implemented\n");
 
             sps->persistent_rice_adaptation_enabled_flag = get_bits1(gb);
-            if (sps->persistent_rice_adaptation_enabled_flag)
-                av_log(s->avctx, AV_LOG_WARNING,
-                   "persistent_rice_adaptation_enabled_flag not yet implemented\n");
 
             cabac_bypass_alignment_enabled_flag  = get_bits1(gb);
             if (cabac_bypass_alignment_enabled_flag)
@@ -1823,27 +1812,15 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
 
     if (pps->transform_skip_enabled_flag) {
         pps->log2_max_transform_skip_block_size = get_ue_golomb_long(gb) + 2;
-        if (pps->log2_max_transform_skip_block_size > 2) {
-            av_log(s->avctx, AV_LOG_ERROR,
-                   "log2_max_transform_skip_block_size_minus2 is partially implemented.\n");
-        }
     }
     pps->cross_component_prediction_enabled_flag = get_bits1(gb);
     if (pps->cross_component_prediction_enabled_flag) {
-        av_log(s->avctx, AV_LOG_ERROR,
+        av_log(s->avctx, AV_LOG_WARNING,
                "cross_component_prediction_enabled_flag is not yet implemented.\n");
     }
     pps->chroma_qp_offset_list_enabled_flag = get_bits1(gb);
     if (pps->chroma_qp_offset_list_enabled_flag) {
-        av_log(s->avctx, AV_LOG_ERROR,
-               "chroma_qp_offset_list_enabled_flag is not yet implemented.\n");
-    }
-    if (pps->chroma_qp_offset_list_enabled_flag) {
         pps->diff_cu_chroma_qp_offset_depth = get_ue_golomb_long(gb);
-        if (pps->diff_cu_chroma_qp_offset_depth) {
-            av_log(s->avctx, AV_LOG_ERROR,
-                   "diff_cu_chroma_qp_offset_depths is not yet implemented.\n");
-        }
         pps->chroma_qp_offset_list_len_minus1 = get_ue_golomb_long(gb);
         if (pps->chroma_qp_offset_list_len_minus1 && pps->chroma_qp_offset_list_len_minus1 >= 5) {
             av_log(s->avctx, AV_LOG_ERROR,
@@ -1853,26 +1830,18 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
         for (i = 0; i <= pps->chroma_qp_offset_list_len_minus1; i++) {
             pps->cb_qp_offset_list[i] = get_se_golomb_long(gb);
             if (pps->cb_qp_offset_list[i]) {
-                av_log(s->avctx, AV_LOG_ERROR,
-                       "cb_qp_offset_list is not yet implemented.\n");
+                av_log(s->avctx, AV_LOG_WARNING,
+                       "cb_qp_offset_list not tested yet.\n");
             }
             pps->cr_qp_offset_list[i] = get_se_golomb_long(gb);
             if (pps->cr_qp_offset_list[i]) {
-                av_log(s->avctx, AV_LOG_ERROR,
-                       "cr_qp_offset_list is not yet implemented.\n");
+                av_log(s->avctx, AV_LOG_WARNING,
+                       "cb_qp_offset_list not tested yet\.n");
             }
         }
     }
     pps->log2_sao_offset_scale_luma = get_ue_golomb_long(gb);
-    if (pps->log2_sao_offset_scale_luma && pps->log2_sao_offset_scale_luma > sps->bit_depth - 10) {
-        av_log(s->avctx, AV_LOG_ERROR,
-               "log2_sao_offset_scale_luma must be in range [0, %d]\n", sps->bit_depth - 10);
-    }
     pps->log2_sao_offset_scale_chroma = get_ue_golomb_long(gb);
-    if (pps->log2_sao_offset_scale_luma && pps->log2_sao_offset_scale_luma > sps->bit_depth - 10) {
-        av_log(s->avctx, AV_LOG_ERROR,
-               "log2_sao_offset_scale_luma must be in range [0, %d]\n", sps->bit_depth - 10);
-    }
 
     return(0);
 }
