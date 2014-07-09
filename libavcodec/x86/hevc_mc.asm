@@ -766,21 +766,21 @@ cglobal hevc_put_hevc_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstride, h
     EPEL_HV_FILTER    %2
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP              m8, m1
 %endif
     SWAP              m4, m0
     lea             srcq, [srcq + srcstrideq]
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP              m9, m1
 %endif
     SWAP              m5, m0
     lea             srcq, [srcq + srcstrideq]
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP             m10, m1
 %endif
     SWAP              m6, m0
@@ -788,7 +788,7 @@ cglobal hevc_put_hevc_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstride, h
 .loop
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP             m11, m1
 %endif
     SWAP              m7, m0
@@ -799,23 +799,27 @@ cglobal hevc_put_hevc_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstride, h
     punpckhwd         m3, m6, m7
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
-%if avx_enabled && (%2 == 8)
+%if (%1 > 8 && (%2 == 8))
     punpcklwd         m4, m8, m9
     punpcklwd         m2, m10, m11
     punpckhwd         m8, m8, m9
     punpckhwd         m3, m10, m11
     EPEL_COMPUTE      14, %1, m12, m13, m4, m2, m8, m3
+%if avx_enabled
     vinserti128       m2, m0, xm4, 1
     vextracti128      xm3, m0, 1
     vinserti128       m3, m4, xm3, 0
     PEL_10STORE%1     dstq, m2, m3
+%else
+    PEL_10STORE%1     dstq, m0, m4
+%endif
 %else
     PEL_10STORE%1     dstq, m0, m1
 %endif
     movdqa            m4, m5
     movdqa            m5, m6
     movdqa            m6, m7
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     mova              m8, m9
     mova              m9, m10
     mova             m10, m11
@@ -829,21 +833,21 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
     EPEL_HV_FILTER    %2
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP              m8, m1
 %endif
     SWAP              m4, m0
     lea             srcq, [srcq + srcstrideq]
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP              m9, m1
 %endif
     SWAP              m5, m0
     lea             srcq, [srcq + srcstrideq]
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP             m10, m1
 %endif
     SWAP              m6, m0
@@ -851,7 +855,7 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
 .loop
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP             m11, m1
 %endif
     mova              m7, m0
@@ -862,7 +866,7 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
     punpckhwd         m3, m6, m7
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     punpcklwd         m4, m8, m9
     punpcklwd         m2, m10, m11
     punpckhwd         m8, m8, m9
@@ -876,7 +880,7 @@ cglobal hevc_put_hevc_uni_epel_hv%1_%2, 7, 9, 12 , dst, dststride, src, srcstrid
     mova              m4, m5
     mova              m5, m6
     mova              m6, m7
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     mova              m8, m9
     mova              m9, m10
     mova             m10, m11
@@ -893,21 +897,21 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
     EPEL_HV_FILTER    %2
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP              m8, m1
 %endif
     SWAP              m4, m0
     lea             srcq, [srcq + srcstrideq]
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP              m9, m1
 %endif
     SWAP              m5, m0
     lea             srcq, [srcq + srcstrideq]
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP             m10, m1
 %endif
     SWAP              m6, m0
@@ -915,7 +919,7 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
 .loop
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m14, m15
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     SWAP             m11, m1
 %endif
     SWAP              m7, m0
@@ -926,17 +930,21 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
     punpckhwd         m3, m6, m7
 %endif
     EPEL_COMPUTE      14, %1, m12, m13
-%if avx_enabled && (%2 == 8)
+%if (%1 > 8 && (%2 == 8))
     punpcklwd         m4, m8, m9
     punpcklwd         m2, m10, m11
     punpckhwd         m8, m8, m9
     punpckhwd         m3, m10, m11
     EPEL_COMPUTE      14, %1, m12, m13, m4, m2, m8, m3
     SIMPLE_BILOAD     %1, src2q, m8, m3
+%if avx_enabled
     vinserti128       m1, m8, xm3, 1
     vextracti128      xm8, m8, 1
     vinserti128       m2, m3, xm8, 0
     BI_COMPUTE        %1, %2, m0, m4, m1, m2, [pw_bi_%2]
+%else
+    BI_COMPUTE        %1, %2, m0, m4, m8, m3, [pw_bi_%2]
+%endif
 %else
     SIMPLE_BILOAD     %1, src2q, m8, m9
     BI_COMPUTE        %1, %2, m0, m1, m8, m9, [pw_bi_%2]
@@ -945,7 +953,7 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
     mova              m4, m5
     mova              m5, m6
     mova              m6, m7
-%if avx_enabled
+%if (%1 > 8 && (%2 == 8))
     mova              m8, m9
     mova              m9, m10
     mova             m10, m11
@@ -1449,6 +1457,7 @@ HEVC_PUT_HEVC_EPEL_HV 2,  8
 HEVC_PUT_HEVC_EPEL_HV 4,  8
 HEVC_PUT_HEVC_EPEL_HV 6,  8
 HEVC_PUT_HEVC_EPEL_HV 8,  8
+HEVC_PUT_HEVC_EPEL_HV 16, 8
 
 HEVC_PUT_HEVC_EPEL_HV 2, 10
 HEVC_PUT_HEVC_EPEL_HV 4, 10
