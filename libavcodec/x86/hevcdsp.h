@@ -245,6 +245,43 @@ QPEL_PROTOTYPES(qpel_v, 10, sse4);
 QPEL_PROTOTYPES(qpel_hv,  8, sse4);
 QPEL_PROTOTYPES(qpel_hv, 10, sse4);
 
+#ifdef OPTI_ASM
+PEL_PROTOTYPE(qpel_h16, 8, avx2);
+PEL_PROTOTYPE(qpel_h24, 8, avx2);
+PEL_PROTOTYPE(qpel_h32, 8, avx2);
+PEL_PROTOTYPE(qpel_h48, 8, avx2);
+PEL_PROTOTYPE(qpel_h64, 8, avx2);
+
+PEL_PROTOTYPE(qpel_h16,10, avx2);
+PEL_PROTOTYPE(qpel_h24,10, avx2);
+PEL_PROTOTYPE(qpel_h32,10, avx2);
+PEL_PROTOTYPE(qpel_h48,10, avx2);
+PEL_PROTOTYPE(qpel_h64,10, avx2);
+
+PEL_PROTOTYPE(qpel_v16, 8, avx2);
+PEL_PROTOTYPE(qpel_v24, 8, avx2);
+PEL_PROTOTYPE(qpel_v32, 8, avx2);
+PEL_PROTOTYPE(qpel_v48, 8, avx2);
+PEL_PROTOTYPE(qpel_v64, 8, avx2);
+
+PEL_PROTOTYPE(qpel_v16,10, avx2);
+PEL_PROTOTYPE(qpel_v24,10, avx2);
+PEL_PROTOTYPE(qpel_v32,10, avx2);
+PEL_PROTOTYPE(qpel_v48,10, avx2);
+PEL_PROTOTYPE(qpel_v64,10, avx2);
+
+PEL_PROTOTYPE(qpel_hv16, 8, avx2);
+PEL_PROTOTYPE(qpel_hv24, 8, avx2);
+PEL_PROTOTYPE(qpel_hv32, 8, avx2);
+PEL_PROTOTYPE(qpel_hv48, 8, avx2);
+PEL_PROTOTYPE(qpel_hv64, 8, avx2);
+
+PEL_PROTOTYPE(qpel_hv16,10, avx2);
+PEL_PROTOTYPE(qpel_hv24,10, avx2);
+PEL_PROTOTYPE(qpel_hv32,10, avx2);
+PEL_PROTOTYPE(qpel_hv48,10, avx2);
+PEL_PROTOTYPE(qpel_hv64,10, avx2);
+#endif
 
 WEIGHTING_PROTOTYPES(8, sse4);
 WEIGHTING_PROTOTYPES(10, sse4);
