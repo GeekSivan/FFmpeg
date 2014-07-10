@@ -988,7 +988,10 @@ typedef struct TransformTree {
 } TransformTree;
 
 typedef struct TransformUnit {
+    DECLARE_ALIGNED(32, int16_t, coeffs[2][MAX_TB_SIZE * MAX_TB_SIZE]);
     int cu_qp_delta;
+
+    int res_scale_val;
 
     // Inferred parameters;
     int intra_pred_mode;
@@ -998,6 +1001,7 @@ typedef struct TransformUnit {
     uint8_t is_cu_chroma_qp_offset_coded;
     int8_t  cu_qp_offset_cb;
     int8_t  cu_qp_offset_cr;
+    uint8_t cross_pf;
 } TransformUnit;
 
 typedef struct DBParams {

@@ -1079,8 +1079,8 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
     int vshift = s->sps->vshift[c_idx];
     uint8_t *dst = &s->frame->data[c_idx][(y0 >> vshift) * stride +
                                           ((x0 >> hshift) << s->sps->pixel_shift)];
-    DECLARE_ALIGNED(16, int16_t, coeffs[MAX_TB_SIZE * MAX_TB_SIZE]);
-    DECLARE_ALIGNED(8, uint8_t, significant_coeff_group_flag[8][8]) = {{0}};
+    int16_t *coeffs = lc->tu.coeffs[c_idx > 0];
+    uint8_t significant_coeff_group_flag[8][8] = {{0}};
     int explicit_rdpcm_flag = 0;
     int explicit_rdpcm_dir_flag;
 
@@ -1509,12 +1509,12 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
     }
 
     if (lc->cu.cu_transquant_bypass_flag) {
-        if (explicit_rdpcm_flag || (s->sps->implicit_rdpcm_enabled_flag && (pred_mode_intra == 10 || pred_mode_intra == 26))) {
+        if (explicit_rdpcm_flag || (s->sps->implicit_rdpcm_enabled_flag &&
+                                    (pred_mode_intra == 10 || pred_mode_intra == 26))) {
             int mode = s->sps->implicit_rdpcm_enabled_flag ? (pred_mode_intra == 26) : explicit_rdpcm_dir_flag;
 
-            s->hevcdsp.transform_rdpcm(dst, coeffs, stride, log2_trafo_size, mode);
-        } else
-            s->hevcdsp.transquant_bypass[log2_trafo_size-2](dst, coeffs, stride);
+            s->hevcdsp.transform_rdpcm(coeffs, log2_trafo_size, mode);
+        }
     } else {
         if (transform_skip_flag) {
             int rot = s->sps->transform_skip_rotation_enabled_flag &&
@@ -1523,19 +1523,22 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                 for (i = 0; i < (trafo_size * trafo_size  >> 1); i++)
                     FFSWAP(int16_t, coeffs[i], coeffs[trafo_size * trafo_size - i - 1]);
             }
+
+            s->hevcdsp.transform_skip(coeffs, log2_trafo_size);
+
             if (explicit_rdpcm_flag || (s->sps->implicit_rdpcm_enabled_flag &&
-                                        lc->cu.pred_mode == MODE_INTRA && (pred_mode_intra == 10 || pred_mode_intra == 26))) {
+                                        lc->cu.pred_mode == MODE_INTRA &&
+                                        (pred_mode_intra == 10 || pred_mode_intra == 26))) {
                 int mode = s->sps->implicit_rdpcm_enabled_flag ? (pred_mode_intra == 26) : explicit_rdpcm_dir_flag;
                 
-                s->hevcdsp.transform_rdpcm(dst, coeffs, stride, log2_trafo_size, mode);
-            } else
-                s->hevcdsp.transform_skip(dst, coeffs, stride, log2_trafo_size);
-        } else if (lc->cu.pred_mode == MODE_INTRA && c_idx == 0 && log2_trafo_size == 2)
-            s->hevcdsp.transform_4x4_luma_add(dst, coeffs, stride);
-        else {
+                s->hevcdsp.transform_rdpcm(coeffs, log2_trafo_size, mode);
+            }
+        } else if (lc->cu.pred_mode == MODE_INTRA && c_idx == 0 && log2_trafo_size == 2) {
+            s->hevcdsp.idct_4x4_luma(coeffs);
+        } else {
             int max_xy = FFMAX(last_significant_coeff_x, last_significant_coeff_y);
             if (max_xy == 0)
-                s->hevcdsp.transform_dc_add[log2_trafo_size-2](dst, coeffs, stride);
+                s->hevcdsp.idct_dc[log2_trafo_size-2](coeffs);
             else {
                 int col_limit = last_significant_coeff_x + last_significant_coeff_y + 4;
                 if (max_xy < 4)
@@ -1544,10 +1547,18 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                     col_limit = FFMIN(8, col_limit);
                 else if (max_xy < 12)
                     col_limit = FFMIN(24, col_limit);
-                s->hevcdsp.transform_add[log2_trafo_size-2](dst, coeffs, stride, col_limit);
+                s->hevcdsp.idct[log2_trafo_size-2](coeffs, col_limit);
             }
         }
     }
+    if (lc->tu.cross_pf) {
+        int16_t *coeffs_y = lc->tu.coeffs[0];
+
+        for (i = 0; i < (trafo_size * trafo_size); i++) {
+            coeffs[i] = coeffs[i] + ((lc->tu.res_scale_val * coeffs_y[i]) >> 3);
+        }
+    }
+    s->hevcdsp.transform_add[log2_trafo_size-2](dst, coeffs, stride);
 }
 
 void ff_hevc_hls_mvd_coding(HEVCContext *s, int x0, int y0, int log2_cb_size)

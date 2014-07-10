@@ -1043,11 +1043,17 @@ static void hls_sao_param(HEVCContext *s, int rx, int ry)
 #undef CTB
 
 static int hls_cross_component_pred(HEVCContext *s, int idx) {
-
+    HEVCLocalContext *lc    = s->HEVClc;
     int log2_res_scale_abs_plus1 = ff_hevc_log2_res_scale_abs(s, idx);
+
     if (log2_res_scale_abs_plus1 !=  0) {
         int res_scale_sign_flag = ff_hevc_res_scale_sign_flag(s, idx);
+        lc->tu.res_scale_val = (1 << (log2_res_scale_abs_plus1 - 1)) *
+                               (1 - 2 * res_scale_sign_flag);
+    } else {
+        lc->tu.res_scale_val = 0;
     }
+
 
     return 0;
 }
@@ -1140,16 +1146,18 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
             }
         }
 
+        lc->tu.cross_pf = 0;
+
         if (cbf_luma)
             ff_hevc_hls_residual_coding(s, x0, y0, log2_trafo_size, scan_idx, 0);
         if (log2_trafo_size > 2 || s->sps->chroma_array_type == 3) {
             int trafo_size_h = 1 << (log2_trafo_size_c + s->sps->hshift[1]);
             int trafo_size_v = 1 << (log2_trafo_size_c + s->sps->vshift[1]);
-            int cross_pf     = (s->pps->cross_component_prediction_enabled_flag && cbf_luma &&
+            lc->tu.cross_pf  = (s->pps->cross_component_prediction_enabled_flag && cbf_luma &&
                                 (lc->cu.pred_mode == MODE_INTER ||
                                  (lc->tu.chroma_mode_c ==  4)));
 
-            if (cross_pf) {
+            if (lc->tu.cross_pf) {
                 hls_cross_component_pred(s, 0);
             }
             for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
@@ -1160,9 +1168,25 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                 if (SAMPLE_CBF(lc->tt.cbf_cb[trafo_depth], x0, y0 + (i << log2_trafo_size_c)))
                     ff_hevc_hls_residual_coding(s, x0, y0 + (i << log2_trafo_size_c),
                                                 log2_trafo_size_c, scan_idx_c, 1);
+                else
+                    if (lc->tu.cross_pf) {
+                        ptrdiff_t stride = s->frame->linesize[1];
+                        int hshift = s->sps->hshift[1];
+                        int vshift = s->sps->vshift[1];
+                        int16_t *coeffs_y = lc->tu.coeffs[0];
+                        int16_t *coeffs =   lc->tu.coeffs[1];
+                        int size = 1 << log2_trafo_size_c;
+
+                        uint8_t *dst = &s->frame->data[1][(y0 >> vshift) * stride +
+                                                              ((x0 >> hshift) << s->sps->pixel_shift)];
+                        for (i = 0; i < (size * size); i++) {
+                            coeffs[i] = ((lc->tu.res_scale_val * coeffs_y[i]) >> 3);
+                        }
+                        s->hevcdsp.transform_add[log2_trafo_size-2](dst, coeffs, stride);
+                    }
             }
 
-            if (cross_pf) {
+            if (lc->tu.cross_pf) {
                 hls_cross_component_pred(s, 1);
             }
             for (i = 0; i < (s->sps->chroma_array_type  ==  2 ? 2 : 1 ); i++ ) {
@@ -1173,6 +1197,22 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                 if (SAMPLE_CBF(lc->tt.cbf_cr[trafo_depth], x0, y0 + (i << log2_trafo_size_c)))
                     ff_hevc_hls_residual_coding(s, x0, y0 + (i << log2_trafo_size_c),
                                                 log2_trafo_size_c, scan_idx_c, 2);
+                else
+                    if (lc->tu.cross_pf) {
+                        ptrdiff_t stride = s->frame->linesize[2];
+                        int hshift = s->sps->hshift[2];
+                        int vshift = s->sps->vshift[2];
+                        int16_t *coeffs_y = lc->tu.coeffs[0];
+                        int16_t *coeffs =   lc->tu.coeffs[1];
+                        int size = 1 << log2_trafo_size_c;
+
+                        uint8_t *dst = &s->frame->data[2][(y0 >> vshift) * stride +
+                                                          ((x0 >> hshift) << s->sps->pixel_shift)];
+                        for (i = 0; i < (size * size); i++) {
+                            coeffs[i] = ((lc->tu.res_scale_val * coeffs_y[i]) >> 3);
+                        }
+                        s->hevcdsp.transform_add[log2_trafo_size-2](dst, coeffs, stride);
+                    }
             }
         } else if (blk_idx == 3) {
             int trafo_size_h = 1 << (log2_trafo_size + 1);
