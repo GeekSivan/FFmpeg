@@ -499,9 +499,6 @@ static int hls_slice_header(HEVCContext *s)
             av_log(s->avctx, AV_LOG_ERROR, "IRAP %d\n", s->nal_unit_type);
     }
 
-    if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
-        sh->no_output_of_prior_pics_flag = 1;
-
     sh->pps_id = get_ue_golomb_long(gb);
     if (sh->pps_id >= MAX_PPS_COUNT || !s->pps_list[sh->pps_id]) {
         av_log(s->avctx, AV_LOG_ERROR, "PPS id out of range: %d\n", sh->pps_id);
@@ -536,6 +533,9 @@ static int hls_slice_header(HEVCContext *s)
 
     s->avctx->profile = s->sps->ptl.general_ptl.profile_idc;
     s->avctx->level   = s->sps->ptl.general_ptl.level_idc;
+
+    if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
+        sh->no_output_of_prior_pics_flag = 1;
 
     sh->dependent_slice_segment_flag = 0;
     if (!sh->first_slice_in_pic_flag) {
@@ -3166,6 +3166,7 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
         }
         break;
     case NAL_EOS_NUT:
+        s->last_eos = 1;
     case NAL_EOB_NUT:
         s->seq_decode = (s->seq_decode + 1) & 0xff;
         s->max_ra     = INT_MAX;
