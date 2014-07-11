@@ -290,10 +290,10 @@ QPEL_TABLE 10, 8, w, avx2
     SBUTTERFLY        wd, 4, 5, %4
     SBUTTERFLY        wd, 6, 7, %4
 %else
-    punpcklwd         m0, m1
-    punpcklwd         m2, m3
-    punpcklwd         m4, m5
-    punpcklwd         m6, m7
+    punpcklbw         m0, m1
+    punpcklbw         m2, m3
+    punpcklbw         m4, m5
+    punpcklbw         m6, m7
 %endif
 %else
 %if %3 > 4
@@ -302,10 +302,10 @@ QPEL_TABLE 10, 8, w, avx2
     SBUTTERFLY        dq, 4, 5, %4
     SBUTTERFLY        dq, 6, 7, %4
 %else
-    punpckldq         m0, m1
-    punpckldq         m2, m3
-    punpckldq         m4, m5
-    punpckldq         m6, m7
+    punpcklwd         m0, m1
+    punpcklwd         m2, m3
+    punpcklwd         m4, m5
+    punpcklwd         m6, m7
 %endif
 %endif
 %endmacro
@@ -520,9 +520,8 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m0, m2
     paddd             m4, m6
     paddd             m0, m4
-%if %2 != 8
     psrad             m0, %2-8
-%endif
+
 %if %1 > 4
     pmaddwd           m1, [rfilterq + %3q*8   ]
     pmaddwd           m3, [rfilterq + %3q*8+%%offset]
@@ -531,16 +530,38 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m1, m3
     paddd             m5, m7
     paddd             m1, m5
-%if %2 != 8
     psrad             m1, %2-8
-%endif
 %endif
     p%4               m0, m1
 %endif
 %endmacro
 
-%macro QPEL_COMPUTE 2     ; width, bitdepth
+%macro QPEL_COMPUTE 2-3     ; width, bitdepth
 %if %2 == 8
+%if avx_enabled && (%0 == 3)
+
+    vextracti128 xm10, m0, 1
+    vinserti128 m10, m1, xm10, 0
+    vinserti128 m0, m0, xm1, 1
+    mova m1, m10
+
+    vextracti128 xm10, m2, 1
+    vinserti128 m10, m3, xm10, 0
+    vinserti128 m2, m2, xm3, 1
+    mova m3, m10
+
+
+    vextracti128 xm10, m4, 1
+    vinserti128 m10, m5, xm10, 0
+    vinserti128 m4, m4, xm5, 1
+    mova m5, m10
+
+    vextracti128 xm10, m6, 1
+    vinserti128 m10, m7, xm10, 0
+    vinserti128 m6, m6, xm7, 1
+    mova m7, m10
+%endif
+
     pmaddubsw         m0, m12   ;x1*c1+x2*c2
     pmaddubsw         m2, m13   ;x3*c3+x4*c4
     pmaddubsw         m4, m14   ;x5*c5+x6*c6
@@ -565,9 +586,7 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m0, m2
     paddd             m4, m6
     paddd             m0, m4
-%if %2 != 8
     psrad             m0, %2-8
-%endif
 %if %1 > 4
     pmaddwd           m1, m12
     pmaddwd           m3, m13
@@ -576,9 +595,7 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m1, m3
     paddd             m5, m7
     paddd             m1, m5
-%if %2 != 8
     psrad             m1, %2-8
-%endif
 %endif
 %endif
 %endmacro
@@ -612,10 +629,6 @@ QPEL_TABLE 10, 8, w, avx2
 %endif
 %endmacro
 
-%macro BI_SHUFFLE 2    ;srcl, srch, temp
-    vpermq            %1, %1, 216
-    vpermq            %2, %2, 216
-%endmacro
 
 ; ******************************
 ; void put_hevc_mc_pixels(int16_t *dst, ptrdiff_t dststride,
@@ -1001,7 +1014,7 @@ cglobal hevc_put_hevc_qpel_h%1_%2, 6, 7, 15 , dst, dststride, src, srcstride, he
     QPEL_FILTER       %2, mx
 .loop
     QPEL_H_LOAD       %2, srcq, %1, 10
-    QPEL_COMPUTE      %1, %2
+    QPEL_COMPUTE      %1, %2, 1
 %if %2 > 8
     packssdw          m0, m1
 %endif
@@ -1010,7 +1023,7 @@ cglobal hevc_put_hevc_qpel_h%1_%2, 6, 7, 15 , dst, dststride, src, srcstride, he
     RET
 
 cglobal hevc_put_hevc_uni_qpel_h%1_%2, 6, 7, 15 , dst, dststride, src, srcstride, height, mx, rfilter
-    movdqa            m9, [pw_%2]
+    mova              m9, [pw_%2]
     QPEL_FILTER       %2, mx
 .loop
     QPEL_H_LOAD       %2, srcq, %1, 10
@@ -1031,12 +1044,12 @@ cglobal hevc_put_hevc_bi_qpel_h%1_%2, 8, 9, 16 , dst, dststride, src, srcstride,
     QPEL_FILTER       %2, mx
 .loop
     QPEL_H_LOAD       %2, srcq, %1, 10
-    QPEL_COMPUTE      %1, %2
+    QPEL_COMPUTE      %1, %2, 1
 %if %2 > 8
     packssdw          m0, m1
 %endif
     SIMPLE_BILOAD     %1, src2q, m10, m11
-    BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9
+    BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9, 1
     PEL_%2STORE%1   dstq, m0, m1
     lea             dstq, [dstq+dststrideq]      ; dst += dststride
     lea             srcq, [srcq+srcstrideq]      ; src += srcstride
@@ -1057,7 +1070,7 @@ cglobal hevc_put_hevc_qpel_v%1_%2, 7, 14, 15 , dst, dststride, src, srcstride, h
     QPEL_FILTER       %2, my
 .loop
     QPEL_V_LOAD       %2, srcq, srcstride, %1
-    QPEL_COMPUTE      %1, %2
+    QPEL_COMPUTE      %1, %2, 1
 %if %2 > 8
     packssdw          m0, m1
 %endif
@@ -1088,13 +1101,13 @@ cglobal hevc_put_hevc_bi_qpel_v%1_%2, 9, 14, 16 , dst, dststride, src, srcstride
     lea           r3srcq, [srcstrideq*3]
     QPEL_FILTER       %2, my
 .loop
-    SIMPLE_BILOAD     %1, src2q, m10, m11
     QPEL_V_LOAD       %2, srcq, srcstride, %1
-    QPEL_COMPUTE      %1, %2
+    QPEL_COMPUTE      %1, %2, 1
 %if %2 > 8
     packssdw          m0, m1
 %endif
-    BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9
+    SIMPLE_BILOAD     %1, src2q, m10, m11
+    BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9, 1
     PEL_%2STORE%1   dstq, m0, m1
     lea             dstq, [dstq+dststrideq]      ; dst += dststride
     lea             srcq, [srcq+srcstrideq]      ; src += srcstride
@@ -1545,8 +1558,6 @@ HEVC_PUT_HEVC_QPEL 32, 8
 HEVC_PUT_HEVC_QPEL 16, 10
 
 HEVC_PUT_HEVC_QPEL_HV 16, 10
-
-
 
 %endif ;AVX2
 %endif ; ARCH_X86_64
