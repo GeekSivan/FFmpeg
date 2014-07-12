@@ -16,13 +16,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef AVCODEC_X86_HUFFYUVDSP_H
-#define AVCODEC_X86_HUFFYUVDSP_H
+#include "libavutil/attributes.h"
+#include "libavutil/cpu.h"
+#include "libavutil/x86/cpu.h"
+#include "libavcodec/avcodec.h"
+#include "libavcodec/dct.h"
+#include "libavcodec/fdctdsp.h"
 
-#include <stdint.h>
+av_cold void ff_fdctdsp_init_x86(FDCTDSPContext *c, AVCodecContext *avctx,
+                                 unsigned high_bit_depth)
+{
+    int cpu_flags = av_get_cpu_flags();
+    const int dct_algo = avctx->dct_algo;
 
-void ff_add_hfyu_median_pred_cmov(uint8_t *dst, const uint8_t *top,
-                                  const uint8_t *diff, intptr_t w,
-                                  int *left, int *left_top);
+    if (!high_bit_depth) {
+        if ((dct_algo == FF_DCT_AUTO || dct_algo == FF_DCT_MMX)) {
+            if (INLINE_MMX(cpu_flags))
+                c->fdct = ff_fdct_mmx;
 
-#endif /* AVCODEC_X86_HUFFYUVDSP_H */
+            if (INLINE_MMXEXT(cpu_flags))
+                c->fdct = ff_fdct_mmxext;
+
+            if (INLINE_SSE2(cpu_flags))
+                c->fdct = ff_fdct_sse2;
+        }
+    }
+}
