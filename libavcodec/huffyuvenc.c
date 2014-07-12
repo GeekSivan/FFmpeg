@@ -196,7 +196,7 @@ static int store_huffman_tables(HYuvContext *s, uint8_t *buf)
         count = 1 + s->alpha + 2*s->chroma;
 
     for (i = 0; i < count; i++) {
-        if ((ret = ff_huff_gen_len_table(s->len[i], s->stats[i], s->vlc_n)) < 0)
+        if ((ret = ff_huff_gen_len_table(s->len[i], s->stats[i], s->vlc_n, 0)) < 0)
             return ret;
 
         if (ff_huffyuv_generate_bits_table(s->bits[i], s->len[i], s->vlc_n) < 0) {
@@ -400,7 +400,7 @@ static av_cold int encode_init(AVCodecContext *avctx)
             for (j = 0; j < s->vlc_n; j++) {
                 int d = FFMIN(j, s->vlc_n - j);
 
-                s->stats[i][j] = 100000000 / (d + 1);
+                s->stats[i][j] = 100000000 / (d*d + 1);
             }
     }
 
@@ -414,7 +414,7 @@ static av_cold int encode_init(AVCodecContext *avctx)
             int pels = s->width * s->height / (i ? 40 : 10);
             for (j = 0; j < s->vlc_n; j++) {
                 int d = FFMIN(j, s->vlc_n - j);
-                s->stats[i][j] = pels/(d + 1);
+                s->stats[i][j] = pels/(d*d + 1);
             }
         }
     } else {
@@ -964,7 +964,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         avctx->stats_out[0] = '\0';
     if (!(s->avctx->flags2 & CODEC_FLAG2_NO_OUTPUT)) {
         flush_put_bits(&s->pb);
-        s->dsp.bswap_buf((uint32_t*)pkt->data, (uint32_t*)pkt->data, size);
+        s->bdsp.bswap_buf((uint32_t *) pkt->data, (uint32_t *) pkt->data, size);
     }
 
     s->picture_number++;

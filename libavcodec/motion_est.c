@@ -620,7 +620,11 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
         P_MV1[0]= mx;
         P_MV1[1]= my;
         if(saftey_cliping)
-            for(i=0; i<10; i++){
+            for(i=1; i<10; i++){
+                if (s->first_slice_line && block<2 && i>1 && i<9)
+                    continue;
+                if (i>4 && i<9)
+                    continue;
                 if(P[i][0] > (c->xmax<<shift)) P[i][0]= (c->xmax<<shift);
                 if(P[i][1] > (c->ymax<<shift)) P[i][1]= (c->ymax<<shift);
             }
@@ -899,8 +903,9 @@ void ff_estimate_p_frame_motion(MpegEncContext * s,
 
     /* intra / predictive decision */
     pix = c->src[0][0];
-    sum = s->dsp.pix_sum(pix, s->linesize);
-    varc = s->dsp.pix_norm1(pix, s->linesize) - (((unsigned)sum*sum)>>8) + 500;
+    sum  = s->mpvencdsp.pix_sum(pix, s->linesize);
+    varc = s->mpvencdsp.pix_norm1(pix, s->linesize) -
+           (((unsigned) sum * sum) >> 8) + 500;
 
     pic->mb_mean[s->mb_stride * mb_y + mb_x] = (sum+128)>>8;
     pic->mb_var [s->mb_stride * mb_y + mb_x] = (varc+128)>>8;

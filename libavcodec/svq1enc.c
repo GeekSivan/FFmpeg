@@ -77,7 +77,7 @@ static void svq1_write_header(SVQ1EncContext *s, int frame_type)
 #define THRESHOLD_MULTIPLIER 0.6
 
 static int ssd_int8_vs_int16_c(const int8_t *pix1, const int16_t *pix2,
-                               int size)
+                               intptr_t size)
 {
     int score = 0, i;
 
@@ -252,7 +252,7 @@ static int svq1_encode_plane(SVQ1EncContext *s, int plane,
     int block_width, block_height;
     int level;
     int threshold[6];
-    uint8_t *src     = s->scratchbuf + stride * 16;
+    uint8_t *src     = s->scratchbuf + stride * 32;
     const int lambda = (f->quality * f->quality) >>
                        (2 * FF_LAMBDA_SHIFT);
 
@@ -427,12 +427,12 @@ static int svq1_encode_plane(SVQ1EncContext *s, int plane,
 
                     dxy = (mx & 1) + 2 * (my & 1);
 
-                    s->hdsp.put_pixels_tab[0][dxy](temp + 16,
+                    s->hdsp.put_pixels_tab[0][dxy](temp + 16*stride,
                                                    ref + (mx >> 1) +
                                                    stride * (my >> 1),
                                                    stride, 16);
 
-                    score[1] += encode_block(s, src + 16 * x, temp + 16,
+                    score[1] += encode_block(s, src + 16 * x, temp + 16*stride,
                                              decoded, stride, 5, 64, lambda, 0);
                     best      = score[1] <= score[0];
 
@@ -517,6 +517,7 @@ static av_cold int svq1_encode_init(AVCodecContext *avctx)
 
     ff_dsputil_init(&s->dsp, avctx);
     ff_hpeldsp_init(&s->hdsp, avctx->flags);
+    ff_mpegvideoencdsp_init(&s->m.mpvencdsp, avctx);
 
     avctx->coded_frame = av_frame_alloc();
     s->current_picture = av_frame_alloc();
@@ -586,7 +587,7 @@ static int svq1_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             (ret = ff_get_buffer(avctx, s->last_picture, 0))   < 0) {
             return ret;
         }
-        s->scratchbuf = av_malloc(s->current_picture->linesize[0] * 16 * 2);
+        s->scratchbuf = av_malloc(s->current_picture->linesize[0] * 16 * 3);
     }
 
     FFSWAP(AVFrame*, s->current_picture, s->last_picture);

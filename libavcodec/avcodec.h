@@ -575,7 +575,7 @@ typedef struct AVCodecDescriptor {
     /**
      * MIME type(s) associated with the codec.
      * May be NULL; if not, a NULL-terminated array of MIME types.
-     * The first item is always non-NULL and is the prefered MIME type.
+     * The first item is always non-NULL and is the preferred MIME type.
      */
     const char *const *mime_types;
 } AVCodecDescriptor;
@@ -614,7 +614,7 @@ typedef struct AVCodecDescriptor {
  * Note: If the first 23 bits of the additional bytes are not 0, then damaged
  * MPEG bitstreams could cause overread and segfault.
  */
-#define FF_INPUT_BUFFER_PADDING_SIZE 16
+#define FF_INPUT_BUFFER_PADDING_SIZE 32
 
 /**
  * @ingroup lavc_encoding
@@ -651,6 +651,7 @@ enum AVDiscard{
     AVDISCARD_DEFAULT =  0, ///< discard useless packets like 0 size packets in avi
     AVDISCARD_NONREF  =  8, ///< discard all non reference
     AVDISCARD_BIDIR   = 16, ///< discard all bidirectional frames
+    AVDISCARD_NONINTRA= 24, ///< discard all non intra frames
     AVDISCARD_NONKEY  = 32, ///< discard all frames except keyframes
     AVDISCARD_ALL     = 48, ///< discard all
 };
@@ -2290,7 +2291,7 @@ typedef struct AVCodecContext {
     /**
      * maximum bitrate
      * - encoding: Set by user.
-     * - decoding: unused
+     * - decoding: Set by libavcodec.
      */
     int rc_max_rate;
 
@@ -2666,6 +2667,7 @@ typedef struct AVCodecContext {
 #if FF_API_ARCH_ALPHA
 #define FF_IDCT_SIMPLEALPHA   23
 #endif
+#define FF_IDCT_SIMPLEAUTO    128
 
     /**
      * bits per sample/pixel from the demuxer (needed for huffyuv).
@@ -3821,6 +3823,19 @@ void av_packet_move_ref(AVPacket *dst, AVPacket *src);
 int av_packet_copy_props(AVPacket *dst, const AVPacket *src);
 
 /**
+ * Convert valid timing fields (timestamps / durations) in a packet from one
+ * timebase to another. Timestamps with unknown values (AV_NOPTS_VALUE) will be
+ * ignored.
+ *
+ * @param pkt packet on which the conversion will be performed
+ * @param tb_src source timebase, in which the timing fields in pkt are
+ *               expressed
+ * @param tb_dst destination timebase, to which the timing fields will be
+ *               converted
+ */
+void av_packet_rescale_ts(AVPacket *pkt, AVRational tb_src, AVRational tb_dst);
+
+/**
  * @}
  */
 
@@ -4088,8 +4103,8 @@ int avcodec_decode_video2(AVCodecContext *avctx, AVFrame *picture,
  * marked with CODEC_CAP_DELAY, then no subtitles will be returned.
  *
  * @param avctx the codec context
- * @param[out] sub The AVSubtitle in which the decoded subtitle will be stored, must be
-                   freed with avsubtitle_free if *got_sub_ptr is set.
+ * @param[out] sub The Preallocated AVSubtitle in which the decoded subtitle will be stored,
+ *                 must be freed with avsubtitle_free if *got_sub_ptr is set.
  * @param[in,out] got_sub_ptr Zero if no subtitle could be decompressed, otherwise, it is nonzero.
  * @param[in] avpkt The input AVPacket containing the input buffer.
  */
@@ -4974,7 +4989,7 @@ AVBitStreamFilterContext *av_bitstream_filter_init(const char *name);
  * @return >= 0 in case of success, or a negative error code in case of failure
  *
  * If the return value is positive, an output buffer is allocated and
- * is availble in *poutbuf, and is distinct from the input buffer.
+ * is available in *poutbuf, and is distinct from the input buffer.
  *
  * If the return value is 0, the output buffer is not allocated and
  * should be considered identical to the input buffer, or in case

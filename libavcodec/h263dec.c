@@ -34,6 +34,7 @@
 #include "h263.h"
 #include "h263_parser.h"
 #include "internal.h"
+#include "mpeg_er.h"
 #include "mpeg4video.h"
 #include "mpeg4video_parser.h"
 #include "mpegvideo.h"
@@ -525,6 +526,8 @@ retry:
         ret = ff_set_dimensions(avctx, s->width, s->height);
         if (ret < 0)
             return ret;
+
+        ff_set_sar(avctx, avctx->sample_aspect_ratio);
 
         if ((ret = ff_MPV_common_frame_size_change(s)))
             return ret;

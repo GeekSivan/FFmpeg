@@ -23,10 +23,6 @@
 
 %include "libavutil/x86/x86util.asm"
 
-SECTION_RODATA
-
-cextern pw_1
-
 SECTION .text
 
 %macro DIFF_PIXELS_1 4
@@ -356,222 +352,6 @@ SUM_SQUARED_ERRORS 16
 INIT_XMM sse2
 SUM_SQUARED_ERRORS 16
 
-INIT_MMX mmx
-; void ff_get_pixels_mmx(int16_t *block, const uint8_t *pixels, int line_size)
-cglobal get_pixels, 3,4
-    movsxdifnidn r2, r2d
-    add          r0, 128
-    mov          r3, -128
-    pxor         m7, m7
-.loop:
-    mova         m0, [r1]
-    mova         m2, [r1+r2]
-    mova         m1, m0
-    mova         m3, m2
-    punpcklbw    m0, m7
-    punpckhbw    m1, m7
-    punpcklbw    m2, m7
-    punpckhbw    m3, m7
-    mova [r0+r3+ 0], m0
-    mova [r0+r3+ 8], m1
-    mova [r0+r3+16], m2
-    mova [r0+r3+24], m3
-    lea          r1, [r1+r2*2]
-    add          r3, 32
-    js .loop
-    REP_RET
-
-INIT_XMM sse2
-cglobal get_pixels, 3, 4, 5
-    movsxdifnidn r2, r2d
-    lea          r3, [r2*3]
-    pxor         m4, m4
-    movh         m0, [r1]
-    movh         m1, [r1+r2]
-    movh         m2, [r1+r2*2]
-    movh         m3, [r1+r3]
-    lea          r1, [r1+r2*4]
-    punpcklbw    m0, m4
-    punpcklbw    m1, m4
-    punpcklbw    m2, m4
-    punpcklbw    m3, m4
-    mova       [r0], m0
-    mova  [r0+0x10], m1
-    mova  [r0+0x20], m2
-    mova  [r0+0x30], m3
-    movh         m0, [r1]
-    movh         m1, [r1+r2*1]
-    movh         m2, [r1+r2*2]
-    movh         m3, [r1+r3]
-    punpcklbw    m0, m4
-    punpcklbw    m1, m4
-    punpcklbw    m2, m4
-    punpcklbw    m3, m4
-    mova  [r0+0x40], m0
-    mova  [r0+0x50], m1
-    mova  [r0+0x60], m2
-    mova  [r0+0x70], m3
-    RET
-
-INIT_MMX mmx
-; void ff_diff_pixels_mmx(int16_t *block, const uint8_t *s1, const uint8_t *s2,
-;                         int stride);
-cglobal diff_pixels, 4,5
-    movsxdifnidn r3, r3d
-    pxor         m7, m7
-    add          r0,  128
-    mov          r4, -128
-.loop:
-    mova         m0, [r1]
-    mova         m2, [r2]
-    mova         m1, m0
-    mova         m3, m2
-    punpcklbw    m0, m7
-    punpckhbw    m1, m7
-    punpcklbw    m2, m7
-    punpckhbw    m3, m7
-    psubw        m0, m2
-    psubw        m1, m3
-    mova  [r0+r4+0], m0
-    mova  [r0+r4+8], m1
-    add          r1, r3
-    add          r2, r3
-    add          r4, 16
-    jne .loop
-    REP_RET
-
-INIT_XMM sse2
-cglobal diff_pixels, 4, 5, 5
-    movsxdifnidn r3, r3d
-    pxor         m4, m4
-    add          r0,  128
-    mov          r4, -128
-.loop:
-    movh         m0, [r1]
-    movh         m2, [r2]
-    movh         m1, [r1+r3]
-    movh         m3, [r2+r3]
-    punpcklbw    m0, m4
-    punpcklbw    m1, m4
-    punpcklbw    m2, m4
-    punpcklbw    m3, m4
-    psubw        m0, m2
-    psubw        m1, m3
-    mova [r0+r4+0 ], m0
-    mova [r0+r4+16], m1
-    lea          r1, [r1+r3*2]
-    lea          r2, [r2+r3*2]
-    add          r4, 32
-    jne .loop
-    RET
-
-; int ff_pix_sum16_mmx(uint8_t *pix, int line_size)
-; %1 = number of xmm registers used
-; %2 = number of loops
-; %3 = number of GPRs used
-%macro PIX_SUM16 4
-cglobal pix_sum16, 2, %3, %1
-    movsxdifnidn r1, r1d
-    mov          r2, %2
-%if cpuflag(xop)
-    lea          r3, [r1*3]
-%else
-    pxor         m5, m5
-%endif
-    pxor         m4, m4
-.loop:
-%if cpuflag(xop)
-    vphaddubq    m0, [r0]
-    vphaddubq    m1, [r0+r1]
-    vphaddubq    m2, [r0+r1*2]
-    vphaddubq    m3, [r0+r3]
-%else
-    mova         m0, [r0]
-%if mmsize == 8
-    mova         m1, [r0+8]
-%else
-    mova         m1, [r0+r1]
-%endif
-    punpckhbw    m2, m0, m5
-    punpcklbw    m0, m5
-    punpckhbw    m3, m1, m5
-    punpcklbw    m1, m5
-%endif ; cpuflag(xop)
-    paddw        m1, m0
-    paddw        m3, m2
-    paddw        m3, m1
-    paddw        m4, m3
-%if mmsize == 8
-    add          r0, r1
-%else
-    lea          r0, [r0+r1*%4]
-%endif
-    dec r2
-    jne .loop
-%if cpuflag(xop)
-    pshufd       m0, m4, q0032
-    paddd        m4, m0
-%else
-    HADDW        m4, m5
-%endif
-    movd        eax, m4
-    RET
-%endmacro
-
-INIT_MMX mmx
-PIX_SUM16 0, 16, 3, 0
-INIT_XMM sse2
-PIX_SUM16 6, 8,  3, 2
-%if HAVE_XOP_EXTERNAL
-INIT_XMM xop
-PIX_SUM16 5, 4,  4, 4
-%endif
-
-; int ff_pix_norm1_mmx(uint8_t *pix, int line_size)
-; %1 = number of xmm registers used
-; %2 = number of loops
-%macro PIX_NORM1 2
-cglobal pix_norm1, 2, 3, %1
-    movsxdifnidn r1, r1d
-    mov          r2, %2
-    pxor         m0, m0
-    pxor         m5, m5
-.loop:
-    mova         m2, [r0+0]
-%if mmsize == 8
-    mova         m3, [r0+8]
-%else
-    mova         m3, [r0+r1]
-%endif
-    punpckhbw    m1, m2, m0
-    punpcklbw    m2, m0
-    punpckhbw    m4, m3, m0
-    punpcklbw    m3, m0
-    pmaddwd      m1, m1
-    pmaddwd      m2, m2
-    pmaddwd      m3, m3
-    pmaddwd      m4, m4
-    paddd        m2, m1
-    paddd        m4, m3
-    paddd        m5, m2
-    paddd        m5, m4
-%if mmsize == 8
-    add          r0, r1
-%else
-    lea          r0, [r0+r1*2]
-%endif
-    dec r2
-    jne .loop
-    HADDD        m5, m1
-    movd        eax, m5
-    RET
-%endmacro
-
-INIT_MMX mmx
-PIX_NORM1 0, 16
-INIT_XMM sse2
-PIX_NORM1 6, 8
-
 ;-----------------------------------------------
 ;int ff_sum_abs_dctelem(int16_t *block)
 ;-----------------------------------------------
@@ -608,3 +388,80 @@ INIT_XMM sse2
 SUM_ABS_DCTELEM 7, 2
 INIT_XMM ssse3
 SUM_ABS_DCTELEM 6, 2
+
+;------------------------------------------------------------------------------
+; int ff_hf_noise*_mmx(uint8_t *pix1, int lsize, int h)
+;------------------------------------------------------------------------------
+; %1 = 8/16. %2-5=m#
+%macro HF_NOISE_PART1 5
+    mova      m%2, [pix1q]
+%if %1 == 8
+    mova      m%3, m%2
+    psllq     m%2, 8
+    psrlq     m%3, 8
+    psrlq     m%2, 8
+%else
+    mova      m%3, [pix1q+1]
+%endif
+    mova      m%4, m%2
+    mova      m%5, m%3
+    punpcklbw m%2, m7
+    punpcklbw m%3, m7
+    punpckhbw m%4, m7
+    punpckhbw m%5, m7
+    psubw     m%2, m%3
+    psubw     m%4, m%5
+%endmacro
+
+; %1-2 = m#
+%macro HF_NOISE_PART2 4
+    psubw     m%1, m%3
+    psubw     m%2, m%4
+    pxor       m3, m3
+    pxor       m1, m1
+    pcmpgtw    m3, m%1
+    pcmpgtw    m1, m%2
+    pxor      m%1, m3
+    pxor      m%2, m1
+    psubw     m%1, m3
+    psubw     m%2, m1
+    paddw     m%2, m%1
+    paddw      m6, m%2
+%endmacro
+
+; %1 = 8/16
+%macro HF_NOISE 1
+cglobal hf_noise%1, 3,3,0, pix1, lsize, h
+    movsxdifnidn lsizeq, lsized
+    sub        hd, 2
+    pxor       m7, m7
+    pxor       m6, m6
+    HF_NOISE_PART1 %1, 0, 1, 2, 3
+    add     pix1q, lsizeq
+    HF_NOISE_PART1 %1, 4, 1, 5, 3
+    HF_NOISE_PART2     0, 2, 4, 5
+    add     pix1q, lsizeq
+.loop:
+    HF_NOISE_PART1 %1, 0, 1, 2, 3
+    HF_NOISE_PART2     4, 5, 0, 2
+    add     pix1q, lsizeq
+    HF_NOISE_PART1 %1, 4, 1, 5, 3
+    HF_NOISE_PART2     0, 2, 4, 5
+    add     pix1q, lsizeq
+    sub        hd, 2
+        jne .loop
+
+    mova       m0, m6
+    punpcklwd  m0, m7
+    punpckhwd  m6, m7
+    paddd      m6, m0
+    mova       m0, m6
+    psrlq      m6, 32
+    paddd      m0, m6
+    movd      eax, m0   ; eax = result of hf_noise8;
+    REP_RET                 ; return eax;
+%endmacro
+
+INIT_MMX mmx
+HF_NOISE 8
+HF_NOISE 16
