@@ -310,7 +310,7 @@ INIT_XMM sse2
 %endmacro
 
 ALIGN 16
-; input in m0 ... m3 and tcs in tc (r2). Output in m1 and m2
+; input in m0 ... m3 and tcs in r2. Output in m1 and m2
 %macro CHROMA_DEBLOCK_BODY 1
     psubw            m4, m2, m1; q0 - p0
     psubw            m5, m0, m3; p1 - q1
@@ -350,16 +350,11 @@ ALIGN 16
     ABS1            m11, m13 ; 0dq0, 0dq3 , 1dq0, 1dq3
 
     ;beta calculations
-    mov             r11, [betaq];
-    shl             r11, %1 - 8
-    movd            m13, r11d; beta0
-    add           betaq, 4;
-    punpcklwd       m13, m13
-    mov             r12, [betaq];
-    shl             r12, %1 - 8
-    movd            m14, r12d; beta1
-    punpcklwd       m14, m14
-    pshufd          m13, m14, 0; beta0, beta1
+%if %1 > 8
+    shl             betaq, %1 - 8
+%endif
+    movd            m13, betaq
+    SPLATW          m13, m13, 0
     ;end beta calculations
 
     paddw            m9, m10, m11;   0d0, 0d3  ,  1d0, 1d3
@@ -476,9 +471,9 @@ ALIGN 16
     shr             r14, 2;
     movd            m12, r14d; store to xmm for mask generation
     shl             r14, 1
-    and              r2, 1
-    movd            m10, r2d; store to xmm for mask generation
-    or              r14, r2; final strong mask, bits 1 and 0
+    and             r11, 1
+    movd            m10, r11d; store to xmm for mask generation
+    or              r14, r11; final strong mask, bits 1 and 0
     jz      .weakfilter
 
     shufps          m10, m12, 0
@@ -565,7 +560,7 @@ ALIGN 16
 .weakfilter:
     not             r14; strong mask -> weak mask
     and             r14, r13; final weak filtering mask, bits 0 and 1
-    jz      .store
+    jz             .store
 
     ; weak filtering mask
     mov              r2, r14
@@ -576,15 +571,10 @@ ALIGN 16
     shufps          m11, m12, 0
     pcmpeqd         m11, [pd_1]; filtering mask
 
-    mov             r13, r11; beta0
+    mov             r13, betaq
     shr             r13, 1;
-    add             r11, r13
-    shr             r11, 3; ((beta0+(beta0>>1))>>3))
-
-    mov             r13, r12; beta1
-    shr             r13, 1;
-    add             r12, r13
-    shr             r12, 3; ((beta1+(beta1>>1))>>3))
+    add             betaq, r13
+    shr             betaq, 3; ((beta + (beta >> 1)) >> 3))
 
     mova            m13, [pw_8]
     psubw           m12, m4, m3 ; q0 - p0
@@ -623,11 +613,8 @@ ALIGN 16
     paddw           m15, m2; p1'
 
     ;beta calculations
-    movd            m10, r11d; beta0
-    punpcklwd       m10, m10
-    movd            m13, r12d; beta1
-    punpcklwd       m13, m13
-    shufps          m10, m13, 0; betax0, betax1
+    movd            m10, betaq
+    SPLATW          m10, m10, 0
 
     movd            m13, r7d; 1dp0 + 1dp3
     movd             m8, r8d; 0dp0 + 0dp3
@@ -757,21 +744,21 @@ cglobal hevc_v_loop_filter_luma_10, 4, 15, 16, pix, stride, beta, tc
     RET
 
 ;-----------------------------------------------------------------------------
-;    void ff_hevc_h_loop_filter_luma(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+;    void ff_hevc_h_loop_filter_luma(uint8_t *_pix, ptrdiff_t _stride, int _beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
 ;-----------------------------------------------------------------------------
 cglobal hevc_h_loop_filter_luma_8, 4, 15, 16, pix, stride, beta, tc, count, pix0, src3stride
-    lea     src3strideq, [3*strideq]
+    lea     src3strideq, [3 * strideq]
     mov           pix0q, pixq
     sub           pix0q, src3strideq
     sub           pix0q, strideq
-    movdqu           m0, [pix0q];       p3
-    movdqu           m1, [pix0q+strideq];    p2
-    movdqu           m2, [pix0q+2*strideq];  p1
-    movdqu           m3, [pix0q+src3strideq];    p0
-    movdqu           m4, [pixq];       q0
-    movdqu           m5, [pixq+strideq];    q1
-    movdqu           m6, [pixq+2*strideq];  q2
-    movdqu           m7, [pixq+src3strideq];    q3
+    movdqu           m0, [pix0q];               p3
+    movdqu           m1, [pix0q +     strideq]; p2
+    movdqu           m2, [pix0q + 2 * strideq]; p1
+    movdqu           m3, [pix0q + src3strideq]; p0
+    movdqu           m4, [pixq];                q0
+    movdqu           m5, [pixq +     strideq];  q1
+    movdqu           m6, [pixq + 2 * strideq];  q2
+    movdqu           m7, [pixq + src3strideq];  q3
     pxor             m8, m8
     punpcklbw        m0, m8
     punpcklbw        m1, m8
@@ -781,51 +768,48 @@ cglobal hevc_h_loop_filter_luma_8, 4, 15, 16, pix, stride, beta, tc, count, pix0
     punpcklbw        m5, m8
     punpcklbw        m6, m8
     punpcklbw        m7, m8
-        LUMA_DEBLOCK_BODY 8, h
+    LUMA_DEBLOCK_BODY 8, h
 .store:
-    packuswb         m1, m1; p2
-    packuswb         m2, m2; p1
-    packuswb         m3, m3; p0
-    packuswb         m4, m4; q0
-    packuswb         m5, m5; q1
-    packuswb         m6, m6; q2
-    movq        [r5+r1], m1;  p2
-    movq      [r5+2*r1], m2;  p1
-    movq        [r5+r6], m3;  p0
-    movq           [r0], m4;  q0
-    movq        [r0+r1], m5;  q1
-    movq      [r0+2*r1], m6;  q2
+    packuswb          m1, m2
+    packuswb          m3, m4
+    packuswb          m5, m6
+    movh   [r5 +     r1], m1
+    movhps [r5 + 2 * r1], m1
+    movh   [r5 +     r6], m3
+    movhps [r0         ], m3
+    movh   [r0 +     r1], m5
+    movhps [r0 + 2 * r1], m5
 .bypassluma:
     RET
 
 cglobal hevc_h_loop_filter_luma_10, 4, 15, 16, pix, stride, beta, tc, count, pix0, src3stride
-    lea     src3strideq, [3*strideq]
-    mov           pix0q, pixq
-    sub           pix0q, src3strideq
-    sub           pix0q, strideq
-    movdqu           m0, [pix0q];       p3
-    movdqu           m1, [pix0q+strideq];    p2
-    movdqu           m2, [pix0q+2*strideq];  p1
-    movdqu           m3, [pix0q+src3strideq];    p0
-    movdqu           m4, [pixq];       q0
-    movdqu           m5, [pixq+strideq];    q1
-    movdqu           m6, [pixq+2*strideq];  q2
-    movdqu           m7, [pixq+src3strideq];    q3
-        LUMA_DEBLOCK_BODY 10, h
+    lea                  src3strideq, [3 * strideq]
+    mov                        pix0q, pixq
+    sub                        pix0q, src3strideq
+    sub                        pix0q, strideq
+    movdqu                        m0, [pix0q];               p3
+    movdqu                        m1, [pix0q +     strideq]; p2
+    movdqu                        m2, [pix0q + 2 * strideq]; p1
+    movdqu                        m3, [pix0q + src3strideq]; p0
+    movdqu                        m4, [pixq];                q0
+    movdqu                        m5, [pixq  +     strideq]; q1
+    movdqu                        m6, [pixq  + 2 * strideq]; q2
+    movdqu                        m7, [pixq  + src3strideq]; q3
+    LUMA_DEBLOCK_BODY             10, h
 .store:
-    pxor             m8, m8; zeros reg
-    CLIPW            m1, m8, [pw_pixel_max]
-    CLIPW            m2, m8, [pw_pixel_max]
-    CLIPW            m3, m8, [pw_pixel_max]
-    CLIPW            m4, m8, [pw_pixel_max]
-    CLIPW            m5, m8, [pw_pixel_max]
-    CLIPW            m6, m8, [pw_pixel_max]
-    movdqu     [pix0q+strideq], m1;  p2
-    movdqu   [pix0q+2*strideq], m2;  p1
-    movdqu [pix0q+src3strideq], m3;  p0
-    movdqu              [pixq], m4;  q0
-    movdqu      [pixq+strideq], m5;  q1
-    movdqu    [pixq+2*strideq], m6;  q2
+    pxor                          m8, m8; zeros reg
+    CLIPW                         m1, m8, [pw_pixel_max]
+    CLIPW                         m2, m8, [pw_pixel_max]
+    CLIPW                         m3, m8, [pw_pixel_max]
+    CLIPW                         m4, m8, [pw_pixel_max]
+    CLIPW                         m5, m8, [pw_pixel_max]
+    CLIPW                         m6, m8, [pw_pixel_max]
+    movdqu     [pix0q +     strideq], m1;  p2
+    movdqu     [pix0q + 2 * strideq], m2;  p1
+    movdqu     [pix0q + src3strideq], m3;  p0
+    movdqu     [pixq               ], m4;  q0
+    movdqu     [pixq  +     strideq], m5;  q1
+    movdqu     [pixq  + 2 * strideq], m6;  q2
 .bypassluma:
     RET
 %endif
