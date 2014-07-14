@@ -207,6 +207,8 @@ static void decode_profile_tier_level(HEVCContext *s, PTLCommon *ptl)
         av_log(s->avctx, AV_LOG_DEBUG, "Main 10 profile bitstream\n");
     else if (ptl->profile_idc == FF_PROFILE_HEVC_MAIN_STILL_PICTURE)
         av_log(s->avctx, AV_LOG_DEBUG, "Main Still Picture profile bitstream\n");
+    else if (ptl->profile_idc == FF_PROFILE_HEVC_REXT)
+        av_log(s->avctx, AV_LOG_DEBUG, "Range Extension profile bitstream\n");
     else
         av_log(s->avctx, AV_LOG_WARNING, "Unknown HEVC profile: %d\n", ptl->profile_idc);
 
@@ -1278,7 +1280,7 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
     if (get_bits1(gb)) { // pps_extension_present_flag
         int pps_range_extensions_flag = get_bits1(gb);
         /* int pps_extension_7bits = */ get_bits(gb, 7);
-        if (pps_range_extensions_flag) {
+        if (sps->ptl.general_ptl.profile_idc == FF_PROFILE_HEVC_REXT && pps_range_extensions_flag) {
             av_log(s->avctx, AV_LOG_ERROR,
                    "PPS extension flag is partially implemented.\n");
             pps_range_extensions(s, pps, sps);
