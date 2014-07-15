@@ -55,6 +55,7 @@ static void pic_arrays_free(HEVCContext *s)
 {
     av_freep(&s->sao);
     av_freep(&s->deblock);
+    av_freep(&s->split_cu_flag);
 
     av_freep(&s->skip_flag);
     av_freep(&s->tab_ct_depth);
@@ -95,7 +96,8 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
 
     s->sao           = av_mallocz_array(ctb_count, sizeof(*s->sao));
     s->deblock       = av_mallocz_array(ctb_count, sizeof(*s->deblock));
-    if (!s->sao || !s->deblock)
+    s->split_cu_flag = av_malloc(pic_size);
+    if (!s->sao || !s->deblock || !s->split_cu_flag)
         goto fail;
 
     s->skip_flag    = av_malloc(pic_size_in_ctb);
@@ -1913,15 +1915,16 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
     const int cb_size    = 1 << log2_cb_size;
     int ret;
     int qp_block_mask = (1<<(s->sps->log2_ctb_size - s->pps->diff_cu_qp_delta_depth)) - 1;
-    int split_cu_flag;
 
     lc->ct.depth = cb_depth;
     if (x0 + cb_size <= s->sps->width  &&
         y0 + cb_size <= s->sps->height &&
         log2_cb_size > s->sps->log2_min_cb_size) {
-        split_cu_flag = ff_hevc_split_coding_unit_flag_decode(s, cb_depth, x0, y0);
+        SAMPLE(s->split_cu_flag, x0, y0) =
+            ff_hevc_split_coding_unit_flag_decode(s, cb_depth, x0, y0);
     } else {
-        split_cu_flag = (log2_cb_size > s->sps->log2_min_cb_size);
+        SAMPLE(s->split_cu_flag, x0, y0) =
+            (log2_cb_size > s->sps->log2_min_cb_size);
     }
     if (s->pps->cu_qp_delta_enabled_flag &&
         log2_cb_size >= s->sps->log2_ctb_size - s->pps->diff_cu_qp_delta_depth) {
@@ -1929,7 +1932,7 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
         lc->tu.cu_qp_delta          = 0;
     }
 
-    if (split_cu_flag) {
+    if (SAMPLE(s->split_cu_flag, x0, y0)) {
         const int cb_size_split = cb_size >> 1;
         const int x1 = x0 + cb_size_split;
         const int y1 = y0 + cb_size_split;
