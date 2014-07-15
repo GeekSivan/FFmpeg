@@ -383,7 +383,7 @@ static int set_sps(HEVCContext *s, const HEVCSPS *sps)
         ret = ff_get_buffer(s->avctx, s->tmp_frame, AV_GET_BUFFER_FLAG_REF);
         if (ret < 0)
             goto fail;
-        s->sao_frame = s->tmp_frame;
+        s->frame = s->tmp_frame;
     }
 
     s->sps = sps;
@@ -2387,10 +2387,10 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
         lc->tu.cu_qp_delta          = 0;
     }
 
-	if (s->sh.cu_chroma_qp_offset_enabled_flag &&
+    if (s->sh.cu_chroma_qp_offset_enabled_flag &&
         log2_cb_size >= s->sps->log2_ctb_size - s->pps->diff_cu_chroma_qp_offset_depth) {
         lc->tu.is_cu_chroma_qp_offset_coded = 0;
-	}
+    }
     if (split_cu_flag) {
         const int cb_size_split = cb_size >> 1;
         const int x1 = x0 + cb_size_split;
@@ -2954,7 +2954,8 @@ static int hevc_frame_start(HEVCContext *s)
 #endif
     }
 #endif
-    ret = ff_hevc_set_new_ref(s, &s->frame, s->poc);
+    ret = ff_hevc_set_new_ref(s, s->sps->sao_enabled ? &s->sao_frame : &s->frame,
+                              s->poc);
 
     if (ret < 0)
         goto fail;
