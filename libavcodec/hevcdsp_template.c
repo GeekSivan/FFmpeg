@@ -27,7 +27,7 @@
 #include "hevcdsp.h"
 
 
-static void FUNC(put_pcm)(uint8_t *_dst, ptrdiff_t stride, int width, int height,
+static void FUNC(put_pcm)(uint8_t *_dst, ptrdiff_t stride, int size,
                           GetBitContext *gb, int pcm_bit_depth)
 {
     int x, y;
@@ -35,8 +35,8 @@ static void FUNC(put_pcm)(uint8_t *_dst, ptrdiff_t stride, int width, int height
 
     stride /= sizeof(pixel);
 
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++)
+    for (y = 0; y < size; y++) {
+        for (x = 0; x < size; x++)
             dst[x] = get_bits(gb, pcm_bit_depth) << (BIT_DEPTH - pcm_bit_depth);
         dst += stride;
     }
