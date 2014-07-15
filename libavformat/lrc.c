@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2002 Brian Foley
- * Copyright (c) 2002 Dieter Shirley
- * Copyright (c) 2003-2004 Romain Dolbeau <romain@dolbeau.org>
+ * LRC lyrics file format decoder
+ * Copyright (c) 2014 StarBrilliant <m13253@hotmail.com>
  *
  * This file is part of FFmpeg.
  *
@@ -20,19 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <string.h>
+#include "metadata.h"
+#include "lrc.h"
 
-#include "libavutil/attributes.h"
-#include "libavutil/cpu.h"
-#include "libavutil/ppc/cpu.h"
-#include "libavcodec/avcodec.h"
-#include "libavcodec/dsputil.h"
-#include "dsputil_altivec.h"
-
-av_cold void ff_dsputil_init_ppc(DSPContext *c, AVCodecContext *avctx)
-{
-    int mm_flags = av_get_cpu_flags();
-    if (PPC_ALTIVEC(mm_flags)) {
-        ff_dsputil_init_altivec(c, avctx);
-    }
-}
+const AVMetadataConv ff_lrc_metadata_conv[] = {
+    {"ti", "title"},
+    {"al", "album"},
+    {"ar", "artist"},
+    {"au", "author"},
+    {"by", "creator"},
+    {"re", "encoder"},
+    {"ve", "encoder_version"},
+    {0, 0}
+};

@@ -3161,6 +3161,11 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
         av_buffer_unref(&s->sps_list[i]);
     for (i = 0; i < FF_ARRAY_ELEMS(s->pps_list); i++)
         av_buffer_unref(&s->pps_list[i]);
+    s->sps = NULL;
+    s->pps = NULL;
+    s->vps = NULL;
+
+    av_buffer_unref(&s->current_sps);
 
     av_freep(&s->sh.entry_point_offset);
     av_freep(&s->sh.offset);
@@ -3257,6 +3262,8 @@ static int hevc_update_thread_context(AVCodecContext *dst,
         }
     }
 
+    if (s->sps != s0->sps)
+        s->sps = NULL;
     for (i = 0; i < FF_ARRAY_ELEMS(s->vps_list); i++) {
         av_buffer_unref(&s->vps_list[i]);
         if (s0->vps_list[i]) {
@@ -3283,6 +3290,10 @@ static int hevc_update_thread_context(AVCodecContext *dst,
                 return AVERROR(ENOMEM);
         }
     }
+
+    if (s->current_sps && s->sps == (HEVCSPS*)s->current_sps->data)
+        s->sps = NULL;
+    av_buffer_unref(&s->current_sps);
 
     if (s->sps != s0->sps)
         ret = set_sps(s, s0->sps);

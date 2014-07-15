@@ -211,6 +211,8 @@ OBJS-$(CONFIG_LATM_DEMUXER)              += rawdec.o
 OBJS-$(CONFIG_LATM_MUXER)                += latmenc.o rawenc.o
 OBJS-$(CONFIG_LMLM4_DEMUXER)             += lmlm4.o
 OBJS-$(CONFIG_LOAS_DEMUXER)              += loasdec.o rawdec.o
+OBJS-$(CONFIG_LRC_DEMUXER)               += lrcdec.o lrc.o subtitles.o
+OBJS-$(CONFIG_LRC_MUXER)                 += lrcenc.o lrc.o
 OBJS-$(CONFIG_LVF_DEMUXER)               += lvfdec.o
 OBJS-$(CONFIG_LXF_DEMUXER)               += lxfdec.o
 OBJS-$(CONFIG_M4V_DEMUXER)               += m4vdec.o rawdec.o
@@ -457,6 +459,7 @@ OBJS-$(CONFIG_LIBNUT_MUXER)              += libnut.o
 OBJS-$(CONFIG_LIBQUVI_DEMUXER)           += libquvi.o
 OBJS-$(CONFIG_LIBRTMP)                   += librtmp.o
 OBJS-$(CONFIG_LIBSSH_PROTOCOL)           += libssh.o
+OBJS-$(CONFIG_LIBSMBCLIENT_PROTOCOL)     += libsmbclient.o
 
 # protocols I/O
 OBJS-$(CONFIG_APPLEHTTP_PROTOCOL)        += hlsproto.o

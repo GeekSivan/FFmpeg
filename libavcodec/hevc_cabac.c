@@ -1530,7 +1530,7 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
                                         lc->cu.pred_mode == MODE_INTRA &&
                                         (pred_mode_intra == 10 || pred_mode_intra == 26))) {
                 int mode = s->sps->implicit_rdpcm_enabled_flag ? (pred_mode_intra == 26) : explicit_rdpcm_dir_flag;
-                
+
                 s->hevcdsp.transform_rdpcm(coeffs, log2_trafo_size, mode);
             }
         } else if (lc->cu.pred_mode == MODE_INTRA && c_idx == 0 && log2_trafo_size == 2) {
