@@ -151,6 +151,7 @@
     • Image format auto-detection
     • LRC lyric file demuxer and muxer
     • Samba protocol (via libsmbclient)
+    • WebM DASH Manifest muxer
 
    ┌────────────────────────────┐
    │ libavfilter                │
@@ -163,6 +164,7 @@
     • signalstats filter
     • hqx filter (hq2x, hq3x, hq4x)
     • flanger filter
+    • libfribidi support in drawtext
 
  ┌────────────────────────────┐
  │ ⚠  Behaviour changes       │

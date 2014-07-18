@@ -2443,7 +2443,7 @@ static int hls_slice_data_wpp(HEVCContext *s, const uint8_t *nal, int length)
         for (i = 1; i < s->threads_number; i++) {
             s->sList[i] = av_malloc(sizeof(HEVCContext));
             memcpy(s->sList[i], s, sizeof(HEVCContext));
-            s->HEVClcList[i] = av_malloc(sizeof(HEVCLocalContext));
+            s->HEVClcList[i] = av_mallocz(sizeof(HEVCLocalContext));
             s->sList[i]->HEVClc = s->HEVClcList[i];
         }
     }
@@ -2584,7 +2584,6 @@ static int hevc_frame_start(HEVCContext *s)
     int pic_size_in_ctb  = ((s->sps->width  >> s->sps->log2_min_cb_size) + 1) *
                            ((s->sps->height >> s->sps->log2_min_cb_size) + 1);
     int ret;
-    AVFrame *cur_frame;
 
     memset(s->horizontal_bs, 0, 2 * s->bs_width * (s->bs_height + 1));
     memset(s->vertical_bs,   0, 2 * s->bs_width * (s->bs_height + 1));
@@ -2614,8 +2613,7 @@ static int hevc_frame_start(HEVCContext *s)
     if (ret < 0)
         goto fail;
 
-    cur_frame = s->sps->sao_enabled ? s->sao_frame : s->frame;
-    cur_frame->pict_type = 3 - s->sh.slice_type;
+    s->frame->pict_type = 3 - s->sh.slice_type;
 
     av_frame_unref(s->output_frame);
     ret = ff_hevc_output_frame(s, s->output_frame, 0);
@@ -3306,9 +3304,12 @@ static int hevc_update_thread_context(AVCodecContext *dst,
         }
     }
 
-    if (s->current_sps && s->sps == (HEVCSPS*)s->current_sps->data)
-        s->sps = NULL;
     av_buffer_unref(&s->current_sps);
+    if (s0->current_sps) {
+        s->current_sps = av_buffer_ref(s0->current_sps);
+        if (!s->current_sps)
+            return AVERROR(ENOMEM);
+    }
 
     if (s->sps != s0->sps)
         ret = set_sps(s, s0->sps);

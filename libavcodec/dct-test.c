@@ -62,11 +62,9 @@ struct algo {
     void (*func)(int16_t *block);
     enum formattag { NO_PERM, MMX_PERM, MMX_SIMPLE_PERM, SCALE_PERM,
                      SSE2_PERM, PARTTRANS_PERM, TRANSPOSE_PERM } format;
-    int mm_support;
+    int cpu_flag;
     int nonspec;
 };
-
-static int cpu_flags;
 
 static const struct algo fdct_tab[] = {
     { "REF-DBL",        ff_ref_fdct,           NO_PERM    },
@@ -167,8 +165,6 @@ static const struct algo idct_tab[] = {
 #define NB_ITS 20000
 #define NB_ITS_SPEED 50000
 
-static short idct_mmx_perm[64];
-
 static short idct_simple_mmx_perm[64] = {
     0x00, 0x08, 0x04, 0x09, 0x01, 0x0C, 0x05, 0x0D,
     0x10, 0x18, 0x14, 0x19, 0x11, 0x1C, 0x15, 0x1D,
@@ -181,16 +177,6 @@ static short idct_simple_mmx_perm[64] = {
 };
 
 static const uint8_t idct_sse2_row_perm[8] = { 0, 4, 1, 5, 2, 6, 3, 7 };
-
-static void idct_mmx_init(void)
-{
-    int i;
-
-    /* the mmx/mmxext idct uses a reordered input, so we patch scan tables */
-    for (i = 0; i < 64; i++) {
-        idct_mmx_perm[i] = (i & 0x38) | ((i & 6) >> 1) | ((i & 1) << 2);
-    }
-}
 
 DECLARE_ALIGNED(16, static int16_t, block)[64];
 DECLARE_ALIGNED(8,  static int16_t, block1)[64];
@@ -231,7 +217,7 @@ static void permute(int16_t dst[64], const int16_t src[64], int perm)
 
     if (perm == MMX_PERM) {
         for (i = 0; i < 64; i++)
-            dst[idct_mmx_perm[i]] = src[i];
+            dst[(i & 0x38) | ((i & 6) >> 1) | ((i & 1) << 2)] = src[i];
     } else if (perm == MMX_SIMPLE_PERM) {
         for (i = 0; i < 64; i++)
             dst[idct_simple_mmx_perm[i]] = src[i];
@@ -538,10 +524,7 @@ int main(int argc, char **argv)
     int err = 0;
     int bits=8;
 
-    cpu_flags = av_get_cpu_flags();
-
     ff_ref_dct_init();
-    idct_mmx_init();
 
     for (;;) {
         c = getopt(argc, argv, "ih4t");
@@ -573,9 +556,10 @@ int main(int argc, char **argv)
     if (test_248_dct) {
         idct248_error("SIMPLE-C", ff_simple_idct248_put, speed);
     } else {
+        const int cpu_flags = av_get_cpu_flags();
         const struct algo *algos = test_idct ? idct_tab : fdct_tab;
         for (i = 0; algos[i].name; i++)
-            if (!(~cpu_flags & algos[i].mm_support)) {
+            if (!(~cpu_flags & algos[i].cpu_flag)) {
                 err |= dct_error(&algos[i], test, test_idct, speed, bits);
             }
     }
