@@ -726,7 +726,7 @@ void ff_hevc_hls_filter(HEVCContext *s, int x, int y, int ctb_size)
     } else {
         if (y && x >= s->sps->width - ctb_size)
             if (s->threads_type & FF_THREAD_FRAME )
-                ff_thread_report_progress(&s->ref->tf, y, 0);
+                ff_thread_report_progress(&s->ref->tf, y - 4, 0);
     }
 }
 
