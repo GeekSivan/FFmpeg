@@ -16,29 +16,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/attributes.h"
-#include "libavutil/cpu.h"
-#include "libavutil/x86/cpu.h"
+#ifndef AVDEVICE_OSS_AUDIO_H
+#define AVDEVICE_OSS_AUDIO_H
+
 #include "libavcodec/avcodec.h"
-#include "libavcodec/fdctdsp.h"
-#include "fdct.h"
 
-av_cold void ff_fdctdsp_init_x86(FDCTDSPContext *c, AVCodecContext *avctx,
-                                 unsigned high_bit_depth)
-{
-    int cpu_flags = av_get_cpu_flags();
-    const int dct_algo = avctx->dct_algo;
+#include "libavformat/avformat.h"
 
-    if (!high_bit_depth) {
-        if ((dct_algo == FF_DCT_AUTO || dct_algo == FF_DCT_MMX)) {
-            if (INLINE_MMX(cpu_flags))
-                c->fdct = ff_fdct_mmx;
+#define OSS_AUDIO_BLOCK_SIZE 4096
 
-            if (INLINE_MMXEXT(cpu_flags))
-                c->fdct = ff_fdct_mmxext;
+typedef struct OSSAudioData {
+    AVClass *class;
+    int fd;
+    int sample_rate;
+    int channels;
+    int frame_size; /* in bytes ! */
+    enum AVCodecID codec_id;
+    unsigned int flip_left : 1;
+    uint8_t buffer[OSS_AUDIO_BLOCK_SIZE];
+    int buffer_ptr;
+} OSSAudioData;
 
-            if (INLINE_SSE2(cpu_flags))
-                c->fdct = ff_fdct_sse2;
-        }
-    }
-}
+int ff_oss_audio_open(AVFormatContext *s1, int is_output,
+                      const char *audio_device);
+
+int ff_oss_audio_close(OSSAudioData *s);
+
+#endif /* AVDEVICE_OSS_AUDIO_H */
