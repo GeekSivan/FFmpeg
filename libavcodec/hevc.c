@@ -285,7 +285,7 @@ static int get_buffer_sao(HEVCContext *s, AVFrame *frame)
     if ((ret = ff_get_buffer(s->avctx, frame, AV_GET_BUFFER_FLAG_REF)) < 0)
         return ret;
     for (i = 0; frame->data[i]; i++) {
-        int offset = frame->linesize[i] + 1;
+        int offset = frame->linesize[i] + (1 << s->sps->pixel_shift);
         frame->data[i] += offset;
     }
     frame->width  = s->avctx->width;
