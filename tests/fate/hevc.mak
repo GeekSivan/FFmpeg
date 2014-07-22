@@ -170,8 +170,6 @@ HEVC_SAMPLES_444_12BIT =        \
 
 # do not pass:
 # TSUNEQBD_A_MAIN10_Technicolor_2.bit (segfault mix 9-10bits)
-# PERSIST_RPARAM_A_RExt_Sony_1 (rext)
-
 
 define FATE_HEVC_TEST
 FATE_HEVC += fate-hevc-conformance-$(1)
@@ -193,11 +191,14 @@ FATE_HEVC += fate-hevc-conformance-$(1)
 fate-hevc-conformance-$(1): CMD = framecrc -vsync drop -i $(TARGET_SAMPLES)/hevc-conformance/$(1).bin -pix_fmt yuv422p10le
 endef
 
+<<<<<<< HEAD
 define FATE_HEVC_TEST_444_8BIT
 FATE_HEVC += fate-hevc-conformance-$(1)
 fate-hevc-conformance-$(1): CMD = framecrc -vsync drop -i $(TARGET_SAMPLES)/hevc-conformance/$(1).bit
 endef
 
+=======
+>>>>>>> refs/remotes/ffmpeg-upstream/master
 define FATE_HEVC_TEST_444_12BIT
 FATE_HEVC += fate-hevc-conformance-$(1)
 fate-hevc-conformance-$(1): CMD = framecrc -vsync drop -i $(TARGET_SAMPLES)/hevc-conformance/$(1).bit -pix_fmt yuv444p12le
@@ -207,7 +208,10 @@ $(foreach N,$(HEVC_SAMPLES),$(eval $(call FATE_HEVC_TEST,$(N))))
 $(foreach N,$(HEVC_SAMPLES_10BIT),$(eval $(call FATE_HEVC_TEST_10BIT,$(N))))
 $(foreach N,$(HEVC_SAMPLES_422_10BIT),$(eval $(call FATE_HEVC_TEST_422_10BIT,$(N))))
 $(foreach N,$(HEVC_SAMPLES_422_10BIN),$(eval $(call FATE_HEVC_TEST_422_10BIN,$(N))))
+<<<<<<< HEAD
 $(foreach N,$(HEVC_SAMPLES_444_8BIT),$(eval $(call FATE_HEVC_TEST_444_8BIT,$(N))))
+=======
+>>>>>>> refs/remotes/ffmpeg-upstream/master
 $(foreach N,$(HEVC_SAMPLES_444_12BIT),$(eval $(call FATE_HEVC_TEST_444_12BIT,$(N))))
 
 FATE_HEVC-$(call DEMDEC, HEVC, HEVC) += $(FATE_HEVC)

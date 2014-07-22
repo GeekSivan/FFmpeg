@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2009 Mans Rullgard <mans@mansr.com>
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -18,24 +16,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stdint.h>
+#include "config.h"
 
-#include "libavutil/attributes.h"
-#include "libavcodec/avcodec.h"
-#include "libavcodec/idctdsp.h"
-#include "idct.h"
-#include "idctdsp_arm.h"
+#include "fdct.h"
 
-av_cold void ff_idctdsp_init_armv5te(IDCTDSPContext *c, AVCodecContext *avctx,
-                                     unsigned high_bit_depth)
-{
-    if (!avctx->lowres && !high_bit_depth &&
-        (avctx->idct_algo == FF_IDCT_AUTO ||
-         avctx->idct_algo == FF_IDCT_SIMPLEAUTO ||
-         avctx->idct_algo == FF_IDCT_SIMPLEARMV5TE)) {
-        c->idct_put  = ff_simple_idct_put_armv5te;
-        c->idct_add  = ff_simple_idct_add_armv5te;
-        c->idct      = ff_simple_idct_armv5te;
-        c->perm_type = FF_IDCT_PERM_NONE;
-    }
-}
+static const struct algo fdct_tab_arch[] = {
+#if HAVE_ALTIVEC
+    { "altivecfdct", ff_fdct_altivec, FF_IDCT_PERM_NONE, AV_CPU_FLAG_ALTIVEC },
+#endif
+    { 0 }
+};
+
+static const struct algo idct_tab_arch[] = {
+    { 0 }
+};

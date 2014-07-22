@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2009 Mans Rullgard <mans@mansr.com>
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -18,24 +16,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stdint.h>
+#include "config.h"
 
-#include "libavutil/attributes.h"
-#include "libavcodec/avcodec.h"
-#include "libavcodec/idctdsp.h"
 #include "idct.h"
-#include "idctdsp_arm.h"
 
-av_cold void ff_idctdsp_init_armv5te(IDCTDSPContext *c, AVCodecContext *avctx,
-                                     unsigned high_bit_depth)
-{
-    if (!avctx->lowres && !high_bit_depth &&
-        (avctx->idct_algo == FF_IDCT_AUTO ||
-         avctx->idct_algo == FF_IDCT_SIMPLEAUTO ||
-         avctx->idct_algo == FF_IDCT_SIMPLEARMV5TE)) {
-        c->idct_put  = ff_simple_idct_put_armv5te;
-        c->idct_add  = ff_simple_idct_add_armv5te;
-        c->idct      = ff_simple_idct_armv5te;
-        c->perm_type = FF_IDCT_PERM_NONE;
-    }
-}
+static const struct algo fdct_tab_arch[] = {
+    { 0 }
+};
+
+static const struct algo idct_tab_arch[] = {
+    { "SIMPLE-ARM",     ff_simple_idct_arm,     FF_IDCT_PERM_NONE },
+    { "INT-ARM",        ff_j_rev_dct_arm,       FF_IDCT_PERM_LIBMPEG2 },
+#if HAVE_ARMV5TE
+    { "SIMPLE-ARMV5TE", ff_simple_idct_armv5te, FF_IDCT_PERM_NONE,      AV_CPU_FLAG_ARMV5TE },
+#endif
+#if HAVE_ARMV6
+    { "SIMPLE-ARMV6",   ff_simple_idct_armv6,   FF_IDCT_PERM_LIBMPEG2,  AV_CPU_FLAG_ARMV6 },
+#endif
+#if HAVE_NEON
+    { "SIMPLE-NEON",    ff_simple_idct_neon,    FF_IDCT_PERM_PARTTRANS, AV_CPU_FLAG_NEON },
+#endif
+    { 0 }
+};
