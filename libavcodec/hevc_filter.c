@@ -378,8 +378,8 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
     // vertical filtering luma
     for (y = y0; y < y_end; y += 8) {
         for (x = x0 ? x0 : 8; x < x_end; x += 8) {
-            const int bs0 = s->vertical_bs[(x >> 3) + (y       >> 2) * s->bs_width];
-            const int bs1 = s->vertical_bs[(x >> 3) + ((y + 4) >> 2) * s->bs_width];
+            const int bs0 = s->vertical_bs[(x +  y      * s->bs_width) >> 2];
+            const int bs1 = s->vertical_bs[(x + (y + 4) * s->bs_width) >> 2];
             if (bs0 || bs1) {
                 const int qp = (get_qPy(s, x - 1, y)     + get_qPy(s, x, y)     + 1) >> 1;
 
@@ -409,8 +409,8 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
         int v = 1 << s->sps->vshift[chroma];
         for (y = y0; y < y_end; y += (8 * v)) {
             for (x = x0 ? x0 : 8 * h; x < x_end; x += (8 * h)) {
-                const int bs0 = s->vertical_bs[(x >> 3) + (y             >> 2) * s->bs_width];
-                const int bs1 = s->vertical_bs[(x >> 3) + ((y + (4 * v)) >> 2) * s->bs_width];
+                const int bs0 = s->vertical_bs[(x +  y            * s->bs_width) >> 2];
+                const int bs1 = s->vertical_bs[(x + (y + (4 * v)) * s->bs_width) >> 2];
 
                 if ((bs0 == 2) || (bs1 == 2)) {
                     const int qp0 = (get_qPy(s, x - 1, y)           + get_qPy(s, x, y)           + 1) >> 1;
@@ -441,8 +441,8 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
         x_end -= 8;
     for (y = y0 ? y0 : 8; y < y_end; y += 8) {
         for (x = x0 ? x0 - 8 : 0; x < x_end; x += 8) {
-            const int bs0 = s->horizontal_bs[(x +     y * s->bs_width) >> 2];
-            const int bs1 = s->horizontal_bs[(x + 4 + y * s->bs_width) >> 2];
+            const int bs0 = s->horizontal_bs[( x      + y * s->bs_width) >> 2];
+            const int bs1 = s->horizontal_bs[((x + 4) + y * s->bs_width) >> 2];
             if (bs0 || bs1) {
                 const int qp = (get_qPy(s, x, y - 1)     + get_qPy(s, x, y)     + 1) >> 1;
 
@@ -654,7 +654,7 @@ void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
                     bs = 1;
                 else
                     bs = boundary_strength(s, curr, left, left_refPicList);
-                s->vertical_bs[(x0 >> 3) + ((y0 + i) >> 2) * s->bs_width] = bs;
+                s->vertical_bs[(x0 + (y0 + i) * s->bs_width) >> 2] = bs;
             }
         }
     }
@@ -689,7 +689,7 @@ void ff_hevc_deblocking_boundary_strengths(HEVCContext *s, int x0, int y0,
                 MvField *curr = &tab_mvf[y_pu * min_pu_width + xq_pu];
 
                 bs = boundary_strength(s, curr, left, refPicList);
-                s->vertical_bs[((x0 + i) >> 3) + ((y0 + j) >> 2) * s->bs_width] = bs;
+                s->vertical_bs[((x0 + i) + (y0 + j) * s->bs_width) >> 2] = bs;
             }
         }
     }
