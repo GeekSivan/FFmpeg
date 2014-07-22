@@ -1417,7 +1417,7 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
                 sps->height, 0, s->avctx)) < 0)
             goto err;
     } else if (sps->m_updateRepFormatFlag) {
-        sps->chroma_array_type = sps->chroma_format_idc = 0;
+        sps->chroma_format_idc = 0;
         sps->m_updateRepFormatIndex = get_bits(gb, 8);
     }
     if (get_bits1(gb) /*conformance_window_flag*/ ) { // pic_conformance_flag

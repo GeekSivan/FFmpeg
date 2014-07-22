@@ -369,8 +369,8 @@ static void FUNC(sao_edge_filter)(uint8_t *_dst, uint8_t *_src,
         { { -1, -1 }, {  1, 1 } }, // 45 degree
         { {  1, -1 }, { -1, 1 } }, // 135 degree
     };
-    int *sao_offset_val = sao->offset_val[c_idx];
-    int sao_eo_class    = sao->eo_class[c_idx];
+    int16_t *sao_offset_val = sao->offset_val[c_idx];
+    uint8_t sao_eo_class    = sao->eo_class[c_idx];
     pixel *dst = (pixel *)_dst;
     pixel *src = (pixel *)_src;
 

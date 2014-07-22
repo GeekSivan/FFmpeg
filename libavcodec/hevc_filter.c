@@ -803,7 +803,7 @@ void ff_hevc_deblocking_boundary_strengths_v(HEVCContext *s, int x0, int y0, int
             bs = 0;
         if (s->sh.disable_deblocking_filter_flag == 1)
             bs = 0;
-        s->vertical_bs[(x0 >> 3) + (y0 >> 2) * s->bs_width] =  bs;
+        s->vertical_bs[(x0 + y0 * s->bs_width) >> 2] =  bs;
     }
 }
 #undef LUMA

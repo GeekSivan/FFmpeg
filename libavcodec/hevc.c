@@ -493,6 +493,8 @@ static int hls_slice_header(HEVCContext *s)
         if (s->decoder_id)
             av_log(s->avctx, AV_LOG_ERROR, "IRAP %d\n", s->nal_unit_type);
     }
+    if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
+        sh->no_output_of_prior_pics_flag = 1;
 
     sh->pps_id = get_ue_golomb_long(gb);
     if (sh->pps_id >= MAX_PPS_COUNT || !s->pps_list[sh->pps_id]) {
@@ -514,7 +516,8 @@ static int hls_slice_header(HEVCContext *s)
                 if (s->sps->width !=  last_sps->width || s->sps->height != last_sps->height ||
                         s->sps->temporal_layer[s->sps->max_sub_layers - 1].max_dec_pic_buffering != last_sps->temporal_layer[last_sps->max_sub_layers - 1].max_dec_pic_buffering)
                     sh->no_output_of_prior_pics_flag = 0;
-            }
+            } else
+                sh->no_output_of_prior_pics_flag = 0;
         }
         ff_hevc_clear_refs(s);
         ret = set_sps(s, s->sps);
@@ -527,9 +530,6 @@ static int hls_slice_header(HEVCContext *s)
 
     s->avctx->profile = s->sps->ptl.general_ptl.profile_idc;
     s->avctx->level   = s->sps->ptl.general_ptl.level_idc;
-
-    if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
-        sh->no_output_of_prior_pics_flag = 1;
 
     sh->dependent_slice_segment_flag = 0;
     if (!sh->first_slice_in_pic_flag) {
@@ -3005,8 +3005,7 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
 
     if ((s->temporal_id > s->temporal_layer_id) || (ret > s->quality_layer_id))
         return 0;
-    s->nuh_layer_id = ret;
-    
+
     s->nuh_layer_id = ret;
 
     switch (s->nal_unit_type) {
@@ -3486,8 +3485,8 @@ static int verify_md5(HEVCContext *s, AVFrame *frame)
             const uint8_t *src = frame->data[i] + j * frame->linesize[i];
 #if HAVE_BIGENDIAN
             if (pixel_shift) {
-                s->dsp.bswap16_buf((uint16_t*)s->checksum_buf,
-                                   (const uint16_t*)src, w);
+                s->bdsp.bswap16_buf((uint16_t *) s->checksum_buf,
+                                    (const uint16_t *) src, w);
                 src = s->checksum_buf;
             }
 #endif

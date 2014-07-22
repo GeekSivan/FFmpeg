@@ -63,16 +63,6 @@ void ff_hevc_set_neighbour_available(HEVCContext *s, int x0, int y0,
 static av_always_inline int z_scan_block_avail(HEVCContext *s, int xCurr, int yCurr,
                               int xN, int yN)
 {
-#ifndef TEST_MIN_TB_ADDR_ZS
-#define MIN_TB_ADDR_ZS(x, y)                                            \
-    s->pps->min_tb_addr_zs[(y) * s->sps->min_tb_width + (x)]
-    int Curr = MIN_TB_ADDR_ZS(xCurr >> s->sps->log2_min_tb_size,
-                              yCurr >> s->sps->log2_min_tb_size);
-    int N    = MIN_TB_ADDR_ZS(xN >> s->sps->log2_min_tb_size,
-                              yN >> s->sps->log2_min_tb_size);
-    
-    return N <= Curr;
-#else
 #define MIN_TB_ADDR_ZS(x, y)                                            \
     s->pps->min_tb_addr_zs[(y) * (s->sps->tb_mask+2) + (x)]
 
@@ -82,8 +72,6 @@ static av_always_inline int z_scan_block_avail(HEVCContext *s, int xCurr, int yC
     int yN_ctb    = yN    >> s->sps->log2_ctb_size;
     if( yN_ctb < yCurr_ctb || xN_ctb < xCurr_ctb )
         return 1;
-    else if( yN_ctb > yCurr_ctb || xN_ctb > xCurr_ctb )
-        return 0;
     else {
         int Curr = MIN_TB_ADDR_ZS((xCurr >> s->sps->log2_min_tb_size) & s->sps->tb_mask,
                 (yCurr >> s->sps->log2_min_tb_size) & s->sps->tb_mask);
@@ -91,7 +79,6 @@ static av_always_inline int z_scan_block_avail(HEVCContext *s, int xCurr, int yC
                 (yN >> s->sps->log2_min_tb_size) & s->sps->tb_mask);
         return N <= Curr;
     }
-#endif
 }
 
 //check if the two luma locations belong to the same mostion estimation region
@@ -259,8 +246,6 @@ static int temporal_luma_motion_vector(HEVCContext *s, int x0, int y0,
         ff_upsample_block(s, ref, x0 , y0, nPbW, nPbH);
     }
 #endif
-    if (s->threads_type & FF_THREAD_FRAME )
-        ff_thread_await_progress(&ref->tf, y, 0);
 
     if (tab_mvf &&
         (y0 >> s->sps->log2_ctb_size) == (y >> s->sps->log2_ctb_size) &&
