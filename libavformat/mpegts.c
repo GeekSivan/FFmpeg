@@ -138,6 +138,7 @@ struct MpegTSContext {
     int64_t last_pos;
 
     int skip_changes;
+    int skip_clear;
 
     /******************************************/
     /* private mpegts data */
@@ -176,6 +177,8 @@ static const AVOption mpegts_options[] = {
     {"ts_packetsize", "Output option carrying the raw packet size.", offsetof(MpegTSContext, raw_packet_size), AV_OPT_TYPE_INT,
      {.i64 = 0}, 0, 0, AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
     {"skip_changes", "Skip changing / adding streams / programs.", offsetof(MpegTSContext, skip_changes), AV_OPT_TYPE_INT,
+     {.i64 = 0}, 0, 1, 0 },
+    {"skip_clear", "Skip clearing programs.", offsetof(MpegTSContext, skip_clear), AV_OPT_TYPE_INT,
      {.i64 = 0}, 0, 1, 0 },
     { NULL },
 };
@@ -1671,7 +1674,7 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
                 break;
             }
         }
-        if (i) {
+        if (i && language[0]) {
             language[i - 1] = 0;
             av_dict_set(&st->metadata, "language", language, 0);
         }
@@ -1931,7 +1934,7 @@ static void pat_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
             for (i = 0; i < ts->nb_prg; i++)
                 if (ts->prg[i].id == ts->stream->programs[j]->id)
                     break;
-            if (i==ts->nb_prg)
+            if (i==ts->nb_prg && !ts->skip_clear)
                 clear_avprogram(ts, ts->stream->programs[j]->id);
         }
     }

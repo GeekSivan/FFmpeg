@@ -87,7 +87,8 @@ int ff_hevc_decode_short_term_rps(HEVCContext *s, ShortTermRPS *rps,
 
     if (rps_predict) {
         const ShortTermRPS *rps_ridx;
-        int delta_rps, abs_delta_rps;
+        int delta_rps;
+        unsigned abs_delta_rps;
         uint8_t use_delta_flag = 0;
         uint8_t delta_rps_sign;
 
@@ -105,6 +106,12 @@ int ff_hevc_decode_short_term_rps(HEVCContext *s, ShortTermRPS *rps,
 
         delta_rps_sign = get_bits1(gb);
         abs_delta_rps  = get_ue_golomb_long(gb) + 1;
+        if (abs_delta_rps < 1 || abs_delta_rps > 32768) {
+            av_log(s->avctx, AV_LOG_ERROR,
+                   "Invalid value of abs_delta_rps: %d\n",
+                   abs_delta_rps);
+            return AVERROR_INVALIDDATA;
+        }
         delta_rps      = (1 - (delta_rps_sign << 1)) * abs_delta_rps;
         for (i = 0; i <= rps_ridx->num_delta_pocs; i++) {
             int used = rps->used[k] = get_bits1(gb);
@@ -207,6 +214,8 @@ static void decode_profile_tier_level(HEVCContext *s, PTLCommon *ptl)
         av_log(s->avctx, AV_LOG_DEBUG, "Main 10 profile bitstream\n");
     else if (ptl->profile_idc == FF_PROFILE_HEVC_MAIN_STILL_PICTURE)
         av_log(s->avctx, AV_LOG_DEBUG, "Main Still Picture profile bitstream\n");
+    else if (ptl->profile_idc == FF_PROFILE_HEVC_REXT)
+        av_log(s->avctx, AV_LOG_DEBUG, "Range Extension profile bitstream\n");
     else
         av_log(s->avctx, AV_LOG_WARNING, "Unknown HEVC profile: %d\n", ptl->profile_idc);
 
@@ -263,7 +272,7 @@ static void decode_sublayer_hrd(HEVCContext *s, unsigned int nb_cpb,
     }
 }
 
-static void decode_hrd(HEVCContext *s, int common_inf_present,
+static int decode_hrd(HEVCContext *s, int common_inf_present,
                        int max_sublayers)
 {
     GetBitContext *gb = &s->HEVClc->gb;
@@ -310,14 +319,20 @@ static void decode_hrd(HEVCContext *s, int common_inf_present,
         else
             low_delay = get_bits1(gb);
 
-        if (!low_delay)
+        if (!low_delay) {
             nb_cpb = get_ue_golomb_long(gb) + 1;
+            if (nb_cpb < 1 || nb_cpb > 32) {
+                av_log(s->avctx, AV_LOG_ERROR, "nb_cpb %d invalid\n", nb_cpb);
+                return AVERROR_INVALIDDATA;
+            }
+        }
 
         if (nal_params_present)
             decode_sublayer_hrd(s, nb_cpb, subpic_params_present);
         if (vcl_params_present)
             decode_sublayer_hrd(s, nb_cpb, subpic_params_present);
     }
+    return 0;
 }
 
 static int scalTypeToScalIdx( HEVCVPS *vps, enum ScalabilityType scalType )
@@ -1219,20 +1234,25 @@ static void set_default_scaling_list_data(ScalingList *sl)
     memcpy(sl->sl[2][4], default_scaling_list_inter, 64);
     memcpy(sl->sl[2][5], default_scaling_list_inter, 64);
     memcpy(sl->sl[3][0], default_scaling_list_intra, 64);
-    memcpy(sl->sl[3][1], default_scaling_list_inter, 64);
+    memcpy(sl->sl[3][1], default_scaling_list_intra, 64);
+    memcpy(sl->sl[3][2], default_scaling_list_intra, 64);
+    memcpy(sl->sl[3][3], default_scaling_list_inter, 64);
+    memcpy(sl->sl[3][4], default_scaling_list_inter, 64);
+    memcpy(sl->sl[3][5], default_scaling_list_inter, 64);
 }
 
-static int scaling_list_data(HEVCContext *s, ScalingList *sl)
+static int scaling_list_data(HEVCContext *s, ScalingList *sl, HEVCSPS *sps)
 {
     GetBitContext *gb = &s->HEVClc->gb;
-    uint8_t scaling_list_pred_mode_flag[4][6];
+    uint8_t scaling_list_pred_mode_flag;
     int32_t scaling_list_dc_coef[2][6];
-    int size_id, matrix_id, i, pos;
+    int size_id, matrix_id, pos;
+    int i;
 
     for (size_id = 0; size_id < 4; size_id++)
-        for (matrix_id = 0; matrix_id < (size_id == 3 ? 2 : 6); matrix_id++) {
-            scaling_list_pred_mode_flag[size_id][matrix_id] = get_bits1(gb);
-            if (!scaling_list_pred_mode_flag[size_id][matrix_id]) {
+        for (matrix_id = 0; matrix_id < 6; matrix_id += ((size_id == 3) ? 3 : 1)) {
+            scaling_list_pred_mode_flag = get_bits1(gb);
+            if (!scaling_list_pred_mode_flag) {
                 unsigned int delta = get_ue_golomb_long(gb);
                 /* Only need to handle non-zero delta. Zero means default,
                  * which should already be in the arrays. */
@@ -1276,6 +1296,20 @@ static int scaling_list_data(HEVCContext *s, ScalingList *sl)
             }
         }
 
+    if (sps->chroma_format_idc == 3) {
+        for (i = 0; i < 64; i++) {
+            sl->sl[3][1][i] = sl->sl[2][1][i];
+            sl->sl[3][2][i] = sl->sl[2][2][i];
+            sl->sl[3][4][i] = sl->sl[2][4][i];
+            sl->sl[3][5][i] = sl->sl[2][5][i];
+        }
+        sl->sl_dc[1][1] = sl->sl_dc[0][1];
+        sl->sl_dc[1][2] = sl->sl_dc[0][2];
+        sl->sl_dc[1][4] = sl->sl_dc[0][4];
+        sl->sl_dc[1][5] = sl->sl_dc[0][5];
+    }
+
+
     return 0;
 }
 
@@ -1316,7 +1350,7 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
     if (!sps_buf)
         return AVERROR(ENOMEM);
     sps = (HEVCSPS*)sps_buf->data;
-    sps->chroma_array_type = sps->chroma_format_idc = 1; //FIXME shouldn't it be passing from BL
+    sps->chroma_format_idc = 1; //FIXME shouldn't it be passing from BL
     av_log(s->avctx, AV_LOG_DEBUG, "Decoding SPS\n");
 
     // Coded parameters
@@ -1375,9 +1409,7 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
             sps->separate_colour_plane_flag = get_bits1(gb);
 
        if (sps->separate_colour_plane_flag)
-            sps->chroma_array_type = 0;
-       else
-            sps->chroma_array_type = sps->chroma_format_idc;
+            sps->chroma_format_idc = 0;
 
         sps->width  = get_ue_golomb_long(gb);
         sps->height = get_ue_golomb_long(gb);
@@ -1446,14 +1478,9 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
             if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P12;
             if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P12;
             break;
-        case 14:
-            if (sps->chroma_format_idc == 1) sps->pix_fmt = AV_PIX_FMT_YUV420P14;
-            if (sps->chroma_format_idc == 2) sps->pix_fmt = AV_PIX_FMT_YUV422P14;
-            if (sps->chroma_format_idc == 3) sps->pix_fmt = AV_PIX_FMT_YUV444P14;
-            break;
         default:
             av_log(s->avctx, AV_LOG_ERROR,
-                   "4:2:0, 4:2:2, 4:4:4 supports are currently specified for 8, 10, 12 and 14 bits.\n");
+                   "4:2:0, 4:2:2, 4:4:4 supports are currently specified for 8, 10 and 12 bits.\n");
             return AVERROR_PATCHWELCOME;
         }
     } else if(s->nuh_layer_id) {
@@ -1570,7 +1597,7 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
             set_default_scaling_list_data(&sps->scaling_list);
             sps->m_scalingListPresentFlag = get_bits1(gb);
             if (sps->m_scalingListPresentFlag) {
-                ret = scaling_list_data(s, &sps->scaling_list);
+                ret = scaling_list_data(s, &sps->scaling_list, sps);
                 if (ret < 0)
                     goto err;
             }
@@ -1780,6 +1807,12 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
             if (s->pps_list[i] && ((HEVCPPS*)s->pps_list[i]->data)->sps_id == sps_id)
                 av_buffer_unref(&s->pps_list[i]);
         }
+        if (s->sps_list[sps_id] && s->sps == (HEVCSPS*)s->sps_list[sps_id]->data) {
+            av_buffer_unref(&s->current_sps);
+            s->current_sps = av_buffer_ref(s->sps_list[sps_id]);
+            if (!s->current_sps)
+                s->sps = NULL;
+        }
         av_buffer_unref(&s->sps_list[sps_id]);
         s->sps_list[sps_id] = sps_buf;
     }
@@ -1821,10 +1854,6 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
         pps->log2_max_transform_skip_block_size = get_ue_golomb_long(gb) + 2;
     }
     pps->cross_component_prediction_enabled_flag = get_bits1(gb);
-    if (pps->cross_component_prediction_enabled_flag) {
-        av_log(s->avctx, AV_LOG_WARNING,
-               "cross_component_prediction_enabled_flag is not yet implemented.\n");
-    }
     pps->chroma_qp_offset_list_enabled_flag = get_bits1(gb);
     if (pps->chroma_qp_offset_list_enabled_flag) {
         pps->diff_cu_chroma_qp_offset_depth = get_ue_golomb_long(gb);
@@ -1843,7 +1872,7 @@ static int pps_range_extensions(HEVCContext *s, HEVCPPS *pps, HEVCSPS *sps) {
             pps->cr_qp_offset_list[i] = get_se_golomb_long(gb);
             if (pps->cr_qp_offset_list[i]) {
                 av_log(s->avctx, AV_LOG_WARNING,
-                       "cb_qp_offset_list not tested yet\.n");
+                       "cb_qp_offset_list not tested yet.\n");
             }
         }
     }
@@ -2048,7 +2077,7 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
 
         if (pps->scaling_list_data_present_flag) {
             set_default_scaling_list_data(&pps->scaling_list);
-            ret = scaling_list_data(s, &pps->scaling_list);
+            ret = scaling_list_data(s, &pps->scaling_list, sps);
             if (ret < 0)
                 goto err;
         }
@@ -2069,13 +2098,11 @@ int ff_hevc_decode_nal_pps(HEVCContext *s)
 
     if (get_bits1(gb)) { // pps_extension_present_flag
         int pps_range_extensions_flag = get_bits1(gb);
-        int pps_extension_7bits = get_bits(gb, 7);
-        if (pps_range_extensions_flag) {
-            av_log(s->avctx, AV_LOG_ERROR,
-                   "PPS extension flag is partially implemented.\n");
+        /* int pps_extension_7bits = */ get_bits(gb, 7);
+        if (sps->ptl.general_ptl.profile_idc == FF_PROFILE_HEVC_REXT && pps_range_extensions_flag) {
             pps_range_extensions(s, pps, sps);
         }
-	}
+    }
 
     // Inferred parameters
     pps->col_bd   = av_malloc_array(pps->num_tile_columns + 1, sizeof(*pps->col_bd));

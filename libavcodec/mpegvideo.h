@@ -30,7 +30,6 @@
 
 #include "avcodec.h"
 #include "blockdsp.h"
-#include "dsputil.h"
 #include "error_resilience.h"
 #include "fdctdsp.h"
 #include "get_bits.h"
@@ -38,6 +37,7 @@
 #include "h263dsp.h"
 #include "hpeldsp.h"
 #include "idctdsp.h"
+#include "me_cmp.h"
 #include "mpegvideodsp.h"
 #include "mpegvideoencdsp.h"
 #include "pixblockdsp.h"
@@ -365,11 +365,11 @@ typedef struct MpegEncContext {
     int h263_long_vectors;      ///< use horrible h263v1 long vector mode
 
     BlockDSPContext bdsp;
-    DSPContext dsp;             ///< pointers for accelerated dsp functions
     FDCTDSPContext fdsp;
     H264ChromaContext h264chroma;
     HpelDSPContext hdsp;
     IDCTDSPContext idsp;
+    MECmpContext mecc;
     MpegVideoDSPContext mdsp;
     MpegvideoEncDSPContext mpvencdsp;
     PixblockDSPContext pdsp;
@@ -556,7 +556,6 @@ typedef struct MpegEncContext {
     /* RV10 specific */
     int rv10_version; ///< RV10 version: 0 or 3
     int rv10_first_dc_coded[3];
-    int orig_width, orig_height;
 
     /* MJPEG specific */
     struct MJpegContext *mjpeg_ctx;
@@ -743,6 +742,7 @@ void ff_dct_encode_init_x86(MpegEncContext *s);
 void ff_MPV_common_init_x86(MpegEncContext *s);
 void ff_MPV_common_init_axp(MpegEncContext *s);
 void ff_MPV_common_init_arm(MpegEncContext *s);
+void ff_MPV_common_init_neon(MpegEncContext *s);
 void ff_MPV_common_init_ppc(MpegEncContext *s);
 void ff_clean_intra_table_entries(MpegEncContext *s);
 void ff_mpeg_draw_horiz_band(MpegEncContext *s, int y, int h);

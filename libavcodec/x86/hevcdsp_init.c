@@ -35,21 +35,23 @@
 void ff_hevc_ ## DIR ## _loop_filter_chroma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
 
 #define LFL_FUNC(DIR, DEPTH, OPT)                                        \
-void ff_hevc_ ## DIR ## _loop_filter_luma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t stride, int *_beta, int *_tc, \
+void ff_hevc_ ## DIR ## _loop_filter_luma_ ## DEPTH ## _ ## OPT(uint8_t *_pix, ptrdiff_t stride, int _beta, int *_tc, \
 uint8_t *_no_p, uint8_t *_no_q);
 
-#define LFC_FUNCS(type, depth) \
-LFC_FUNC(h, depth, sse2)  \
-LFC_FUNC(v, depth, sse2)
+#define LFC_FUNCS(type, depth, opt) \
+LFC_FUNC(h, depth, opt)  \
+LFC_FUNC(v, depth, opt)
 
-#define LFL_FUNCS(type, depth) \
-LFL_FUNC(h, depth, ssse3)  \
-LFL_FUNC(v, depth, ssse3)
+#define LFL_FUNCS(type, depth, opt) \
+LFL_FUNC(h, depth, opt)  \
+LFL_FUNC(v, depth, opt)
 
-LFC_FUNCS(uint8_t,   8)
-LFC_FUNCS(uint8_t,  10)
-LFL_FUNCS(uint8_t,   8)
-LFL_FUNCS(uint8_t,  10)
+LFC_FUNCS(uint8_t,   8, sse2)
+LFC_FUNCS(uint8_t,  10, sse2)
+LFL_FUNCS(uint8_t,   8, sse2)
+LFL_FUNCS(uint8_t,  10, sse2)
+LFL_FUNCS(uint8_t,   8, ssse3)
+LFL_FUNCS(uint8_t,  10, ssse3)
 
 
 #if !ARCH_X86_32 && defined(OPTI_ASM)
@@ -580,6 +582,10 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                 if (EXTERNAL_SSE2(mm_flags)) {
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_8_sse2;
                     c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_8_sse2;
+                    if (ARCH_X86_64) {
+                        c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_8_sse2;
+                        c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_8_sse2;
+                    }
 
                     // only 4X4 needs update for Rext                   c->transform_skip    = ff_hevc_transform_skip_8_sse;
                     c->idct_4x4_luma = ff_hevc_transform_4x4_luma_8_sse4;
@@ -777,6 +783,10 @@ c->upsample_filter_block_cr_v[0] = ff_upsample_filter_block_cr_v_all_sse;
                     c->transform_add[1] = ff_hevc_transform_8x8_add_10_sse4;
                     c->transform_add[2] = ff_hevc_transform_16x16_add_10_sse4;
                     c->transform_add[3] = ff_hevc_transform_32x32_add_10_sse4;
+                    if (ARCH_X86_64) {
+                        c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_10_sse2;
+                        c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_sse2;
+                    }
 
                     c->sao_band_filter    = ff_hevc_sao_band_filter_0_10_sse;
                     c->sao_edge_filter[0] = ff_hevc_sao_edge_filter_0_10_sse;
