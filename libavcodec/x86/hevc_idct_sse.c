@@ -637,10 +637,10 @@ void ff_hevc_transform_8x8_ ## D ## _sse4 (int16_t *coeffs, int col_limit) {    
 
 TRANSFORM_4x4( 8)
 TRANSFORM_4x4(10)
-//TRANSFORM_4x4(12)
+TRANSFORM_4x4(12)
 TRANSFORM_8x8( 8)
 TRANSFORM_8x8(10)
-//TRANSFORM_8x8(12)
+TRANSFORM_8x8(12)
 
 ////////////////////////////////////////////////////////////////////////////////
 // ff_hevc_transform_16x16_X_sse4
@@ -745,11 +745,11 @@ void ff_hevc_transform_ ## H ## x ## H ## _ ## D ## _sse4 (                \
 
 TRANSFORM2(16,  8);
 TRANSFORM2(16, 10);
-//TRANSFORM2(16, 12);
+TRANSFORM2(16, 12);
 
 TRANSFORM2(32,  8);
 TRANSFORM2(32, 10);
-//TRANSFORM2(32, 12);
+TRANSFORM2(32, 12);
 
 ////////////////////////////////////////////////////////////////////////////////
 // ff_hevc_transform_XxX_DC_X_sse4
@@ -910,8 +910,8 @@ TRANSFORM_ADD( 8,10)
 TRANSFORM_ADD(16,10)
 TRANSFORM_ADD(32,10)
 
-//TRANSFORM_ADD( 4,12)
-//TRANSFORM_ADD( 8,12)
-//TRANSFORM_ADD(16,12)
-//TRANSFORM_ADD(32,12)
+TRANSFORM_ADD( 4,12)
+TRANSFORM_ADD( 8,12)
+TRANSFORM_ADD(16,12)
+TRANSFORM_ADD(32,12)
 #endif

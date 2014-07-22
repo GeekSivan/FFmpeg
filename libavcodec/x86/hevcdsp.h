@@ -92,12 +92,16 @@ void ff_hevc_transform_4x4_luma_12_sse4(int16_t *coeffs);
 
 IDCT_FUNC(4, 8)
 IDCT_FUNC(4, 10)
+IDCT_FUNC(4, 12)
 IDCT_FUNC(8, 8)
 IDCT_FUNC(8, 10)
+IDCT_FUNC(8, 12)
 IDCT_FUNC(16, 8)
 IDCT_FUNC(16, 10)
+IDCT_FUNC(16, 12)
 IDCT_FUNC(32, 8)
 IDCT_FUNC(32, 10)
+IDCT_FUNC(32, 12)
 
 void ff_hevc_transform_4x4_add_8_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 void ff_hevc_transform_8x8_add_8_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
@@ -108,6 +112,11 @@ void ff_hevc_transform_4x4_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t 
 void ff_hevc_transform_8x8_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 void ff_hevc_transform_16x16_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 void ff_hevc_transform_32x32_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+
+void ff_hevc_transform_4x4_add_12_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+void ff_hevc_transform_8x8_add_12_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+void ff_hevc_transform_16x16_add_12_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+void ff_hevc_transform_32x32_add_12_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 
 ///////////////////////////////////////////////////////////////////////////////
 // MC functions
@@ -150,6 +159,7 @@ void ff_hevc_transform_32x32_add_10_sse4(uint8_t *dst, int16_t *coeffs, ptrdiff_
 ///////////////////////////////////////////////////////////////////////////////
 EPEL_PROTOTYPES(pel_pixels ,  8, sse4);
 EPEL_PROTOTYPES(pel_pixels , 10, sse4);
+EPEL_PROTOTYPES(pel_pixels , 12, sse4);
 
 void ff_hevc_put_hevc_pel_pixels16_8_avx2(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width);
 void ff_hevc_put_hevc_pel_pixels24_8_avx2(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width);
@@ -190,12 +200,15 @@ void ff_hevc_put_hevc_bi_pel_pixels64_10_avx2(uint8_t *_dst, ptrdiff_t _dststrid
 ///////////////////////////////////////////////////////////////////////////////
 EPEL_PROTOTYPES(epel_h ,  8, sse4);
 EPEL_PROTOTYPES(epel_h , 10, sse4);
+EPEL_PROTOTYPES(epel_h , 12, sse4);
 
 EPEL_PROTOTYPES(epel_v ,  8, sse4);
 EPEL_PROTOTYPES(epel_v , 10, sse4);
+EPEL_PROTOTYPES(epel_v , 12, sse4);
 
 EPEL_PROTOTYPES(epel_hv ,  8, sse4);
 EPEL_PROTOTYPES(epel_hv , 10, sse4);
+EPEL_PROTOTYPES(epel_hv , 12, sse4);
 
 #ifdef OPTI_ASM
 PEL_PROTOTYPE(epel_h16, 8, avx2);
@@ -239,12 +252,15 @@ PEL_PROTOTYPE(epel_hv64,10, avx2);
 ///////////////////////////////////////////////////////////////////////////////
 QPEL_PROTOTYPES(qpel_h ,  8, sse4);
 QPEL_PROTOTYPES(qpel_h , 10, sse4);
+QPEL_PROTOTYPES(qpel_h , 12, sse4);
 
 QPEL_PROTOTYPES(qpel_v,  8, sse4);
 QPEL_PROTOTYPES(qpel_v, 10, sse4);
+QPEL_PROTOTYPES(qpel_v, 12, sse4);
 
 QPEL_PROTOTYPES(qpel_hv,  8, sse4);
 QPEL_PROTOTYPES(qpel_hv, 10, sse4);
+QPEL_PROTOTYPES(qpel_hv, 12, sse4);
 
 #ifdef OPTI_ASM
 PEL_PROTOTYPE(qpel_h16, 8, avx2);
@@ -286,6 +302,7 @@ PEL_PROTOTYPE(qpel_hv64,10, avx2);
 
 WEIGHTING_PROTOTYPES(8, sse4);
 WEIGHTING_PROTOTYPES(10, sse4);
+WEIGHTING_PROTOTYPES(12, sse4);
 
 ///////////////////////////////////////////////////////////////////////////////
 // IDCT
