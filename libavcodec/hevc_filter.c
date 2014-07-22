@@ -345,7 +345,7 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
     uint8_t no_q[2] = { 0 };
 
     int log2_ctb_size = s->sps->log2_ctb_size;
-    int x_end, x_end2, y_end;
+    int x_end, y_end;
     int ctb_size        = 1 << log2_ctb_size;
     int ctb             = (x0 >> log2_ctb_size) +
                           (y0 >> log2_ctb_size) * s->sps->ctb_width;
@@ -437,7 +437,6 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
     }
 
     // horizontal filtering luma
-    x_end2 = x_end;
     if (x_end != s->sps->width)
         x_end -= 8;
     for (y = y0 ? y0 : 8; y < y_end; y += 8) {
@@ -474,17 +473,27 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
     for (chroma = 1; chroma <= 2; chroma++) {
         int h = 1 << s->sps->hshift[chroma];
         int v = 1 << s->sps->vshift[chroma];
-        if (x_end2 != s->sps->width)
-             x_end = x_end2 - 8 * h;
-        for (y = y0 ? y0 : 8 * v; y < y_end; y += (8 * v)) {
-            tc_offset = x0 ? left_tc_offset : cur_tc_offset;
-            for (x = x0 ? x0 - 8 * h : 0; x < x_end; x += (8 * h)) {
-                const int bs0 = s->horizontal_bs[( x          + y * s->bs_width) >> 2];
-                const int bs1 = s->horizontal_bs[((x + 4 * h) + y * s->bs_width) >> 2];
+        for (y = y0 ? y0 : 8 * v; y < y_end; y +=  (8 * v)) {
+            for (x = x0 - 8; x < x_end; x += (8 * h)) {
+                int bs0, bs1;
+                // to make sure no memory access over boundary when x = -8
+                // TODO: simplify with row based deblocking
+                if (x < 0) {
+                    bs0 = 0;
+                    bs1 = s->horizontal_bs[(x + (4 * h) + y * s->bs_width) >> 2];
+                } else if (x >= x_end - 4 * h) {
+                    bs0 = s->horizontal_bs[(x +           y * s->bs_width) >> 2];
+                    bs1 = 0;
+                } else {
+                    bs0 = s->horizontal_bs[(x           + y * s->bs_width) >> 2];
+                    bs1 = s->horizontal_bs[(x + (4 * h) + y * s->bs_width) >> 2];
+                }
+
                 if ((bs0 == 2) || (bs1 == 2)) {
                     const int qp0 = bs0 == 2 ? (get_qPy(s, x,           y - 1) + get_qPy(s, x,           y) + 1) >> 1 : 0;
                     const int qp1 = bs1 == 2 ? (get_qPy(s, x + (4 * h), y - 1) + get_qPy(s, x + (4 * h), y) + 1) >> 1 : 0;
 
+                    tc_offset = x >= x0 ? cur_tc_offset : left_tc_offset;
                     c_tc[0]   = bs0 == 2 ? chroma_tc(s, qp0, chroma, tc_offset)     : 0;
                     c_tc[1]   = bs1 == 2 ? chroma_tc(s, qp1, chroma, cur_tc_offset) : 0;
                     src       = &s->frame->data[chroma][(y >> s->sps->vshift[1]) * s->frame->linesize[chroma] + ((x >> s->sps->hshift[1]) << s->sps->pixel_shift)];

@@ -89,8 +89,8 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
     int ctb_count        = sps->ctb_width * sps->ctb_height;
     int min_pu_size      = sps->min_pu_width * sps->min_pu_height;
 
-    s->bs_width  = (width  >> 2) + 1;
-    s->bs_height = (height >> 2) + 1;
+    s->bs_width  = (width  >> 2);
+    s->bs_height = (height >> 2);
 
     s->sao           = av_mallocz_array(ctb_count, sizeof(*s->sao));
     s->deblock       = av_mallocz_array(ctb_count, sizeof(*s->deblock));
@@ -104,7 +104,7 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
 
     s->cbf_luma = av_malloc_array(sps->min_tb_width, sps->min_tb_height);
     s->tab_ipm  = av_mallocz(min_pu_size);
-    s->is_pcm   = av_malloc((sps->min_pu_width + 1) * (sps->min_pu_height + 1));
+    s->is_pcm   = av_malloc(min_pu_size);
     if (!s->tab_ipm || !s->cbf_luma || !s->is_pcm)
         goto fail;
 
@@ -2587,7 +2587,7 @@ static int hevc_frame_start(HEVCContext *s)
     memset(s->horizontal_bs, 0, s->bs_width * s->bs_height);
     memset(s->vertical_bs,   0, s->bs_width * s->bs_height);
     memset(s->cbf_luma,      0, s->sps->min_tb_width * s->sps->min_tb_height);
-    memset(s->is_pcm,        0, (s->sps->min_pu_width + 1) * (s->sps->min_pu_height + 1));
+    memset(s->is_pcm,        0, s->sps->min_pu_width * s->sps->min_pu_height);
     memset(s->tab_slice_address, -1, pic_size_in_ctb * sizeof(*s->tab_slice_address));
 
     s->is_decoded        = 0;
