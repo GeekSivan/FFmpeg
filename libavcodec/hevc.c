@@ -3053,7 +3053,7 @@ static int verify_md5(HEVCContext *s, AVFrame *frame)
             av_log   (s->avctx, AV_LOG_ERROR, " != ");
             print_md5(s->avctx, AV_LOG_ERROR, s->md5[i]);
             av_log   (s->avctx, AV_LOG_ERROR, "\n");
-            //return AVERROR_INVALIDDATA;
+            return AVERROR_INVALIDDATA;
         }
     }
 
@@ -3081,8 +3081,6 @@ static int hevc_decode_frame(AVCodecContext *avctx, void *data, int *got_output,
     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
     if (ret < 0)
         return ret;
-
-    verify_md5(s, s->ref->frame);
 
     /* verify the SEI checksum */
     if (avctx->err_recognition & AV_EF_CRCCHECK && s->is_decoded &&
