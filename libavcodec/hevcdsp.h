@@ -65,9 +65,15 @@ typedef struct HEVCDSPContext {
 
     void (*idct_dc[4])(int16_t *coeffs);
 
-    void (*sao_band_filter)( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride, struct SAOParams *sao, int *borders, int width, int height, int c_idx);
 
-    void (*sao_edge_filter[2])(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride,  struct SAOParams *sao, int *borders, int _width, int _height, int c_idx, uint8_t *vert_edge, uint8_t *horiz_edge, uint8_t *diag_edge);
+    void (*sao_band_filter)(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+                            struct SAOParams *sao, int *borders,
+                            int width, int height, int c_idx);
+
+    void (*sao_edge_filter[2])(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+                               struct SAOParams *sao, int *borders, int _width,
+                               int _height, int c_idx, uint8_t *vert_edge,
+                               uint8_t *horiz_edge, uint8_t *diag_edge);
 
     void (*put_hevc_qpel[10][2][2])(int16_t *dst, ptrdiff_t dststride, uint8_t *src, ptrdiff_t srcstride,
                                     int height, intptr_t mx, intptr_t my, int width);
@@ -99,14 +105,28 @@ typedef struct HEVCDSPContext {
                                          int ox1, intptr_t mx, intptr_t my, int width);
 
 
-    void (*hevc_h_loop_filter_luma)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_v_loop_filter_luma)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_h_loop_filter_chroma)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_v_loop_filter_chroma)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_h_loop_filter_luma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_v_loop_filter_luma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_beta, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_h_loop_filter_chroma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
-    void (*hevc_v_loop_filter_chroma_c)(uint8_t *_pix, ptrdiff_t _stride, int *_tc, uint8_t *_no_p, uint8_t *_no_q);
+    void (*hevc_h_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
+                                    int beta, int *tc,
+                                    uint8_t *no_p, uint8_t *no_q);
+    void (*hevc_v_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
+                                    int beta, int *tc,
+                                    uint8_t *no_p, uint8_t *no_q);
+    void (*hevc_h_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
+                                      int *tc, uint8_t *no_p, uint8_t *no_q);
+    void (*hevc_v_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
+                                      int *tc, uint8_t *no_p, uint8_t *no_q);
+    void (*hevc_h_loop_filter_luma_c)(uint8_t *pix, ptrdiff_t stride,
+                                      int beta, int *tc,
+                                      uint8_t *no_p, uint8_t *no_q);
+    void (*hevc_v_loop_filter_luma_c)(uint8_t *pix, ptrdiff_t stride,
+                                      int beta, int *tc,
+                                      uint8_t *no_p, uint8_t *no_q);
+    void (*hevc_h_loop_filter_chroma_c)(uint8_t *pix, ptrdiff_t stride,
+                                        int *tc, uint8_t *no_p,
+                                        uint8_t *no_q);
+    void (*hevc_v_loop_filter_chroma_c)(uint8_t *pix, ptrdiff_t stride,
+                                        int *tc, uint8_t *no_p,
+                                        uint8_t *no_q);
 
     void (*upsample_base_layer_frame)  (struct AVFrame *FrameEL, struct AVFrame *FrameBL, short *Buffer[3], const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info, int channel);
     void (*upsample_filter_block_luma_h[3])(

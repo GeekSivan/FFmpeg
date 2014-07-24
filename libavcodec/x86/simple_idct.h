@@ -1,8 +1,4 @@
 /*
- * Copyright (c) 2002 Brian Foley
- * Copyright (c) 2002 Dieter Shirley
- * Copyright (c) 2003-2004 Romain Dolbeau <romain@dolbeau.org>
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -20,13 +16,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef AVCODEC_PPC_DSPUTIL_ALTIVEC_H
-#define AVCODEC_PPC_DSPUTIL_ALTIVEC_H
+#ifndef AVCODEC_X86_SIMPLE_IDCT_H
+#define AVCODEC_X86_SIMPLE_IDCT_H
 
 #include <stdint.h>
 
-#include "libavcodec/dsputil.h"
+void ff_simple_idct_mmx(int16_t *block);
+void ff_simple_idct_add_mmx(uint8_t *dest, int line_size, int16_t *block);
+void ff_simple_idct_put_mmx(uint8_t *dest, int line_size, int16_t *block);
 
-void ff_dsputil_init_altivec(DSPContext *c, AVCodecContext *avctx);
-
-#endif /* AVCODEC_PPC_DSPUTIL_ALTIVEC_H */
+#endif /* AVCODEC_X86_SIMPLE_IDCT_H */

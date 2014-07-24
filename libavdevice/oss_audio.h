@@ -1,8 +1,4 @@
 /*
- * Copyright (c) 2002 Brian Foley
- * Copyright (c) 2002 Dieter Shirley
- * Copyright (c) 2003-2004 Romain Dolbeau <romain@dolbeau.org>
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -20,19 +16,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <string.h>
+#ifndef AVDEVICE_OSS_AUDIO_H
+#define AVDEVICE_OSS_AUDIO_H
 
-#include "libavutil/attributes.h"
-#include "libavutil/cpu.h"
-#include "libavutil/ppc/cpu.h"
 #include "libavcodec/avcodec.h"
-#include "libavcodec/dsputil.h"
-#include "dsputil_altivec.h"
 
-av_cold void ff_dsputil_init_ppc(DSPContext *c, AVCodecContext *avctx)
-{
-    int mm_flags = av_get_cpu_flags();
-    if (PPC_ALTIVEC(mm_flags)) {
-        ff_dsputil_init_altivec(c, avctx);
-    }
-}
+#include "libavformat/avformat.h"
+
+#define OSS_AUDIO_BLOCK_SIZE 4096
+
+typedef struct OSSAudioData {
+    AVClass *class;
+    int fd;
+    int sample_rate;
+    int channels;
+    int frame_size; /* in bytes ! */
+    enum AVCodecID codec_id;
+    unsigned int flip_left : 1;
+    uint8_t buffer[OSS_AUDIO_BLOCK_SIZE];
+    int buffer_ptr;
+} OSSAudioData;
+
+int ff_oss_audio_open(AVFormatContext *s1, int is_output,
+                      const char *audio_device);
+
+int ff_oss_audio_close(OSSAudioData *s);
+
+#endif /* AVDEVICE_OSS_AUDIO_H */

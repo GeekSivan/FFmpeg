@@ -89,6 +89,7 @@ typedef struct {
 #endif
     AVDictionary *chained_options;
     int send_expect_100;
+    char *method;
 } HTTPContext;
 
 #define OFFSET(x) offsetof(HTTPContext, x)
@@ -116,18 +117,9 @@ static const AVOption options[] = {
 {"location", "The actual location of the data received", OFFSET(location), AV_OPT_TYPE_STRING, { 0 }, 0, 0, D|E },
 {"offset", "initial byte offset", OFFSET(off), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, INT64_MAX, D },
 {"end_offset", "try to limit the request to bytes preceding this offset", OFFSET(end_off), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, INT64_MAX, D },
+{"method", "Override the HTTP method", OFFSET(method), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, E, },
 {NULL}
 };
-#define HTTP_CLASS(flavor)\
-static const AVClass flavor ## _context_class = {\
-    .class_name     = #flavor,\
-    .item_name      = av_default_item_name,\
-    .option         = options,\
-    .version        = LIBAVUTIL_VERSION_INT,\
-}
-
-HTTP_CLASS(http);
-HTTP_CLASS(https);
 
 static int http_connect(URLContext *h, const char *path, const char *local_path,
                         const char *hoststr, const char *auth,
@@ -684,7 +676,11 @@ static int http_connect(URLContext *h, const char *path, const char *local_path,
         s->chunked_post = 0;
     }
 
-    method = post ? "POST" : "GET";
+    if (s->method)
+        method = s->method;
+    else
+        method = post ? "POST" : "GET";
+
     authstr = ff_http_auth_create_response(&s->auth_state, auth, local_path,
                                            method);
     proxyauthstr = ff_http_auth_create_response(&s->proxy_auth_state, proxyauth,
@@ -1096,7 +1092,17 @@ http_get_file_handle(URLContext *h)
     return ffurl_get_file_handle(s->hd);
 }
 
+#define HTTP_CLASS(flavor)\
+static const AVClass flavor ## _context_class = {\
+    .class_name     = #flavor,\
+    .item_name      = av_default_item_name,\
+    .option         = options,\
+    .version        = LIBAVUTIL_VERSION_INT,\
+}
+
 #if CONFIG_HTTP_PROTOCOL
+HTTP_CLASS(http);
+
 URLProtocol ff_http_protocol = {
     .name                = "http",
     .url_open2           = http_open,
@@ -1112,6 +1118,8 @@ URLProtocol ff_http_protocol = {
 };
 #endif
 #if CONFIG_HTTPS_PROTOCOL
+HTTP_CLASS(https);
+
 URLProtocol ff_https_protocol = {
     .name                = "https",
     .url_open2           = http_open,
