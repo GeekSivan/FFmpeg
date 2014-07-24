@@ -155,6 +155,25 @@ SECTION .text
     %1         [%2+%4  ], m3
 %endmacro
 
+%macro DC_ADD_OP_SSE_32 4
+    %1                m0, [%2      ]
+    %1                m1, [%2+16   ]
+    %1                m2, [%2+%3   ]
+    %1                m3, [%2+%3+16]
+    paddusb           m0, m4
+    paddusb           m1, m6
+    paddusb           m2, m8
+    paddusb           m3, m10
+    psubusb           m0, m5
+    psubusb           m1, m7
+    psubusb           m2, m9
+    psubusb           m3, m11
+    %1        [%2      ], m0
+    %1        [%2+16   ], m1
+    %1        [%2+%3   ], m2
+    %1        [%2+%3+16], m3
+%endmacro
+
 
 %macro DC_ADD_OP 4
     %1                m0, [%2     ]
@@ -234,6 +253,18 @@ cglobal hevc_transform_add16_8, 3, 4, 6
     lea                r0, [r0+r2*4]
     DC_ADD_INIT_SSE_16 r3, r2
     DC_ADD_OP_SSE    movu, r0, r2, r3
+%endrep
+    RET
+
+; void ff_hevc_transform_add16_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+cglobal hevc_transform_add32_8, 3, 4, 6
+    DC_ADD_INIT_SSE_16 r3, r2
+    DC_ADD_OP_SSE_32 movu, r0, r2, r3
+%rep 15
+    lea                r1, [r1+16*8]
+    lea                r0, [r0+r2*2]
+    DC_ADD_INIT_SSE_16 r3, r2
+    DC_ADD_OP_SSE_32 movu, r0, r2, r3
 %endrep
     RET
 

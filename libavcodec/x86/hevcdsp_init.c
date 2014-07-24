@@ -587,19 +587,19 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                     c->idct[2] = ff_hevc_transform_16x16_8_sse4;
                     c->idct[3] = ff_hevc_transform_32x32_8_sse4;
 
-                    c->transform_add[3] = ff_hevc_transform_32x32_add_8_sse4;
-
-
 #ifdef OPTI_ASM
 
                       c->transform_add[1]    =  ff_hevc_transform_add8_8_sse2;
                       c->transform_add[2]    = ff_hevc_transform_add16_8_sse2;
+                      c->transform_add[3]    = ff_hevc_transform_add32_8_sse2;
+
 
 #endif
 #ifndef OPTI_ASM
                       c->transform_add[0] = ff_hevc_transform_4x4_add_8_sse4;
                       c->transform_add[1] = ff_hevc_transform_8x8_add_8_sse4;
                       c->transform_add[2] = ff_hevc_transform_16x16_add_8_sse4;
+                      c->transform_add[3] = ff_hevc_transform_32x32_add_8_sse4;
 
 #endif
                 }
