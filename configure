@@ -5095,13 +5095,10 @@ elif enabled ccc; then
     add_cflags -msg_disable unsupieee
 elif enabled gcc; then
     check_optflags -fno-tree-vectorize
-<<<<<<< HEAD
     check_cflags -msse2
     check_cflags -msse3
     check_cflags -msse4
-=======
     check_cflags -Werror=format-security
->>>>>>> refs/remotes/ffmpeg-upstream/master
     check_cflags -Werror=implicit-function-declaration
     check_cflags -Werror=missing-prototypes
     check_cflags -Werror=return-type
