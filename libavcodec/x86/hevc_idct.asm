@@ -28,17 +28,30 @@ dc_add_10:              times 4 dd ((1 << 14-10) + 1)
 SECTION .text
 
 ;the idct_dc_add macros and functions were largely inspired by x264 project's code in the h264_idct.asm file
+%macro DC_ADD_INIT_MMX 2
+    mova              m2, [r1]
+    mova              m4, [r1+8]
+    pxor              m3, m3
+    psubw             m3, m2
+    packuswb          m2, m2
+    packuswb          m3, m3
+    pxor              m5, m5
+    psubw             m5, m4
+    packuswb          m4, m4
+    packuswb          m5, m5
+%endmacro
 
-%macro DC_ADD_INIT 2
-    add              %1w, ((1 << 14-8) + 1)
-    sar              %1w, (15-8)
-    movd              m0, %1
-    lea               %1, [%2*3]
-    SPLATW            m0, m0, 0
+%macro DC_ADD_INIT 2-3
+    mova              m0, [r1]
+    mova              m4, [r1+8]
     pxor              m1, m1
     psubw             m1, m0
     packuswb          m0, m0
     packuswb          m1, m1
+    pxor              m5, m5
+    psubw             m5, m4
+    packuswb          m4, m4
+    packuswb          m5, m5
 %endmacro
 
 %macro DC_ADD_INIT_AVX2 2
@@ -53,31 +66,120 @@ SECTION .text
     packuswb          m1, m1
 %endmacro
 
-%macro DC_ADD_OP 4
-    %1                m2, [%2     ]
-    %1                m3, [%2+%3  ]
-    %1                m4, [%2+%3*2]
-    %1                m5, [%2+%4  ]
-    paddusb           m2, m0
-    paddusb           m3, m0
-    paddusb           m4, m0
-    paddusb           m5, m0
-    psubusb           m2, m1
-    psubusb           m3, m1
-    psubusb           m4, m1
-    psubusb           m5, m1
-    %1         [%2     ], m2
-    %1         [%2+%3  ], m3
-    %1         [%2+%3*2], m4
-    %1         [%2+%4  ], m5
+%macro DC_ADD_OP_MMX 4
+    %1                m0, [%2     ]
+    %1                m1, [%2+%3  ]
+    paddusb           m0, m2
+    paddusb           m1, m4
+    psubusb           m0, m3
+    psubusb           m1, m5
+    %1         [%2     ], m0
+    %1         [%2+%3  ], m1
+%endmacro
+
+%macro DC_ADD_INIT_SSE_8 2
+    movu              m4, [r1]
+    movu              m6, [r1+16]
+    movu              m8, [r1+32]
+    movu             m10, [r1+48]
+    lea               %1, [%2*3]
+    pxor              m5, m5
+    psubw             m5, m4
+    packuswb          m4, m4
+    packuswb          m5, m5
+    pxor              m7, m7
+    psubw             m7, m6
+    packuswb          m6, m6
+    packuswb          m7, m7
+    pxor              m9, m9
+    psubw             m9, m8
+    packuswb          m8, m8
+    packuswb          m9, m9
+    pxor             m11, m11
+    psubw            m11, m10
+    packuswb         m10, m10
+    packuswb         m11, m11
+%endmacro
+
+%macro DC_ADD_INIT_SSE_16 2
+    lea               %1, [%2*3]
+    movu              m4, [r1]
+    movu              m6, [r1+16]
+    pxor              m5, m5
+    psubw             m7, m5, m6
+    psubw             m5, m4
+    packuswb          m4, m6
+    packuswb          m5, m7
+
+    movu              m6, [r1+32]
+    movu              m8, [r1+48]
+    pxor              m7, m7
+    psubw             m9, m7, m8
+    psubw             m7, m6
+    packuswb          m6, m8
+    packuswb          m7, m9
+
+    movu              m8, [r1+64]
+    movu             m10, [r1+80]
+    pxor              m9, m9
+    psubw            m11, m9, m10
+    psubw             m9, m8
+    packuswb          m8, m10
+    packuswb          m9, m11
+
+    movu             m10, [r1+96]
+    movu             m12, [r1+112]
+    pxor             m11, m11
+    psubw            m13, m11, m12
+    psubw            m11, m10
+    packuswb         m10, m12
+    packuswb         m11, m13
+%endmacro
+
+%macro DC_ADD_OP_SSE 4
+    %1                m0, [%2     ]
+    %1                m1, [%2+%3  ]
+    %1                m2, [%2+%3*2]
+    %1                m3, [%2+%4  ]
+    paddusb           m0, m4
+    paddusb           m1, m6
+    paddusb           m2, m8
+    paddusb           m3, m10
+    psubusb           m0, m5
+    psubusb           m1, m7
+    psubusb           m2, m9
+    psubusb           m3, m11
+    %1         [%2     ], m0
+    %1         [%2+%3  ], m1
+    %1         [%2+2*%3], m2
+    %1         [%2+%4  ], m3
 %endmacro
 
 
+%macro DC_ADD_OP 4
+    %1                m0, [%2     ]
+    %1                m1, [%2+%3  ]
+    %1                m2, [%2+%3*2]
+    %1                m3, [%2+%4  ]
+    paddusb           m0, m4
+    paddusb           m1, m6
+    paddusb           m2, m8
+    paddusb           m3, m10
+    psubusb           m0, m5
+    psubusb           m1, m7
+    psubusb           m2, m9
+    psubusb           m3, m11
+    %1         [%2     ], m0
+    %1         [%2+%3  ], m1
+    %1         [%2+2*%3], m2
+    %1         [%2+%4  ], m3
+%endmacro
+
 %macro DC_ADD_OP_AVX2 3
-    mova           m2, [%1     ]
-    movdqa           m3, [%1+%2  ]
-    vmovdqa           m4, [%1+%2*2]
-    vmovdqa           m5, [%1+%3  ]
+    mova              m2, [%1     ]
+    mova              m3, [%1+%2  ]
+    mova              m4, [%1+%2*2]
+    mova              m5, [%1+%3  ]
     paddusb           m2, m0
     paddusb           m3, m0
     paddusb           m4, m0
@@ -92,56 +194,47 @@ SECTION .text
     vmovdqa    [%1+%3  ], m5
 %endmacro
 
+%macro TRANSFORM_ADD 3
+    mova              m2, [%1     ]
+    mova              m3, [%1+%2  ]
+    mova              m4, [%1+%2*2]
+    mova              m5, [%1+%3  ]
+%endmacro
+
 INIT_MMX mmxext
 ; void ff_hevc_idct_dc_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-%if ARCH_X86_64
-cglobal hevc_idct4_dc_add_8, 3, 4, 6
-    movsx             r3, word [r1]
-    DC_ADD_INIT       r3, r2
-    DC_ADD_OP       movh, r0, r2, r3
+cglobal hevc_transform_add4_8, 3, 4, 6
+    DC_ADD_INIT_MMX   r3, r2
+    DC_ADD_OP_MMX   movh, r0, r2, r3
+    lea               r1, [r1+16]
+    lea               r0, [r0+r2*2]
+    DC_ADD_INIT_MMX   r3, r2
+    DC_ADD_OP_MMX   movh, r0, r2, r3
     RET
-
-; void ff_hevc_idct8_dc_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_idct8_dc_add_8, 3, 4, 6
-    movsx             r3, word [r1]
-    DC_ADD_INIT       r3, r2
-    DC_ADD_OP       mova, r0, r2, r3
-    lea               r0, [r0+r2*4]
-    DC_ADD_OP       mova, r0, r2, r3
-    RET
-%else
-; void ff_hevc_idct_dc_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_idct4_dc_add_8, 2, 3, 6
-    movsx             r2, word [r1]
-    mov               r1, r2m
-    DC_ADD_INIT       r2, r1
-    DC_ADD_OP       movh, r0, r1, r2
-    RET
-
-; void ff_hevc_idct8_dc_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_idct8_dc_add_8, 2, 3, 6
-    movsx             r2, word [r1]
-    mov               r1, r2m
-    DC_ADD_INIT       r2, r1
-    DC_ADD_OP       mova, r0, r1, r2
-    lea               r0, [r0+r1*4]
-    DC_ADD_OP       mova, r0, r1, r2
-    RET
-%endif
 
 
 INIT_XMM sse2
-; void ff_hevc_idct16_dc_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_idct16_dc_add_8, 3, 4, 6
-    movsx             r3, word [r1]
-    DC_ADD_INIT       r3, r2
-    DC_ADD_OP       mova, r0, r2, r3
+; void ff_hevc_transform_add8_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+cglobal hevc_transform_add8_8, 3, 4, 6
+    DC_ADD_INIT_SSE_8 r3, r2
+    DC_ADD_OP_SSE   movh, r0, r2, r3
+    lea               r1, [r1+8*8]
     lea               r0, [r0+r2*4]
-    DC_ADD_OP       mova, r0, r2, r3
-    lea               r0, [r0+r2*4]
-    DC_ADD_OP       mova, r0, r2, r3
-    lea               r0, [r0+r2*4]
-    DC_ADD_OP       mova, r0, r2, r3
+    DC_ADD_INIT_SSE_8 r3, r2
+    DC_ADD_OP_SSE   movh, r0, r2, r3
+    RET
+
+
+; void ff_hevc_transform_add16_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+cglobal hevc_transform_add16_8, 3, 4, 6
+    DC_ADD_INIT_SSE_16 r3, r2
+    DC_ADD_OP_SSE    movu, r0, r2, r3
+%rep 3
+    lea                r1, [r1+16*8]
+    lea                r0, [r0+r2*4]
+    DC_ADD_INIT_SSE_16 r3, r2
+    DC_ADD_OP_SSE    movu, r0, r2, r3
+%endrep
     RET
 
 %if HAVE_AVX2_EXTERNAL
