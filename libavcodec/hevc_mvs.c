@@ -183,12 +183,12 @@ static int derive_temporal_colocated_mvs(HEVCContext *s, MvField temp_col,
                 }
             }
         }
-        if (!check_diffpicount)
+        if (!check_diffpicount) {
             if (X==0)
                 return CHECK_MVSET(0);
             else
                 return CHECK_MVSET(1);
-        else {
+        } else {
             if (s->sh.collocated_list == L1)
                 return CHECK_MVSET(0);
             else
@@ -237,14 +237,14 @@ static int temporal_luma_motion_vector(HEVCContext *s, int x0, int y0,
     x = x0 + nPbW;
     y = y0 + nPbH;
 
-    if (s->threads_type == FF_THREAD_FRAME )
-        ff_thread_await_progress(&ref->tf, y, 0);
     if (tab_mvf &&
         (y0 >> s->sps->log2_ctb_size) == (y >> s->sps->log2_ctb_size) &&
         y < s->sps->height &&
         x < s->sps->width) {
         x                 &= -16;
         y                 &= -16;
+        if (s->threads_type == FF_THREAD_FRAME)
+            ff_thread_await_progress(&ref->tf, y, 0);
         x_pu               = x >> s->sps->log2_min_pu_size;
         y_pu               = y >> s->sps->log2_min_pu_size;
         temp_col           = TAB_MVF(x_pu, y_pu);
@@ -257,6 +257,8 @@ static int temporal_luma_motion_vector(HEVCContext *s, int x0, int y0,
         y                  = y0 + (nPbH >> 1);
         x                 &= -16;
         y                 &= -16;
+        if (s->threads_type == FF_THREAD_FRAME)
+            ff_thread_await_progress(&ref->tf, y, 0);
         x_pu               = x >> s->sps->log2_min_pu_size;
         y_pu               = y >> s->sps->log2_min_pu_size;
         temp_col           = TAB_MVF(x_pu, y_pu);
@@ -749,7 +751,8 @@ scalef:
         mvpcand_list[numMVPCandLX++] = mxB;
 
     //temporal motion vector prediction candidate
-    if (numMVPCandLX < 2 && s->sh.slice_temporal_mvp_enabled_flag) {
+    if (numMVPCandLX < 2 && s->sh.slice_temporal_mvp_enabled_flag &&
+        mvp_lx_flag == numMVPCandLX) {
         Mv mv_col;
         int available_col = temporal_luma_motion_vector(s, x0, y0, nPbW,
                                                         nPbH, ref_idx,

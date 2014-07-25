@@ -440,7 +440,7 @@ typedef struct MpegEncContext {
     uint16_t chroma_intra_matrix[64];
     uint16_t inter_matrix[64];
     uint16_t chroma_inter_matrix[64];
-#define QUANT_BIAS_SHIFT 8
+
     int intra_quant_bias;    ///< bias for the quantizer
     int inter_quant_bias;    ///< bias for the quantizer
     int min_qcoeff;          ///< minimum encodable coefficient
@@ -468,8 +468,6 @@ typedef struct MpegEncContext {
     int (*dct_error_sum)[64];
     int dct_count[2];
     uint16_t (*dct_offset)[64];
-
-    void *opaque;              ///< private data for the user
 
     /* bit rate control */
     int64_t total_bits;
@@ -648,10 +646,6 @@ typedef struct MpegEncContext {
     void (*dct_unquantize_h263_intra)(struct MpegEncContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
     void (*dct_unquantize_h263_inter)(struct MpegEncContext *s,
-                           int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_h261_intra)(struct MpegEncContext *s,
-                           int16_t *block/*align 16*/, int n, int qscale);
-    void (*dct_unquantize_h261_inter)(struct MpegEncContext *s,
                            int16_t *block/*align 16*/, int n, int qscale);
     void (*dct_unquantize_intra)(struct MpegEncContext *s, // unquantizer to use (mpeg4 can use both)
                            int16_t *block/*align 16*/, int n, int qscale);
