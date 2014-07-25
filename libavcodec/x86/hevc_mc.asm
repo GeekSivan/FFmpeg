@@ -440,7 +440,7 @@ QPEL_TABLE 10, 8, w, avx2
 
 %macro LOOP_END 4
     lea              %1q, [%1q+2*%2q]            ; dst += dststride
-    lea              %3q, [%3q+  %4q]            ; src += srcstride
+    add              %3q, %4q                    ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
 %endmacro
