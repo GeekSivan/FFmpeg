@@ -168,7 +168,7 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
                 HEVCFrame *frame = &s->DPB[i];
                 if (!(frame->flags & HEVC_FRAME_FLAG_BUMPING) && frame->poc != s->poc &&
                         frame->sequence == s->seq_output) {
-                    ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
+                    frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
                 }
             }
         }
@@ -198,12 +198,9 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
             int pixel_shift = !!(desc->comp[0].depth_minus1 > 7);
 
             ret = av_frame_ref(out, src);
+            frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
             if (frame->flags & HEVC_FRAME_FLAG_BUMPING)
-                ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
-            else
-                ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
-            if (ret<0)
-                return ret;
+                frame->flags &= ~(HEVC_FRAME_FLAG_BUMPING);
 
             for (i = 0; i < 3; i++) {
                 int hshift = (i > 0) ? desc->log2_chroma_w : 0;
