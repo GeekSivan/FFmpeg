@@ -973,10 +973,6 @@ typedef struct PredictionUnit {
     uint8_t chroma_mode_c[4];
 } PredictionUnit;
 
-typedef struct TransformTree {
-    uint8_t cbf_luma;
-} TransformTree;
-
 typedef struct TransformUnit {
     DECLARE_ALIGNED(32, int16_t, coeffs[2][MAX_TB_SIZE * MAX_TB_SIZE]);
     int cu_qp_delta;
@@ -1047,7 +1043,6 @@ typedef struct HEVCNAL {
 typedef struct HEVCLocalContext {
     GetBitContext       gb;
     CABACContext        cc;
-    TransformTree       tt;
     TransformUnit       tu;
     CodingTree          ct;
     CodingUnit          cu;
@@ -1059,7 +1054,6 @@ typedef struct HEVCLocalContext {
     uint8_t stat_coeff[4];
 
     uint8_t first_qp_group;
-
 
     int8_t qp_y;
     int8_t curr_qp_y;
