@@ -818,8 +818,8 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                 }
                 if (EXTERNAL_AVX2(mm_flags)) {
 #ifdef OPTI_ASM
-                    // c->transform_dc_add[2]    =  ff_hevc_idct16_dc_add_10_avx2;
-                    // c->transform_dc_add[3]    =  ff_hevc_idct32_dc_add_10_avx2;
+                    c->transform_add[2] = ff_hevc_transform_add16_10_avx2;
+                    c->transform_add[3] = ff_hevc_transform_add32_10_avx2;
 
                     c->put_hevc_epel[5][0][0] = ff_hevc_put_hevc_pel_pixels16_10_avx2;
                     c->put_hevc_epel[6][0][0] = ff_hevc_put_hevc_pel_pixels24_10_avx2;

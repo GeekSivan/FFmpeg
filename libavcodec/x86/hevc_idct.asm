@@ -311,6 +311,50 @@ INIT_YMM avx2
 %endmacro
 
 
+
+%macro TRANS_ADD16_AVX2 4
+    movu              m6, [%4]
+    movu              m7, [%4+32]
+    movu              m8, [%4+64]
+    movu              m9, [%4+96]
+
+    paddw             m0, m6, [%1+0   ]
+    paddw             m1, m7, [%1+%2  ]
+    paddw             m2, m8, [%1+%2*2]
+    paddw             m3, m9, [%1+%3  ]
+
+    CLIPW             m0, m4, m5
+    CLIPW             m1, m4, m5
+    CLIPW             m2, m4, m5
+    CLIPW             m3, m4, m5
+    movu       [%1+0   ], m0
+    movu       [%1+%2  ], m1
+    movu       [%1+%2*2], m2
+    movu       [%1+%3  ], m3
+%endmacro
+
+%macro TRANS_ADD32_AVX2 3
+    movu              m6, [%3]
+    movu              m7, [%3+32]
+    movu              m8, [%3+64]
+    movu              m9, [%3+96]
+
+    paddw             m0, m6, [%1      ]
+    paddw             m1, m7, [%1+32   ]
+    paddw             m2, m8, [%1+%2   ]
+    paddw             m3, m9, [%1+%2+32]
+
+    CLIPW             m0, m4, m5
+    CLIPW             m1, m4, m5
+    CLIPW             m2, m4, m5
+    CLIPW             m3, m4, m5
+    movu      [%1      ], m0
+    movu      [%1+32   ], m1
+    movu      [%1+%2   ], m2
+    movu      [%1+%2+32], m3
+%endmacro
+
+
 INIT_MMX mmxext
 cglobal hevc_transform_add4_10,3,4, 6
     pxor              m2, m2
@@ -379,5 +423,31 @@ TRANS_ADD32
 
 %if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2
+
+cglobal hevc_transform_add16_10,3,4,10
+    pxor              m4, m4
+    mova              m5, [max_pixels_10]
+    lea               r3, [r2*3]
+
+    TRANS_ADD16_AVX2  r0, r2, r3, r1
+%rep 3
+    lea               r0, [r0+r2*4]
+    lea               r1, [r1+128]
+    TRANS_ADD16_AVX2  r0, r2, r3, r1
+%endrep
+    RET
+
+cglobal hevc_transform_add32_10,3,4,10
+    pxor              m4, m4
+    mova              m5, [max_pixels_10]
+
+    TRANS_ADD32_AVX2  r0, r2, r1
+%rep 15
+    lea               r0, [r0+r2*2]
+    lea               r1, [r1+128]
+    TRANS_ADD32_AVX2  r0, r2, r1
+%endrep
+    RET
+
 
 %endif ;HAVE_AVX_EXTERNAL

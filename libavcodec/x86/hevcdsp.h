@@ -133,6 +133,9 @@ void ff_hevc_transform_add8_10_avx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stri
 void ff_hevc_transform_add16_10_avx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 void ff_hevc_transform_add32_10_avx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
 
+void ff_hevc_transform_add16_10_avx2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+void ff_hevc_transform_add32_10_avx2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride);
+
 ///////////////////////////////////////////////////////////////////////////////
 // MC functions
 ///////////////////////////////////////////////////////////////////////////////
