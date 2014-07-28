@@ -358,6 +358,38 @@ cglobal hevc_idct32_dc_add_8, 3, 4, 6
     mova      [%1+%2+16], m3
 %endmacro
 
+%macro TRANS_ADD32_10 2
+    mova              m6, [%2]
+    mova              m7, [%2+16]
+    mova              m8, [%2+32]
+    mova              m9, [%2+48]
+
+%if avx_enabled
+    paddw             m0, m6, [%1   ]
+    paddw             m1, m7, [%1+16]
+    paddw             m2, m8, [%1+32]
+    paddw             m3, m9, [%1+48]
+%else
+    mova              m0, [%1   ]
+    mova              m1, [%1+16]
+    mova              m2, [%1+32]
+    mova              m3, [%1+48]
+    paddw             m0, m6
+    paddw             m1, m7
+    paddw             m2, m8
+    paddw             m3, m9
+%endif
+    CLIPW             m0, m4, m5
+    CLIPW             m1, m4, m5
+    CLIPW             m2, m4, m5
+    CLIPW             m3, m4, m5
+    mova         [%1   ], m0
+    mova         [%1+16], m1
+    mova         [%1+32], m2
+    mova         [%1+48], m3
+%endmacro
+
+
 INIT_MMX mmxext
 cglobal hevc_transform_add4_10,3,4, 6
     pxor              m2, m2
@@ -398,13 +430,30 @@ cglobal hevc_transform_add16_10,3,4,7
     RET
 %endmacro
 
+
+%macro TRANS_ADD32 0
+cglobal hevc_transform_add32_10,3,4,7
+    pxor              m4, m4
+    mova              m5, [max_pixels_10]
+
+    TRANS_ADD32_10    r0, r1
+%rep 31
+    lea               r0, [r0+r2]
+    lea               r1, [r1+64]
+    TRANS_ADD32_10    r0, r1
+%endrep
+    RET
+%endmacro
+
 INIT_XMM sse2
 IDCT8_DC_ADD
 TRANS_ADD16
+TRANS_ADD32
 %if HAVE_AVX_EXTERNAL
 INIT_XMM avx
 IDCT8_DC_ADD
 TRANS_ADD16
+TRANS_ADD32
 %endif
 
 %if HAVE_AVX2_EXTERNAL
