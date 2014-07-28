@@ -20,20 +20,17 @@
 ; */
 %include "libavutil/x86/x86util.asm"
 
-SECTION_RODATA
-pw_8:                   times 8 dw (1 << 9)
-pw_10:                  times 8 dw (1 << 11)
-pw_12:                  times 8 dw (1 << 13)
-pw_bi_8:                times 8 dw (1 << 8)
-pw_bi_10:               times 8 dw (1 << 10)
-pw_bi_12:               times 8 dw (1 << 12)
-max_pixels_10:          times 8  dw ((1 << 10)-1)
-max_pixels_12:          times 8  dw ((1 << 12)-1)
-zero:                   times 4  dd 0
-one_per_32:             times 4  dd 1
+SECTION_RODATA 32
+pw_8:                   times 16 dw 512
+pw_10:                  times 16 dw 2048
+pw_bi_8:                times 16 dw 256
+pw_bi_10:               times 16 dw 1024
+max_pixels_10:          times 16 dw 1023
+max_pixels_8:           times 16 dw 255
+zero:                   times 8  dd 0
+one_per_32:             times 8  dd 1
 
-SECTION .text
-
+SECTION_TEXT 32
 %macro EPEL_TABLE 4
 hevc_epel_filters_%4_%1 times %2 d%3 -2, 58
                         times %2 d%3 10, -2
@@ -57,7 +54,6 @@ EPEL_TABLE 10, 8, w, avx2
 
 EPEL_TABLE  8, 8, b, sse4
 EPEL_TABLE 10, 4, w, sse4
-EPEL_TABLE 12, 4, w, sse4
 
 
 %macro QPEL_TABLE 4
@@ -77,7 +73,6 @@ hevc_qpel_filters_%4_%1 times %2 d%3  -1,  4
 
 QPEL_TABLE  8, 8, b, sse4
 QPEL_TABLE 10, 4, w, sse4
-QPEL_TABLE 12, 4, w, sse4
 
 QPEL_TABLE  8,16, b, avx2
 QPEL_TABLE 10, 8, w, avx2
@@ -351,29 +346,6 @@ QPEL_TABLE 10, 8, w, avx2
     punpcklwd         m6, m7
 %endif
 %endif
-%endmacro
-
-%macro PEL_12STORE2 3
-    movd           [%1], %2
-%endmacro
-%macro PEL_12STORE4 3
-    movq           [%1], %2
-%endmacro
-%macro PEL_12STORE6 3
-    movq           [%1], %2
-    psrldq            %2, 8
-    movd         [%1+8], %2
-%endmacro
-%macro PEL_12STORE8 3
-    movdqa         [%1], %2
-%endmacro
-%macro PEL_12STORE12 3
-    movdqa         [%1], %2
-    movq        [%1+16], %3
-%endmacro
-%macro PEL_12STORE16 3
-    PEL_12STORE8      %1, %2, %3
-    movdqa       [%1+16], %3
 %endmacro
 
 %macro PEL_10STORE2 3
@@ -1512,11 +1484,6 @@ WEIGHTING_FUNCS 4, 10
 WEIGHTING_FUNCS 6, 10
 WEIGHTING_FUNCS 8, 10
 
-WEIGHTING_FUNCS 2, 12
-WEIGHTING_FUNCS 4, 12
-WEIGHTING_FUNCS 6, 12
-WEIGHTING_FUNCS 8, 12
-
 HEVC_PUT_HEVC_PEL_PIXELS  2, 8
 HEVC_PUT_HEVC_PEL_PIXELS  4, 8
 HEVC_PUT_HEVC_PEL_PIXELS  6, 8
@@ -1529,10 +1496,6 @@ HEVC_PUT_HEVC_PEL_PIXELS 4, 10
 HEVC_PUT_HEVC_PEL_PIXELS 6, 10
 HEVC_PUT_HEVC_PEL_PIXELS 8, 10
 
-HEVC_PUT_HEVC_PEL_PIXELS 2, 12
-HEVC_PUT_HEVC_PEL_PIXELS 4, 12
-HEVC_PUT_HEVC_PEL_PIXELS 6, 12
-HEVC_PUT_HEVC_PEL_PIXELS 8, 12
 
 HEVC_PUT_HEVC_EPEL 2,  8
 HEVC_PUT_HEVC_EPEL 4,  8
@@ -1547,10 +1510,6 @@ HEVC_PUT_HEVC_EPEL 4, 10
 HEVC_PUT_HEVC_EPEL 6, 10
 HEVC_PUT_HEVC_EPEL 8, 10
 
-HEVC_PUT_HEVC_EPEL 2, 12
-HEVC_PUT_HEVC_EPEL 4, 12
-HEVC_PUT_HEVC_EPEL 6, 12
-HEVC_PUT_HEVC_EPEL 8, 12
 
 HEVC_PUT_HEVC_EPEL_HV 2,  8
 HEVC_PUT_HEVC_EPEL_HV 4,  8
@@ -1563,10 +1522,6 @@ HEVC_PUT_HEVC_EPEL_HV 4, 10
 HEVC_PUT_HEVC_EPEL_HV 6, 10
 HEVC_PUT_HEVC_EPEL_HV 8, 10
 
-HEVC_PUT_HEVC_EPEL_HV 2, 12
-HEVC_PUT_HEVC_EPEL_HV 4, 12
-HEVC_PUT_HEVC_EPEL_HV 6, 12
-HEVC_PUT_HEVC_EPEL_HV 8, 12
 
 HEVC_PUT_HEVC_QPEL 4,  8
 HEVC_PUT_HEVC_QPEL 8,  8
@@ -1575,9 +1530,6 @@ HEVC_PUT_HEVC_QPEL 16, 8
 
 HEVC_PUT_HEVC_QPEL 4, 10
 HEVC_PUT_HEVC_QPEL 8, 10
-
-HEVC_PUT_HEVC_QPEL 4, 12
-HEVC_PUT_HEVC_QPEL 8, 12
 
 HEVC_PUT_HEVC_QPEL_HV 2, 8
 HEVC_PUT_HEVC_QPEL_HV 4, 8
@@ -1588,11 +1540,6 @@ HEVC_PUT_HEVC_QPEL_HV 2, 10
 HEVC_PUT_HEVC_QPEL_HV 4, 10
 HEVC_PUT_HEVC_QPEL_HV 6, 10
 HEVC_PUT_HEVC_QPEL_HV 8, 10
-
-HEVC_PUT_HEVC_QPEL_HV 2, 12
-HEVC_PUT_HEVC_QPEL_HV 4, 12
-HEVC_PUT_HEVC_QPEL_HV 6, 12
-HEVC_PUT_HEVC_QPEL_HV 8, 12
 
 %if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2  ; adds ff_ and _avx2 to function name & enables 256b registers : m0 for 256b, xm0 for 128b. avx_enabled = 1 / notcpuflag(avx) = 0
