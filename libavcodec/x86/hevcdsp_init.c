@@ -53,6 +53,8 @@ LFL_FUNCS(uint8_t,  10, sse2)
 LFL_FUNCS(uint8_t,   8, ssse3)
 LFL_FUNCS(uint8_t,  10, ssse3)
 
+#if !ARCH_X86_32 && defined(OPTI_ASM)
+
 #define mc_rep_func(name, bitd, step, W, opt) \
 void ff_hevc_put_hevc_##name##W##_##bitd##_##opt(int16_t *_dst, ptrdiff_t dststride,                            \
                                                 uint8_t *_src, ptrdiff_t _srcstride, int height,                \
@@ -985,6 +987,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
             } else if (bit_depth == 12) {
                 if (EXTERNAL_MMX(mm_flags)) {
                     if (EXTERNAL_MMXEXT(mm_flags)) {
+#if HAVE_SSE2
                         if (EXTERNAL_SSE2(mm_flags)) {
                             c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_sse2;
                             c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_10_sse2;
