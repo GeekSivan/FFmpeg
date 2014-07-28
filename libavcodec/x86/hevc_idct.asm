@@ -247,24 +247,24 @@ cglobal hevc_transform_add8_8, 3, 4, 6
 ; void ff_hevc_transform_add16_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
 cglobal hevc_transform_add16_8, 3, 4, 6
     DC_ADD_INIT_SSE_16 r3, r2
-    DC_ADD_OP_SSE    movu, r0, r2, r3
+    DC_ADD_OP_SSE    mova, r0, r2, r3
 %rep 3
     lea                r1, [r1+16*8]
     lea                r0, [r0+r2*4]
     DC_ADD_INIT_SSE_16 r3, r2
-    DC_ADD_OP_SSE    movu, r0, r2, r3
+    DC_ADD_OP_SSE    mova, r0, r2, r3
 %endrep
     RET
 
 ; void ff_hevc_transform_add16_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
 cglobal hevc_transform_add32_8, 3, 4, 6
     DC_ADD_INIT_SSE_16 r3, r2
-    DC_ADD_OP_SSE_32 movu, r0, r2, r3
+    DC_ADD_OP_SSE_32 mova, r0, r2, r3
 %rep 15
     lea                r1, [r1+16*8]
     lea                r0, [r0+r2*2]
     DC_ADD_INIT_SSE_16 r3, r2
-    DC_ADD_OP_SSE_32 movu, r0, r2, r3
+    DC_ADD_OP_SSE_32 mova, r0, r2, r3
 %endrep
     RET
 
@@ -284,86 +284,140 @@ cglobal hevc_idct32_dc_add_8, 3, 4, 6
 ;-----------------------------------------------------------------------------
 ; void ff_hevc_idct_dc_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
-%macro IDCT_DC_ADD_OP_10 3
-    pxor              m5, m5
+%macro IDCT_DC_ADD_OP_10 4
+    movu              m6, [%4]
+    movu              m7, [%4+16]
+    movu              m8, [%4+32]
+    movu              m9, [%4+48]
 %if avx_enabled
-    paddw             m1, m0, [%1+0   ]
-    paddw             m2, m0, [%1+%2  ]
-    paddw             m3, m0, [%1+%2*2]
-    paddw             m4, m0, [%1+%3  ]
+    paddw             m0, m6, [%1+0   ]
+    paddw             m1, m7, [%1+%2  ]
+    paddw             m2, m8, [%1+%2*2]
+    paddw             m3, m9, [%1+%3  ]
 %else
-    mova              m1, [%1+0   ]
-    mova              m2, [%1+%2  ]
-    mova              m3, [%1+%2*2]
-    mova              m4, [%1+%3  ]
-    paddw             m1, m0
-    paddw             m2, m0
-    paddw             m3, m0
-    paddw             m4, m0
+    movu              m0, [%1+0   ]
+    movu              m1, [%1+%2  ]
+    movu              m2, [%1+%2*2]
+    movu              m3, [%1+%3  ]
+    paddw             m0, m6
+    paddw             m1, m7
+    paddw             m2, m8
+    paddw             m3, m9
 %endif
-    CLIPW             m1, m5, m6
-    CLIPW             m2, m5, m6
-    CLIPW             m3, m5, m6
-    CLIPW             m4, m5, m6
-    mova       [%1+0   ], m1
-    mova       [%1+%2  ], m2
-    mova       [%1+%2*2], m3
-    mova       [%1+%3  ], m4
+    CLIPW             m0, m4, m5
+    CLIPW             m1, m4, m5
+    CLIPW             m2, m4, m5
+    CLIPW             m3, m4, m5
+    movu       [%1+0   ], m0
+    movu       [%1+%2  ], m1
+    movu       [%1+%2*2], m2
+    movu       [%1+%3  ], m3
+%endmacro
+
+%macro IDCT_TR_ADD_MMX_10 3
+    mova              m4, [%3]
+    mova              m5, [%3+8]
+    mova              m0, [%1+0   ]
+    mova              m1, [%1+%2  ]
+    paddw             m0, m4
+    paddw             m1, m5
+    CLIPW             m0, m2, m3
+    CLIPW             m1, m2, m3
+    mova       [%1+0   ], m0
+    mova       [%1+%2  ], m1
+%endmacro
+
+%macro TRANS_ADD16_10 3
+    mova              m6, [%3]
+    mova              m7, [%3+16]
+    mova              m8, [%3+32]
+    mova              m9, [%3+48]
+
+%if avx_enabled
+    paddw             m0, m6, [%1      ]
+    paddw             m1, m7, [%1+16   ]
+    paddw             m2, m8, [%1+%2   ]
+    paddw             m3, m9, [%1+%2+16]
+%else
+    mova              m0, [%1      ]
+    mova              m1, [%1+16   ]
+    mova              m2, [%1+%2   ]
+    mova              m3, [%1+%2+16]
+    paddw             m0, m6
+    paddw             m1, m7
+    paddw             m2, m8
+    paddw             m3, m9
+%endif
+    CLIPW             m0, m4, m5
+    CLIPW             m1, m4, m5
+    CLIPW             m2, m4, m5
+    CLIPW             m3, m4, m5
+    mova      [%1      ], m0
+    mova      [%1+16   ], m1
+    mova      [%1+%2   ], m2
+    mova      [%1+%2+16], m3
 %endmacro
 
 INIT_MMX mmxext
-cglobal hevc_idct4_dc_add_10,3,3, 7
-    mov              r1w, [r1]
-    add              r1w, ((1 << 4) + 1)
-    sar              r1w, 5
-    movd              m0, r1d
-    lea               r1, [r2*3]
-    SPLATW            m0, m0, 0
-    mova              m6, [max_pixels_10]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
+cglobal hevc_transform_add4_10,3,4, 6
+    pxor              m2, m2
+    mova              m3, [max_pixels_10]
+    IDCT_TR_ADD_MMX_10 r0, r2, r1
+    lea               r1, [r1+16]
+    lea               r0, [r0+2*r2]
+    IDCT_TR_ADD_MMX_10 r0, r2, r1
     RET
 
 ;-----------------------------------------------------------------------------
 ; void ff_hevc_idct8_dc_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
 %macro IDCT8_DC_ADD 0
-cglobal hevc_idct8_dc_add_10,3,4,7
-    mov              r1w, [r1]
-    add              r1w, ((1 << 4) + 1)
-    sar              r1w, 5
-    movd              m0, r1d
-    lea               r1, [r2*3]
-    SPLATW            m0, m0, 0
-    mova              m6, [max_pixels_10]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
+cglobal hevc_transform_add8_10,3,4,7
+    pxor              m4, m4
+    mova              m5, [max_pixels_10]
+    lea               r3, [r2*3]
+
+    IDCT_DC_ADD_OP_10 r0, r2, r3, r1
     lea               r0, [r0+r2*4]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
+    lea               r1, [r1+64]
+    IDCT_DC_ADD_OP_10 r0, r2, r3, r1
+    RET
+%endmacro
+
+%macro TRANS_ADD16 0
+cglobal hevc_transform_add16_10,3,4,7
+    pxor              m4, m4
+    mova              m5, [max_pixels_10]
+
+    TRANS_ADD16_10    r0, r2, r1
+%rep 7
+    lea               r0, [r0+r2*2]
+    lea               r1, [r1+64]
+    TRANS_ADD16_10    r0, r2, r1
+%endrep
     RET
 %endmacro
 
 INIT_XMM sse2
 IDCT8_DC_ADD
+TRANS_ADD16
 %if HAVE_AVX_EXTERNAL
 INIT_XMM avx
 IDCT8_DC_ADD
+TRANS_ADD16
 %endif
 
 %if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2
-cglobal hevc_idct16_dc_add_10,3,4,7
-    mov              r1w, [r1]
-    add              r1w, ((1 << 4) + 1)
-    sar              r1w, 5
-    movd             xm0, r1d
-    lea               r1, [r2*3]
-    vpbroadcastw      m0, xm0    ;SPLATW
-    mova              m6, [max_pixels_10]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
+cglobal hevc_transform_add16_10,3,4,7
+    lea               r3, [r2*3]
+    pxor              m4, m4
+    mova              m5, [max_pixels_10]
+    IDCT_DC_ADD_OP_10 r0, r2, r3, r1
+%rep 7
     lea               r0, [r0+r2*4]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
-    lea               r0, [r0+r2*4]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
-    lea               r0, [r0+r2*4]
-    IDCT_DC_ADD_OP_10 r0, r2, r1
+    lea               r1, [r1+64]
+    IDCT_DC_ADD_OP_10 r0, r2, r3, r1
+%endrep
     RET
 %endif ;HAVE_AVX_EXTERNAL
