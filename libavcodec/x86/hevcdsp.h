@@ -32,9 +32,6 @@ struct HEVCWindow;
 
 #define OPTI_ASM
 
-#define idct_dc_proto(size, bitd, opt) \
-		void ff_hevc_idct##size##_dc_add_##bitd##_##opt(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-
 #define PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt) \
 dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _ ## opt; \
 dst ## _bi[idx1][idx2][idx3] = ff_hevc_put_hevc_bi_ ## name ## _ ## D ## _ ## opt; \
@@ -212,7 +209,6 @@ void ff_hevc_put_hevc_bi_pel_pixels32_10_avx2(uint8_t *_dst, ptrdiff_t _dststrid
 void ff_hevc_put_hevc_bi_pel_pixels48_10_avx2(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width);
 void ff_hevc_put_hevc_bi_pel_pixels64_10_avx2(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width);
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // EPEL
 ///////////////////////////////////////////////////////////////////////////////
@@ -321,26 +317,6 @@ PEL_PROTOTYPE(qpel_hv64,10, avx2);
 WEIGHTING_PROTOTYPES(8, sse4);
 WEIGHTING_PROTOTYPES(10, sse4);
 WEIGHTING_PROTOTYPES(12, sse4);
-
-///////////////////////////////////////////////////////////////////////////////
-// IDCT
-///////////////////////////////////////////////////////////////////////////////
-idct_dc_proto(4, 8,mmxext);
-idct_dc_proto(8, 8,mmxext);
-idct_dc_proto(16,8,  sse2);
-idct_dc_proto(32,8,  sse2);
-idct_dc_proto(32,8,  avx2);
-
-
-idct_dc_proto(4, 10,mmxext);
-idct_dc_proto(8, 10,  sse2);
-idct_dc_proto(16,10,  sse2);
-idct_dc_proto(32,10,  sse2);
-idct_dc_proto(8, 10,   avx);
-idct_dc_proto(16,10,   avx);
-idct_dc_proto(32,10,   avx);
-idct_dc_proto(16,10,  avx2);
-idct_dc_proto(32,10,  avx2);
 
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions

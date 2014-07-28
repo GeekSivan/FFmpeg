@@ -53,56 +53,6 @@ LFL_FUNCS(uint8_t,  10, sse2)
 LFL_FUNCS(uint8_t,   8, ssse3)
 LFL_FUNCS(uint8_t,  10, ssse3)
 
-
-#if !ARCH_X86_32 && defined(OPTI_ASM)
-#if HAVE_SSE2_EXTERNAL
-/*
-void ff_hevc_idct16_dc_add_10_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-{
-    ff_hevc_idct8_dc_add_10_sse2(dst, coeffs, stride);
-    ff_hevc_idct8_dc_add_10_sse2(dst+16, coeffs, stride);
-    ff_hevc_idct8_dc_add_10_sse2(dst+8*stride, coeffs, stride);
-    ff_hevc_idct8_dc_add_10_sse2(dst+8*stride+16, coeffs, stride);
-}
-
-void ff_hevc_idct32_dc_add_10_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-{
-    ff_hevc_idct16_dc_add_10_sse2(dst, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_sse2(dst+32, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_sse2(dst+16*stride, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_sse2(dst+16*stride+32, coeffs, stride);
-}
-#endif //HAVE_SSE2_EXTERNAL
-#if HAVE_AVX_EXTERNAL
-void ff_hevc_idct16_dc_add_10_avx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-{
-    ff_hevc_idct8_dc_add_10_avx(dst, coeffs, stride);
-    ff_hevc_idct8_dc_add_10_avx(dst+16, coeffs, stride);
-    ff_hevc_idct8_dc_add_10_avx(dst+8*stride, coeffs, stride);
-    ff_hevc_idct8_dc_add_10_avx(dst+8*stride+16, coeffs, stride);
-}
-
-void ff_hevc_idct32_dc_add_10_avx(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-{
-    ff_hevc_idct16_dc_add_10_avx(dst, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_avx(dst+32, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_avx(dst+16*stride, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_avx(dst+16*stride+32, coeffs, stride);
-}
-#endif //HAVE_AVX_EXTERNAL
-
-#if HAVE_AVX2_EXTERNAL
-
-void ff_hevc_idct32_dc_add_10_avx2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-{
-    ff_hevc_idct16_dc_add_10_avx2(dst, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_avx2(dst+32, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_avx2(dst+16*stride, coeffs, stride);
-    ff_hevc_idct16_dc_add_10_avx2(dst+16*stride+32, coeffs, stride);
-}*/
-#endif //HAVE_AVX2_EXTERNAL
-
-
 #define mc_rep_func(name, bitd, step, W, opt) \
 void ff_hevc_put_hevc_##name##W##_##bitd##_##opt(int16_t *_dst, ptrdiff_t dststride,                            \
                                                 uint8_t *_src, ptrdiff_t _srcstride, int height,                \
@@ -302,13 +252,18 @@ mc_rep_funcs(pel_pixels, 8, 16, 64, sse4);
 mc_rep_funcs(pel_pixels, 8, 16, 48, sse4);
 mc_rep_funcs(pel_pixels, 8, 16, 32, sse4);
 mc_rep_funcs(pel_pixels, 8,  8, 24, sse4);
-
 mc_rep_funcs(pel_pixels,10,  8, 64, sse4);
 mc_rep_funcs(pel_pixels,10,  8, 48, sse4);
 mc_rep_funcs(pel_pixels,10,  8, 32, sse4);
 mc_rep_funcs(pel_pixels,10,  8, 24, sse4);
 mc_rep_funcs(pel_pixels,10,  8, 16, sse4);
 mc_rep_funcs(pel_pixels,10,  4, 12, sse4);
+mc_rep_funcs(pel_pixels,12,  8, 64, sse4);
+mc_rep_funcs(pel_pixels,12,  8, 48, sse4);
+mc_rep_funcs(pel_pixels,12,  8, 32, sse4);
+mc_rep_funcs(pel_pixels,12,  8, 24, sse4);
+mc_rep_funcs(pel_pixels,12,  8, 16, sse4);
+mc_rep_funcs(pel_pixels,12,  4, 12, sse4);
 
 mc_rep_funcs(epel_h, 8, 16, 64, sse4);
 mc_rep_funcs(epel_h, 8, 16, 48, sse4);
@@ -320,6 +275,12 @@ mc_rep_funcs(epel_h,10,  8, 32, sse4);
 mc_rep_funcs(epel_h,10,  8, 24, sse4);
 mc_rep_funcs(epel_h,10,  8, 16, sse4);
 mc_rep_funcs(epel_h,10,  4, 12, sse4);
+mc_rep_funcs(epel_h,12,  8, 64, sse4);
+mc_rep_funcs(epel_h,12,  8, 48, sse4);
+mc_rep_funcs(epel_h,12,  8, 32, sse4);
+mc_rep_funcs(epel_h,12,  8, 24, sse4);
+mc_rep_funcs(epel_h,12,  8, 16, sse4);
+mc_rep_funcs(epel_h,12,  4, 12, sse4);
 mc_rep_funcs(epel_v, 8, 16, 64, sse4);
 mc_rep_funcs(epel_v, 8, 16, 48, sse4);
 mc_rep_funcs(epel_v, 8, 16, 32, sse4);
@@ -330,6 +291,12 @@ mc_rep_funcs(epel_v,10,  8, 32, sse4);
 mc_rep_funcs(epel_v,10,  8, 24, sse4);
 mc_rep_funcs(epel_v,10,  8, 16, sse4);
 mc_rep_funcs(epel_v,10,  4, 12, sse4);
+mc_rep_funcs(epel_v,12,  8, 64, sse4);
+mc_rep_funcs(epel_v,12,  8, 48, sse4);
+mc_rep_funcs(epel_v,12,  8, 32, sse4);
+mc_rep_funcs(epel_v,12,  8, 24, sse4);
+mc_rep_funcs(epel_v,12,  8, 16, sse4);
+mc_rep_funcs(epel_v,12,  4, 12, sse4);
 mc_rep_funcs(epel_hv, 8,  8, 64, sse4);
 mc_rep_funcs(epel_hv, 8,  8, 48, sse4);
 mc_rep_funcs(epel_hv, 8,  8, 32, sse4);
@@ -341,6 +308,12 @@ mc_rep_funcs(epel_hv,10,  8, 32, sse4);
 mc_rep_funcs(epel_hv,10,  8, 24, sse4);
 mc_rep_funcs(epel_hv,10,  8, 16, sse4);
 mc_rep_funcs(epel_hv,10,  4, 12, sse4);
+mc_rep_funcs(epel_hv,12,  8, 64, sse4);
+mc_rep_funcs(epel_hv,12,  8, 48, sse4);
+mc_rep_funcs(epel_hv,12,  8, 32, sse4);
+mc_rep_funcs(epel_hv,12,  8, 24, sse4);
+mc_rep_funcs(epel_hv,12,  8, 16, sse4);
+mc_rep_funcs(epel_hv,12,  4, 12, sse4);
 
 mc_rep_funcs(qpel_h, 8, 16, 64, sse4);
 mc_rep_funcs(qpel_h, 8, 16, 48, sse4);
@@ -352,6 +325,12 @@ mc_rep_funcs(qpel_h,10,  8, 32, sse4);
 mc_rep_funcs(qpel_h,10,  8, 24, sse4);
 mc_rep_funcs(qpel_h,10,  8, 16, sse4);
 mc_rep_funcs(qpel_h,10,  4, 12, sse4);
+mc_rep_funcs(qpel_h,12,  8, 64, sse4);
+mc_rep_funcs(qpel_h,12,  8, 48, sse4);
+mc_rep_funcs(qpel_h,12,  8, 32, sse4);
+mc_rep_funcs(qpel_h,12,  8, 24, sse4);
+mc_rep_funcs(qpel_h,12,  8, 16, sse4);
+mc_rep_funcs(qpel_h,12,  4, 12, sse4);
 mc_rep_funcs(qpel_v, 8, 16, 64, sse4);
 mc_rep_funcs(qpel_v, 8, 16, 48, sse4);
 mc_rep_funcs(qpel_v, 8, 16, 32, sse4);
@@ -362,6 +341,12 @@ mc_rep_funcs(qpel_v,10,  8, 32, sse4);
 mc_rep_funcs(qpel_v,10,  8, 24, sse4);
 mc_rep_funcs(qpel_v,10,  8, 16, sse4);
 mc_rep_funcs(qpel_v,10,  4, 12, sse4);
+mc_rep_funcs(qpel_v,12,  8, 64, sse4);
+mc_rep_funcs(qpel_v,12,  8, 48, sse4);
+mc_rep_funcs(qpel_v,12,  8, 32, sse4);
+mc_rep_funcs(qpel_v,12,  8, 24, sse4);
+mc_rep_funcs(qpel_v,12,  8, 16, sse4);
+mc_rep_funcs(qpel_v,12,  4, 12, sse4);
 mc_rep_funcs(qpel_hv, 8,  8, 64, sse4);
 mc_rep_funcs(qpel_hv, 8,  8, 48, sse4);
 mc_rep_funcs(qpel_hv, 8,  8, 32, sse4);
@@ -374,6 +359,12 @@ mc_rep_funcs(qpel_hv,10,  8, 32, sse4);
 mc_rep_funcs(qpel_hv,10,  8, 24, sse4);
 mc_rep_funcs(qpel_hv,10,  8, 16, sse4);
 mc_rep_funcs(qpel_hv,10,  4, 12, sse4);
+mc_rep_funcs(qpel_hv,12,  8, 64, sse4);
+mc_rep_funcs(qpel_hv,12,  8, 48, sse4);
+mc_rep_funcs(qpel_hv,12,  8, 32, sse4);
+mc_rep_funcs(qpel_hv,12,  8, 24, sse4);
+mc_rep_funcs(qpel_hv,12,  8, 16, sse4);
+mc_rep_funcs(qpel_hv,12,  4, 12, sse4);
 
 #define mc_rep_uni_w(bitd, step, W, opt) \
 void ff_hevc_put_hevc_uni_w##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride,\
@@ -403,6 +394,13 @@ mc_rep_uni_w(10, 8, 24, sse4);
 mc_rep_uni_w(10, 8, 32, sse4);
 mc_rep_uni_w(10, 8, 48, sse4);
 mc_rep_uni_w(10, 8, 64, sse4);
+
+mc_rep_uni_w(12, 6, 12, sse4);
+mc_rep_uni_w(12, 8, 16, sse4);
+mc_rep_uni_w(12, 8, 24, sse4);
+mc_rep_uni_w(12, 8, 32, sse4);
+mc_rep_uni_w(12, 8, 48, sse4);
+mc_rep_uni_w(12, 8, 64, sse4);
 
 #define mc_rep_bi_w(bitd, step, W, opt) \
 void ff_hevc_put_hevc_bi_w##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, \
@@ -435,6 +433,13 @@ mc_rep_bi_w(10, 8, 24, sse4);
 mc_rep_bi_w(10, 8, 32, sse4);
 mc_rep_bi_w(10, 8, 48, sse4);
 mc_rep_bi_w(10, 8, 64, sse4);
+
+mc_rep_bi_w(12, 6, 12, sse4);
+mc_rep_bi_w(12, 8, 16, sse4);
+mc_rep_bi_w(12, 8, 24, sse4);
+mc_rep_bi_w(12, 8, 32, sse4);
+mc_rep_bi_w(12, 8, 48, sse4);
+mc_rep_bi_w(12, 8, 64, sse4);
 
 #define mc_uni_w_func(name, bitd, W, opt) \
 void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t _dststride,         \
@@ -482,6 +487,17 @@ mc_uni_w_funcs(qpel_h, 10, sse4);
 mc_uni_w_funcs(qpel_v, 10, sse4);
 mc_uni_w_funcs(qpel_hv, 10, sse4);
 
+mc_uni_w_funcs(pel_pixels, 12, sse4);
+mc_uni_w_func(pel_pixels, 12, 6, sse4);
+mc_uni_w_funcs(epel_h, 12, sse4);
+mc_uni_w_func(epel_h, 12, 6, sse4);
+mc_uni_w_funcs(epel_v, 12, sse4);
+mc_uni_w_func(epel_v, 12, 6, sse4);
+mc_uni_w_funcs(epel_hv, 12, sse4);
+mc_uni_w_func(epel_hv, 12, 6, sse4);
+mc_uni_w_funcs(qpel_h, 12, sse4);
+mc_uni_w_funcs(qpel_v, 12, sse4);
+mc_uni_w_funcs(qpel_hv, 12, sse4);
 
 #define mc_bi_w_func(name, bitd, W, opt) \
 void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t _dststride,           \
@@ -531,6 +547,17 @@ mc_bi_w_funcs(qpel_h, 10, sse4);
 mc_bi_w_funcs(qpel_v, 10, sse4);
 mc_bi_w_funcs(qpel_hv, 10, sse4);
 
+mc_bi_w_funcs(pel_pixels, 12, sse4);
+mc_bi_w_func(pel_pixels, 12, 6, sse4);
+mc_bi_w_funcs(epel_h, 12, sse4);
+mc_bi_w_func(epel_h, 12, 6, sse4);
+mc_bi_w_funcs(epel_v, 12, sse4);
+mc_bi_w_func(epel_v, 12, 6, sse4);
+mc_bi_w_funcs(epel_hv, 12, sse4);
+mc_bi_w_func(epel_hv, 12, 6, sse4);
+mc_bi_w_funcs(qpel_h, 12, sse4);
+mc_bi_w_funcs(qpel_v, 12, sse4);
+mc_bi_w_funcs(qpel_hv, 12, sse4);
 
 #endif
 
@@ -562,13 +589,8 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
     if (bit_depth == 8) {
         if (EXTERNAL_MMX(mm_flags)) {
             if (EXTERNAL_MMXEXT(mm_flags)) {
-#if ARCH_X86_32 && HAVE_MMXEXT_EXTERNAL
-                /* MMEXT optimizations */
-#endif /* ARCH_X86_32 && HAVE_MMXEXT_EXTERNAL */
 #ifdef OPTI_ASM
-
                 c->transform_add[0]    =  ff_hevc_transform_add4_8_mmxext;
-
 #endif
 
 #if HAVE_SSE2
@@ -589,17 +611,17 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
 
 #ifdef OPTI_ASM
 
-                      c->transform_add[1]    =  ff_hevc_transform_add8_8_sse2;
-                      c->transform_add[2]    = ff_hevc_transform_add16_8_sse2;
-                      c->transform_add[3]    = ff_hevc_transform_add32_8_sse2;
+                    c->transform_add[1]    =  ff_hevc_transform_add8_8_sse2;
+                    c->transform_add[2]    = ff_hevc_transform_add16_8_sse2;
+                    c->transform_add[3]    = ff_hevc_transform_add32_8_sse2;
 
 
 #endif
 #ifndef OPTI_ASM
-                      c->transform_add[0] = ff_hevc_transform_4x4_add_8_sse4;
-                      c->transform_add[1] = ff_hevc_transform_8x8_add_8_sse4;
-                      c->transform_add[2] = ff_hevc_transform_16x16_add_8_sse4;
-                      c->transform_add[3] = ff_hevc_transform_32x32_add_8_sse4;
+                    c->transform_add[0] = ff_hevc_transform_4x4_add_8_sse4;
+                    c->transform_add[1] = ff_hevc_transform_8x8_add_8_sse4;
+                    c->transform_add[2] = ff_hevc_transform_16x16_add_8_sse4;
+                    c->transform_add[3] = ff_hevc_transform_32x32_add_8_sse4;
 
 #endif
                 }
@@ -742,8 +764,6 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
     } else if (bit_depth == 10) {
         if (EXTERNAL_MMX(mm_flags)) {
             if (EXTERNAL_MMXEXT(mm_flags)) {
-#if ARCH_X86_32
-#endif /* ARCH_X86_32 */
 #ifdef OPTI_ASM
                 c->transform_add[0] = ff_hevc_transform_add4_10_mmxext;
 #endif
@@ -756,9 +776,6 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                     c->transform_add[1] =  ff_hevc_transform_add8_10_sse2;
                     c->transform_add[2] = ff_hevc_transform_add16_10_sse2;
                     c->transform_add[3] = ff_hevc_transform_add32_10_sse2;
-
-                    // c->transform_dc_add[2]    =  ff_hevc_idct16_dc_add_10_sse2;
-                    // c->transform_dc_add[3]    =  ff_hevc_idct32_dc_add_10_sse2;
 #endif
                     c->idct_4x4_luma = ff_hevc_transform_4x4_luma_10_sse4;
                     c->idct[0] = ff_hevc_transform_4x4_10_sse4;
@@ -968,21 +985,9 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
             } else if (bit_depth == 12) {
                 if (EXTERNAL_MMX(mm_flags)) {
                     if (EXTERNAL_MMXEXT(mm_flags)) {
-#if ARCH_X86_32
-#endif /* ARCH_X86_32 */
-#ifdef OPTI_ASM
-                        // c->transform_dc_add[0]    =  ff_hevc_idct4_dc_add_10_mmxext;
-#endif
-#if HAVE_SSE2
                         if (EXTERNAL_SSE2(mm_flags)) {
                             c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_sse2;
                             c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_10_sse2;
-                            
-#ifdef OPTI_ASM
-                            // c->transform_dc_add[1]    =  ff_hevc_idct8_dc_add_10_sse2;
-                            // c->transform_dc_add[2]    =  ff_hevc_idct16_dc_add_10_sse2;
-                            // c->transform_dc_add[3]    =  ff_hevc_idct32_dc_add_10_sse2;
-#endif
                             c->idct_4x4_luma = ff_hevc_transform_4x4_luma_12_sse4;
                             c->idct[0] = ff_hevc_transform_4x4_12_sse4;
                             c->idct[1] = ff_hevc_transform_8x8_12_sse4;
@@ -992,7 +997,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                             c->transform_add[1] = ff_hevc_transform_8x8_add_12_sse4;
                             c->transform_add[2] = ff_hevc_transform_16x16_add_12_sse4;
                             c->transform_add[3] = ff_hevc_transform_32x32_add_12_sse4;
-                            
+
                         }
 #endif // HAVE_SSE2
 #if HAVE_SSSE3
@@ -1001,7 +1006,7 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                             c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_10_ssse3;
                             c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_ssse3;
 #endif
-                            
+
                             EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels, 12, sse4);
                             EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h, 12, sse4);
                             EPEL_LINKS(c->put_hevc_epel, 1, 0, epel_v, 12, sse4);
@@ -1018,8 +1023,16 @@ void ff_hevcdsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                         }
 #endif //HAVE_SSSE3
 #if HAVE_SSE42
-                        if (EXTERNAL_SSE4(mm_flags)) {
+                        if (EXTERNAL_SSE4(mm_flags) && ARCH_X86_64) {
+                            EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels, 12, sse4);
+                            EPEL_LINKS(c->put_hevc_epel, 0, 1, epel_h,     12, sse4);
+                            EPEL_LINKS(c->put_hevc_epel, 1, 0, epel_v,     12, sse4);
+                            EPEL_LINKS(c->put_hevc_epel, 1, 1, epel_hv,    12, sse4);
                             
+                            QPEL_LINKS(c->put_hevc_qpel, 0, 0, pel_pixels, 12, sse4);
+                            QPEL_LINKS(c->put_hevc_qpel, 0, 1, qpel_h,     12, sse4);
+                            QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     12, sse4);
+                            QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    12, sse4);
                         }
 #endif
                     }
