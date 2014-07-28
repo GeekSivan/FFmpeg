@@ -65,7 +65,6 @@ typedef struct HEVCDSPContext {
 
     void (*idct_dc[4])(int16_t *coeffs);
 
-
     void (*sao_band_filter)(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
                             struct SAOParams *sao, int *borders,
                             int width, int height, int c_idx);

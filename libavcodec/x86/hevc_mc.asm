@@ -22,7 +22,7 @@
 
 SECTION_RODATA
 pw_8:                   times 16 dw  (1 <<  9)
-pw_10:                  times 16 dw  (1 << 12)
+pw_10:                  times 16 dw  (1 << 11)
 pw_12:                  times 16 dw  (1 << 13)
 pw_bi_8:                times 16 dw  (1 <<  8)
 pw_bi_10:               times 16 dw  (1 << 10)
