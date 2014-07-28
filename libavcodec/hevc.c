@@ -3746,6 +3746,9 @@ static int hevc_update_thread_context(AVCodecContext *dst,
             return AVERROR(ENOMEM);
     }
 
+    if (s->sps != s0->sps)
+        if ((ret = set_sps(s, s0->sps)) < 0)
+            return ret;
     s->seq_decode           = s0->seq_decode;
     s->seq_output           = s0->seq_output;
     s->pocTid0              = s0->pocTid0;

@@ -188,7 +188,7 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
                 HEVCFrame *frame = &s->DPB[i];
                 if (!(frame->flags & HEVC_FRAME_FLAG_BUMPING) && frame->poc != s->poc &&
                         frame->sequence == s->seq_output) {
-                    frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
+                    ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
                 }
             }
         }
@@ -225,7 +225,10 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
             /*      ADD remove frames from the DPB    */
             if(s->prev_display_poc == -1 || s->prev_display_poc == min_poc-1) {
                     s->no_display_pic = 0;
-                frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
+                if (frame->flags & HEVC_FRAME_FLAG_BUMPING)
+                    ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
+                else
+                    ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
                 av_log(s->avctx, AV_LOG_ERROR,"min_poc %d \n", min_poc);
                 s->prev_display_poc = min_poc;
             } else {
@@ -234,9 +237,10 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
                 s->prev_display_poc ++; // incremate
             }
 #else
-            frame->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
             if (frame->flags & HEVC_FRAME_FLAG_BUMPING)
-                frame->flags &= ~(HEVC_FRAME_FLAG_BUMPING);
+                ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
+            else
+                ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
 #endif
 
             if (ret < 0)

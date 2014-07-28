@@ -60,7 +60,6 @@ EPEL_TABLE  8, 8, b, sse4
 EPEL_TABLE 10, 4, w, sse4
 EPEL_TABLE 12, 4, w, sse4
 
-
 %macro QPEL_TABLE 4
 hevc_qpel_filters_%4_%1 times %2 d%3  -1,  4
                         times %2 d%3 -10, 58
