@@ -795,6 +795,10 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                 if (EXTERNAL_SSE2(mm_flags)) {
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_sse2;
                     c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_10_sse2;
+                    if (ARCH_X86_64) {
+                        c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_10_sse2;
+                        c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_sse2;
+                    }
 
 #ifdef OPTI_ASM
                     c->transform_add[1] = ff_hevc_transform_add8_10_sse2;
@@ -820,10 +824,6 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                     c->transform_add[3] = ff_hevc_transform_32x32_add_10_sse4;
 
 #endif
-                    if (ARCH_X86_64) {
-                        c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_10_sse2;
-                        c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_sse2;
-                    }
 
                 }
 #endif // HAVE_SSE2
@@ -1027,11 +1027,11 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                             c->idct_dc[2] = ff_hevc_idct16x16_dc_12_sse2;
                             c->idct_dc[3] = ff_hevc_idct32x32_dc_12_sse2;
 #endif
-//                            c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_12_sse2;
-//                            c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_12_sse2;
+                            c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_12_sse2;
+                            c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_12_sse2;
                             if (ARCH_X86_64) {
-//                                c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_12_sse2;
-//                                c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_12_sse2;
+                                c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_12_sse2;
+                                c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_12_sse2;
                             }
                             c->idct_4x4_luma = ff_hevc_transform_4x4_luma_12_sse4;
                             c->idct[0] = ff_hevc_transform_4x4_12_sse4;
@@ -1048,8 +1048,8 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
 #if HAVE_SSSE3
                         if (EXTERNAL_SSSE3(mm_flags)) {
 #if ARCH_X86_64
-//                            c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_12_ssse3;
-//                            c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_12_ssse3;
+                            c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_12_ssse3;
+                            c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_12_ssse3;
 #endif
 
                             EPEL_LINKS(c->put_hevc_epel, 0, 0, pel_pixels, 12, sse4);

@@ -66,7 +66,7 @@
 #include "compat/os2threads.h"
 #endif
 
-#define EDGE_WIDTH 16
+#define EDGE_WIDTH 32
 
 #if HAVE_PTHREADS || HAVE_W32THREADS || HAVE_OS2THREADS
 static int default_lockmgr_cb(void **arg, enum AVLockOp op)
