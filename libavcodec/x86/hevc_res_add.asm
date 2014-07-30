@@ -53,10 +53,10 @@ SECTION .text
 %endmacro
 
 %macro TR_ADD_INIT_SSE_8 2
-    movu              m4, [r1]
-    movu              m6, [r1+16]
-    movu              m8, [r1+32]
-    movu             m10, [r1+48]
+    mova              m4, [r1]
+    mova              m6, [r1+16]
+    mova              m8, [r1+32]
+    mova             m10, [r1+48]
     lea               %1, [%2*3]
     pxor              m5, m5
     psubw             m5, m4
@@ -78,32 +78,32 @@ SECTION .text
 
 %macro TR_ADD_INIT_SSE_16 2
     lea               %1, [%2*3]
-    movu              m4, [r1]
-    movu              m6, [r1+16]
+    mova              m4, [r1]
+    mova              m6, [r1+16]
     pxor              m5, m5
     psubw             m7, m5, m6
     psubw             m5, m4
     packuswb          m4, m6
     packuswb          m5, m7
 
-    movu              m6, [r1+32]
-    movu              m8, [r1+48]
+    mova              m6, [r1+32]
+    mova              m8, [r1+48]
     pxor              m7, m7
     psubw             m9, m7, m8
     psubw             m7, m6
     packuswb          m6, m8
     packuswb          m7, m9
 
-    movu              m8, [r1+64]
-    movu             m10, [r1+80]
+    mova              m8, [r1+64]
+    mova             m10, [r1+80]
     pxor              m9, m9
     psubw            m11, m9, m10
     psubw             m9, m8
     packuswb          m8, m10
     packuswb          m9, m11
 
-    movu             m10, [r1+96]
-    movu             m12, [r1+112]
+    mova             m10, [r1+96]
+    mova             m12, [r1+112]
     pxor             m11, m11
     psubw            m13, m11, m12
     psubw            m11, m10
