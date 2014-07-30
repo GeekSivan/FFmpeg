@@ -276,7 +276,7 @@ static int decode_lt_rps(HEVCContext *s, LongTermRPS *rps, GetBitContext *gb)
     return 0;
 }
 
-static int get_buffer_sao(HEVCContext *s, AVFrame *frame, HEVCSPS *sps)
+static int get_buffer_sao(HEVCContext *s, AVFrame *frame, const HEVCSPS *sps)
 {
     int ret, i;
 
@@ -1081,7 +1081,8 @@ static void set_deblocking_bypass(HEVCContext *s, int x0, int y0, int log2_cb_si
 static int hls_transform_tree(HEVCContext *s, int x0, int y0,
                               int xBase, int yBase, int cb_xBase, int cb_yBase,
                               int log2_cb_size, int log2_trafo_size,
-                              int trafo_depth, int blk_idx, int *base_cbf_cb, int *base_cbf_cr)
+                              int trafo_depth, int blk_idx,
+                              const int *base_cbf_cb, const int *base_cbf_cr)
 {
     HEVCLocalContext *lc = s->HEVClc;
     uint8_t split_transform_flag;
@@ -1117,14 +1118,14 @@ static int hls_transform_tree(HEVCContext *s, int x0, int y0,
         !(lc->cu.intra_split_flag && trafo_depth == 0)) {
         split_transform_flag = ff_hevc_split_transform_flag_decode(s, log2_trafo_size);
     } else {
-        int inter_split_flag = s->sps->max_transform_hierarchy_depth_inter == 0 &&
-                                  lc->cu.pred_mode == MODE_INTER &&
-                                  lc->cu.part_mode != PART_2Nx2N &&
-                                  trafo_depth == 0;
+        int inter_split = s->sps->max_transform_hierarchy_depth_inter == 0 &&
+                          lc->cu.pred_mode == MODE_INTER &&
+                          lc->cu.part_mode != PART_2Nx2N &&
+                          trafo_depth == 0;
 
         split_transform_flag = log2_trafo_size > s->sps->log2_max_trafo_size ||
                                (lc->cu.intra_split_flag && trafo_depth == 0) ||
-                               inter_split_flag;
+                               inter_split;
     }
 
     if (log2_trafo_size > 2 || s->sps->chroma_format_idc == 3) {
@@ -1150,29 +1151,25 @@ static int hls_transform_tree(HEVCContext *s, int x0, int y0,
     }
 
     if (split_transform_flag) {
-        int x1 = x0 + ((1 << log2_trafo_size) >> 1);
-        int y1 = y0 + ((1 << log2_trafo_size) >> 1);
+        const int trafo_size_split = 1 << (log2_trafo_size - 1);
+        const int x1 = x0 + trafo_size_split;
+        const int y1 = y0 + trafo_size_split;
 
-        ret = hls_transform_tree(s, x0, y0, x0, y0, cb_xBase, cb_yBase,
-                                 log2_cb_size, log2_trafo_size - 1,
-                                 trafo_depth + 1, 0, cbf_cb, cbf_cr);
-        if (ret < 0)
-            return ret;
-        ret = hls_transform_tree(s, x1, y0, x0, y0, cb_xBase, cb_yBase,
-                                 log2_cb_size, log2_trafo_size - 1,
-                                 trafo_depth + 1, 1, cbf_cb, cbf_cr);
-        if (ret < 0)
-            return ret;
-        ret = hls_transform_tree(s, x0, y1, x0, y0, cb_xBase, cb_yBase,
-                                 log2_cb_size, log2_trafo_size - 1,
-                                 trafo_depth + 1, 2, cbf_cb, cbf_cr);
-        if (ret < 0)
-            return ret;
-        ret = hls_transform_tree(s, x1, y1, x0, y0, cb_xBase, cb_yBase,
-                                 log2_cb_size, log2_trafo_size - 1,
-                                 trafo_depth + 1, 3, cbf_cb, cbf_cr);
-        if (ret < 0)
-            return ret;
+#define SUBDIVIDE(x, y, idx)                                                    \
+do {                                                                            \
+    ret = hls_transform_tree(s, x, y, x0, y0, cb_xBase, cb_yBase, log2_cb_size, \
+                             log2_trafo_size - 1, trafo_depth + 1, idx,         \
+                             cbf_cb, cbf_cr);                                   \
+    if (ret < 0)                                                                \
+        return ret;                                                             \
+} while (0)
+
+        SUBDIVIDE(x0, y0, 0);
+        SUBDIVIDE(x1, y0, 1);
+        SUBDIVIDE(x0, y1, 2);
+        SUBDIVIDE(x1, y1, 3);
+
+#undef SUBDIVIDE
     } else {
         int min_tu_size      = 1 << s->sps->log2_min_tb_size;
         int log2_min_tu_size = s->sps->log2_min_tb_size;
@@ -2079,7 +2076,7 @@ static int hls_coding_unit(HEVCContext *s, int x0, int y0, int log2_cb_size)
                 lc->cu.rqt_root_cbf = ff_hevc_no_residual_syntax_flag_decode(s);
             }
             if (lc->cu.rqt_root_cbf) {
-                int cbf[2] = { 0 };
+                const static int cbf[2] = { 0 };
                 lc->cu.max_trafo_depth = lc->cu.pred_mode == MODE_INTRA ?
                                          s->sps->max_transform_hierarchy_depth_intra + lc->cu.intra_split_flag :
                                          s->sps->max_transform_hierarchy_depth_inter;
@@ -2121,15 +2118,15 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
     const int cb_size    = 1 << log2_cb_size;
     int ret;
     int qp_block_mask = (1<<(s->sps->log2_ctb_size - s->pps->diff_cu_qp_delta_depth)) - 1;
-    int split_cu_flag;
+    int split_cu;
 
     lc->ct.depth = cb_depth;
     if (x0 + cb_size <= s->sps->width  &&
         y0 + cb_size <= s->sps->height &&
         log2_cb_size > s->sps->log2_min_cb_size) {
-        split_cu_flag = ff_hevc_split_coding_unit_flag_decode(s, cb_depth, x0, y0);
+        split_cu = ff_hevc_split_coding_unit_flag_decode(s, cb_depth, x0, y0);
     } else {
-        split_cu_flag = (log2_cb_size > s->sps->log2_min_cb_size);
+        split_cu = (log2_cb_size > s->sps->log2_min_cb_size);
     }
     if (s->pps->cu_qp_delta_enabled_flag &&
         log2_cb_size >= s->sps->log2_ctb_size - s->pps->diff_cu_qp_delta_depth) {
@@ -2142,7 +2139,7 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
         lc->tu.is_cu_chroma_qp_offset_coded = 0;
     }
 
-    if (split_cu_flag) {
+    if (split_cu) {
         const int cb_size_split = cb_size >> 1;
         const int x1 = x0 + cb_size_split;
         const int y1 = y0 + cb_size_split;
