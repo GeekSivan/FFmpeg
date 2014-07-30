@@ -644,9 +644,11 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                     c->idct[2] = ff_hevc_transform_16x16_8_sse4;
                     c->idct[3] = ff_hevc_transform_32x32_8_sse4;
 #ifdef OPTI_ASM
+                    if (ARCH_X86_64) {
                     c->transform_add[1]    = ff_hevc_transform_add8_8_sse2;
                     c->transform_add[2]    = ff_hevc_transform_add16_8_sse2;
                     c->transform_add[3]    = ff_hevc_transform_add32_8_sse2;
+                    }
 #endif
 #ifndef OPTI_ASM
                     c->transform_add[0] = ff_hevc_transform_4x4_add_8_sse4;
@@ -830,9 +832,11 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
                     }
 
 #ifdef OPTI_ASM
+                    if (ARCH_X86_64) {
                     c->transform_add[1] = ff_hevc_transform_add8_10_sse2;
                     c->transform_add[2] = ff_hevc_transform_add16_10_sse2;
                     c->transform_add[3] = ff_hevc_transform_add32_10_sse2;
+                    }
 #endif
                     c->idct_4x4_luma = ff_hevc_transform_4x4_luma_10_sse4;
                     c->idct[0] = ff_hevc_transform_4x4_10_sse4;
@@ -842,9 +846,11 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
 
 
 #ifdef OPTI_ASM
+                    if (ARCH_X86_64) {
                     c->idct_dc[1] = ff_hevc_idct8x8_dc_10_sse2;
                     c->idct_dc[2] = ff_hevc_idct16x16_dc_10_sse2;
                     c->idct_dc[3] = ff_hevc_idct32x32_dc_10_sse2;
+                    }
 #endif
 #ifndef OPTI_ASM
                     c->transform_add[0] = ff_hevc_transform_4x4_add_10_sse4;
@@ -885,9 +891,11 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
 #endif
                 if (EXTERNAL_AVX(cpu_flags)) {
 #ifdef OPTI_ASM
+                    if (ARCH_X86_64) {
                     c->transform_add[1] =  ff_hevc_transform_add8_10_avx;
                     c->transform_add[2] = ff_hevc_transform_add16_10_avx;
                     c->transform_add[3] = ff_hevc_transform_add32_10_avx;
+                    }
 
 #endif
                     c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_avx;
@@ -901,8 +909,10 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth) {
 #ifdef OPTI_ASM
                     c->idct_dc[2] = ff_hevc_idct16x16_dc_10_avx2;
                     c->idct_dc[3] = ff_hevc_idct32x32_dc_10_avx2;
-                    c->transform_add[2] = ff_hevc_transform_add16_10_avx2;
-                    c->transform_add[3] = ff_hevc_transform_add32_10_avx2;
+                    if (ARCH_X86_64) {
+                    	c->transform_add[2] = ff_hevc_transform_add16_10_avx2;
+                    	c->transform_add[3] = ff_hevc_transform_add32_10_avx2;
+                    }
 
                     c->put_hevc_epel[5][0][0] = ff_hevc_put_hevc_pel_pixels16_10_avx2;
                     c->put_hevc_epel[6][0][0] = ff_hevc_put_hevc_pel_pixels24_10_avx2;

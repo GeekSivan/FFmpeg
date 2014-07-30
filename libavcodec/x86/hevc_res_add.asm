@@ -161,7 +161,7 @@ cglobal hevc_transform_add4_8, 3, 4, 6
     TR_ADD_OP_MMX   movh, r0, r2, r3
     RET
 
-
+%if ARCH_X86_64
 INIT_XMM sse2
 ; void ff_hevc_transform_add8_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
 cglobal hevc_transform_add8_8, 3, 4, 6
@@ -202,6 +202,7 @@ cglobal hevc_transform_add32_8, 3, 4, 6
 INIT_YMM avx2
 
 %endif ;HAVE_AVX2_EXTERNAL
+%endif ;ARCH_X86_64
 ;-----------------------------------------------------------------------------
 ; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
@@ -409,7 +410,7 @@ cglobal hevc_transform_add32_10,3,4,7
 %endrep
     RET
 %endmacro
-
+%if ARCH_X86_64
 INIT_XMM sse2
 TR_ADD8
 TRANS_ADD16
@@ -448,6 +449,5 @@ cglobal hevc_transform_add32_10,3,4,10
     TRANS_ADD32_AVX2  r0, r2, r1
 %endrep
     RET
-
-
 %endif ;HAVE_AVX_EXTERNAL
+%endif ;ARCH_X86_64
