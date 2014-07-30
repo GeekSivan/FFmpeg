@@ -1,5 +1,5 @@
 ; /*
-; * Provide SSE & MMX idct functions for HEVC decoding
+; * Provide intrinsics for transform_add functions for HEVC decoding
 ; * Copyright (c) 2014 Pierre-Edouard LEPERE
 ; *
 ; * This file is part of FFmpeg.
@@ -22,12 +22,12 @@
 
 SECTION_RODATA
 max_pixels_10:          times 16  dw ((1 << 10)-1)
-dc_add_10:              times 4 dd ((1 << 14-10) + 1)
+tr_add_10:              times 4 dd ((1 << 14-10) + 1)
 
 
 SECTION .text
 
-;the idct_dc_add macros and functions were largely inspired by x264 project's code in the h264_idct.asm file
+;the tr_add macros and functions were largely inspired by x264 project's code in the h264_idct.asm file
 %macro TR_ADD_INIT_MMX 2
     mova              m2, [r1]
     mova              m4, [r1+8]
@@ -151,7 +151,7 @@ SECTION .text
 
 
 INIT_MMX mmxext
-; void ff_hevc_idct_dc_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+; void ff_hevc_tranform_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
 cglobal hevc_transform_add4_8, 3, 4, 6
     TR_ADD_INIT_MMX   r3, r2
     TR_ADD_OP_MMX   movh, r0, r2, r3
@@ -203,7 +203,7 @@ INIT_YMM avx2
 
 %endif ;HAVE_AVX2_EXTERNAL
 ;-----------------------------------------------------------------------------
-; void ff_hevc_idct_dc_add_10(pixel *dst, int16_t *block, int stride)
+; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
 %macro TR_ADD_OP_10 4
     movu              m6, [%4]
@@ -366,9 +366,9 @@ cglobal hevc_transform_add4_10,3,4, 6
     RET
 
 ;-----------------------------------------------------------------------------
-; void ff_hevc_idct8_dc_add_10(pixel *dst, int16_t *block, int stride)
+; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
-%macro IDCT8_DC_ADD 0
+%macro TR_ADD8 0
 cglobal hevc_transform_add8_10,3,4,7
     pxor              m4, m4
     mova              m5, [max_pixels_10]
@@ -411,12 +411,12 @@ cglobal hevc_transform_add32_10,3,4,7
 %endmacro
 
 INIT_XMM sse2
-IDCT8_DC_ADD
+TR_ADD8
 TRANS_ADD16
 TRANS_ADD32
 %if HAVE_AVX_EXTERNAL
 INIT_XMM avx
-IDCT8_DC_ADD
+TR_ADD8
 TRANS_ADD16
 TRANS_ADD32
 %endif
