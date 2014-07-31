@@ -1,5 +1,5 @@
 ; /*
-; * Provide intrinsics for transform_add functions for HEVC decoding
+; * Provide SSE optimizations for transform_add functions for HEVC decoding
 ; * Copyright (c) 2014 Pierre-Edouard LEPERE
 ; *
 ; * This file is part of FFmpeg.
@@ -28,7 +28,7 @@ tr_add_10:              times 4 dd ((1 << 14-10) + 1)
 SECTION .text
 
 ;the tr_add macros and functions were largely inspired by x264 project's code in the h264_idct.asm file
-%macro TR_ADD_INIT_MMX 2
+%macro TR_ADD_MMX_4_8 0
     mova              m2, [r1]
     mova              m4, [r1+8]
     pxor              m3, m3
@@ -39,162 +39,162 @@ SECTION .text
     psubw             m5, m4
     packuswb          m4, m4
     packuswb          m5, m5
-%endmacro
 
-%macro TR_ADD_OP_MMX 4
-    %1                m0, [%2     ]
-    %1                m1, [%2+%3  ]
+    movh              m0, [r0     ]
+    movh              m1, [r0+r2  ]
     paddusb           m0, m2
     paddusb           m1, m4
     psubusb           m0, m3
     psubusb           m1, m5
-    %1         [%2     ], m0
-    %1         [%2+%3  ], m1
-%endmacro
-
-%macro TR_ADD_INIT_SSE_8 2
-    mova              m4, [r1]
-    mova              m6, [r1+16]
-    mova              m8, [r1+32]
-    mova             m10, [r1+48]
-    lea               %1, [%2*3]
-    pxor              m5, m5
-    psubw             m5, m4
-    packuswb          m4, m4
-    packuswb          m5, m5
-    pxor              m7, m7
-    psubw             m7, m6
-    packuswb          m6, m6
-    packuswb          m7, m7
-    pxor              m9, m9
-    psubw             m9, m8
-    packuswb          m8, m8
-    packuswb          m9, m9
-    pxor             m11, m11
-    psubw            m11, m10
-    packuswb         m10, m10
-    packuswb         m11, m11
-%endmacro
-
-%macro TR_ADD_INIT_SSE_16 2
-    lea               %1, [%2*3]
-    mova              m4, [r1]
-    mova              m6, [r1+16]
-    pxor              m5, m5
-    psubw             m7, m5, m6
-    psubw             m5, m4
-    packuswb          m4, m6
-    packuswb          m5, m7
-
-    mova              m6, [r1+32]
-    mova              m8, [r1+48]
-    pxor              m7, m7
-    psubw             m9, m7, m8
-    psubw             m7, m6
-    packuswb          m6, m8
-    packuswb          m7, m9
-
-    mova              m8, [r1+64]
-    mova             m10, [r1+80]
-    pxor              m9, m9
-    psubw            m11, m9, m10
-    psubw             m9, m8
-    packuswb          m8, m10
-    packuswb          m9, m11
-
-    mova             m10, [r1+96]
-    mova             m12, [r1+112]
-    pxor             m11, m11
-    psubw            m13, m11, m12
-    psubw            m11, m10
-    packuswb         m10, m12
-    packuswb         m11, m13
-%endmacro
-
-%macro TR_ADD_OP_SSE 4
-    %1                m0, [%2     ]
-    %1                m1, [%2+%3  ]
-    %1                m2, [%2+%3*2]
-    %1                m3, [%2+%4  ]
-    paddusb           m0, m4
-    paddusb           m1, m6
-    paddusb           m2, m8
-    paddusb           m3, m10
-    psubusb           m0, m5
-    psubusb           m1, m7
-    psubusb           m2, m9
-    psubusb           m3, m11
-    %1         [%2     ], m0
-    %1         [%2+%3  ], m1
-    %1         [%2+2*%3], m2
-    %1         [%2+%4  ], m3
-%endmacro
-
-%macro TR_ADD_OP_SSE_32 4
-    %1                m0, [%2      ]
-    %1                m1, [%2+16   ]
-    %1                m2, [%2+%3   ]
-    %1                m3, [%2+%3+16]
-    paddusb           m0, m4
-    paddusb           m1, m6
-    paddusb           m2, m8
-    paddusb           m3, m10
-    psubusb           m0, m5
-    psubusb           m1, m7
-    psubusb           m2, m9
-    psubusb           m3, m11
-    %1        [%2      ], m0
-    %1        [%2+16   ], m1
-    %1        [%2+%3   ], m2
-    %1        [%2+%3+16], m3
+    movh       [r0     ], m0
+    movh       [r0+r2  ], m1
 %endmacro
 
 
 INIT_MMX mmxext
 ; void ff_hevc_tranform_add_8_mmxext(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
 cglobal hevc_transform_add4_8, 3, 4, 6
-    TR_ADD_INIT_MMX   r3, r2
-    TR_ADD_OP_MMX   movh, r0, r2, r3
-    lea               r1, [r1+16]
+    TR_ADD_MMX_4_8
+    add               r1, 16
     lea               r0, [r0+r2*2]
-    TR_ADD_INIT_MMX   r3, r2
-    TR_ADD_OP_MMX   movh, r0, r2, r3
+    TR_ADD_MMX_4_8
+    RET
+
+%macro TR_ADD_SSE_8_8 0
+    pxor              m3, m3
+    mova              m4, [r1]
+    mova              m6, [r1+16]
+    mova              m0, [r1+32]
+    mova              m2, [r1+48]
+    psubw             m5, m3, m4
+    psubw             m7, m3, m6
+    psubw             m1, m3, m0
+    packuswb          m4, m0
+    packuswb          m5, m1
+    psubw             m3, m2
+    packuswb          m6, m2
+    packuswb          m7, m3
+
+    movq                m0, [r0     ]
+    movq                m1, [r0+r2  ]
+    movhps              m0, [r0+r2*2]
+    movhps              m1, [r0+r3  ]
+    paddusb             m0, m4
+    paddusb             m1, m6
+    psubusb             m0, m5
+    psubusb             m1, m7
+    movq         [r0     ], m0
+    movq         [r0+r2  ], m1
+    movhps       [r0+2*r2], m0
+    movhps       [r0+r3  ], m1
+%endmacro
+
+%macro TR_ADD_INIT_SSE_8 0
+    pxor              m0, m0
+
+    mova              m4, [r1]
+    mova              m1, [r1+16]
+    psubw             m2, m0, m1
+    psubw             m5, m0, m4
+    packuswb          m4, m1
+    packuswb          m5, m2
+
+    mova              m6, [r1+32]
+    mova              m1, [r1+48]
+    psubw             m2, m0, m1
+    psubw             m7, m0, m6
+    packuswb          m6, m1
+    packuswb          m7, m2
+
+    mova              m8, [r1+64]
+    mova              m1, [r1+80]
+    psubw             m2, m0, m1
+    psubw             m9, m0, m8
+    packuswb          m8, m1
+    packuswb          m9, m2
+
+    mova             m10, [r1+96]
+    mova              m1, [r1+112]
+    psubw             m2, m0, m1
+    psubw            m11, m0, m10
+    packuswb         m10, m1
+    packuswb         m11, m2
+%endmacro
+
+
+%macro TR_ADD_SSE_16_8 0
+    TR_ADD_INIT_SSE_8
+
+    mova              m0, [r0     ]
+    mova              m1, [r0+r2  ]
+    mova              m2, [r0+r2*2]
+    mova              m3, [r0+r3  ]
+    paddusb           m0, m4
+    paddusb           m1, m6
+    paddusb           m2, m8
+    paddusb           m3, m10
+    psubusb           m0, m5
+    psubusb           m1, m7
+    psubusb           m2, m9
+    psubusb           m3, m11
+    mova       [r0     ], m0
+    mova       [r0+r2  ], m1
+    mova       [r0+2*r2], m2
+    mova       [r0+r3  ], m3
+%endmacro
+
+%macro TR_ADD_SSE_32_8 0
+    TR_ADD_INIT_SSE_8
+
+    mova              m0, [r0      ]
+    mova              m1, [r0+16   ]
+    mova              m2, [r0+r2   ]
+    mova              m3, [r0+r2+16]
+    paddusb           m0, m4
+    paddusb           m1, m6
+    paddusb           m2, m8
+    paddusb           m3, m10
+    psubusb           m0, m5
+    psubusb           m1, m7
+    psubusb           m2, m9
+    psubusb           m3, m11
+    mova      [r0      ], m0
+    mova      [r0+16   ], m1
+    mova      [r0+r2   ], m2
+    mova      [r0+r2+16], m3
+%endmacro
+
+
+INIT_XMM sse2
+; void ff_hevc_transform_add8_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
+cglobal hevc_transform_add8_8, 3, 4, 8
+    lea               r3, [r2*3]
+    TR_ADD_SSE_8_8
+    add               r1, 64
+    lea               r0, [r0+r2*4]
+    TR_ADD_SSE_8_8
     RET
 
 %if ARCH_X86_64
-INIT_XMM sse2
-; void ff_hevc_transform_add8_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_transform_add8_8, 3, 4, 6
-    TR_ADD_INIT_SSE_8 r3, r2
-    TR_ADD_OP_SSE   movh, r0, r2, r3
-    lea               r1, [r1+8*8]
-    lea               r0, [r0+r2*4]
-    TR_ADD_INIT_SSE_8 r3, r2
-    TR_ADD_OP_SSE   movh, r0, r2, r3
-    RET
-
-
 ; void ff_hevc_transform_add16_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_transform_add16_8, 3, 4, 6
-    TR_ADD_INIT_SSE_16 r3, r2
-    TR_ADD_OP_SSE    mova, r0, r2, r3
+cglobal hevc_transform_add16_8, 3, 4, 12
+    lea               r3, [r2*3]
+    TR_ADD_SSE_16_8
 %rep 3
-    lea                r1, [r1+16*8]
+    add                r1, 128
     lea                r0, [r0+r2*4]
-    TR_ADD_INIT_SSE_16 r3, r2
-    TR_ADD_OP_SSE    mova, r0, r2, r3
+    TR_ADD_SSE_16_8
 %endrep
     RET
 
 ; void ff_hevc_transform_add16_8_sse2(uint8_t *dst, int16_t *coeffs, ptrdiff_t stride)
-cglobal hevc_transform_add32_8, 3, 4, 6
-    TR_ADD_INIT_SSE_16 r3, r2
-    TR_ADD_OP_SSE_32 mova, r0, r2, r3
+cglobal hevc_transform_add32_8, 3, 4, 12
+
+    TR_ADD_SSE_32_8
 %rep 15
-    lea                r1, [r1+16*8]
+    add                r1, 128
     lea                r0, [r0+r2*2]
-    TR_ADD_INIT_SSE_16 r3, r2
-    TR_ADD_OP_SSE_32 mova, r0, r2, r3
+    TR_ADD_SSE_32_8
 %endrep
     RET
 
@@ -330,7 +330,7 @@ cglobal hevc_transform_add4_10,3,4, 6
 ; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
 %macro TR_ADD8 0
-cglobal hevc_transform_add8_10,3,4,7
+cglobal hevc_transform_add8_10,3,4,6
     pxor              m4, m4
     mova              m5, [max_pixels_10]
     lea               r3, [r2*3]
@@ -343,7 +343,7 @@ cglobal hevc_transform_add8_10,3,4,7
 %endmacro
 
 %macro TRANS_ADD16 0
-cglobal hevc_transform_add16_10,3,4,7
+cglobal hevc_transform_add16_10,3,4,6
     pxor              m4, m4
     mova              m5, [max_pixels_10]
 
@@ -358,7 +358,7 @@ cglobal hevc_transform_add16_10,3,4,7
 
 
 %macro TRANS_ADD32 0
-cglobal hevc_transform_add32_10,3,4,7
+cglobal hevc_transform_add32_10,3,4,6
     pxor              m4, m4
     mova              m5, [max_pixels_10]
 
@@ -370,7 +370,6 @@ cglobal hevc_transform_add32_10,3,4,7
 %endrep
     RET
 %endmacro
-%if ARCH_X86_64
 INIT_XMM sse2
 TR_ADD8
 TRANS_ADD16
@@ -387,7 +386,7 @@ cglobal hevc_transform_add16_10,3,4,10
     TRANS_ADD16_AVX2  r0, r2, r3, r1
 %rep 3
     lea               r0, [r0+r2*4]
-    lea               r1, [r1+128]
+    add               r1, 128
     TRANS_ADD16_AVX2  r0, r2, r3, r1
 %endrep
     RET
@@ -399,10 +398,9 @@ cglobal hevc_transform_add32_10,3,4,10
     TRANS_ADD32_AVX2  r0, r2, r1
 %rep 15
     lea               r0, [r0+r2*2]
-    lea               r1, [r1+128]
+    add               r1, 128
     TRANS_ADD32_AVX2  r0, r2, r1
 %endrep
     RET
 %endif ;HAVE_AVX_EXTERNAL
-%endif ;ARCH_X86_64
 
