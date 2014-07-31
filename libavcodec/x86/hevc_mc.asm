@@ -20,7 +20,7 @@
 ; */
 %include "libavutil/x86/x86util.asm"
 
-SECTION_RODATA
+SECTION_RODATA 32
 pw_8:                   times 16 dw  (1 <<  9)
 pw_10:                  times 16 dw  (1 << 11)
 pw_12:                  times 16 dw  (1 << 13)
@@ -34,7 +34,6 @@ zero:                   times 8  dd 0
 one_per_32:             times 8  dd 1
 
 SECTION_TEXT 32
-
 %macro EPEL_TABLE 4
 hevc_epel_filters_%4_%1 times %2 d%3 -2, 58
                         times %2 d%3 10, -2
@@ -82,11 +81,9 @@ QPEL_TABLE 12, 4, w, sse4
 QPEL_TABLE  8,16, b, avx2
 QPEL_TABLE 10, 8, w, avx2
 
-
 %define hevc_qpel_filters_sse4_14 hevc_qpel_filters_sse4_10
 
 %define hevc_qpel_filters_avx2_14 hevc_qpel_filters_avx2_10
-
 
 %if ARCH_X86_64
 
@@ -453,25 +450,24 @@ QPEL_TABLE 10, 8, w, avx2
 %endmacro
 
 
-
 %macro MC_PIXEL_COMPUTE 2-3 ;width, bitdepth
 %if %2 == 8
 %if avx_enabled && %0 ==3
 %if %1 > 16
     vextracti128 xm1, m0, 1
-    pmovzxbw m1, xm1
-    psllw m1, 14-%2
+    pmovzxbw      m1, xm1
+    psllw         m1, 14-%2
 %endif
-    pmovzxbw m0, xm0
+    pmovzxbw      m0, xm0
 %else ; not avx
 %if %1 > 8
-    punpckhbw m1, m0, m2
-    psllw m1, 14-%2
+    punpckhbw     m1, m0, m2
+    psllw         m1, 14-%2
 %endif
-    punpcklbw m0, m2
+    punpcklbw     m0, m2
 %endif
 %endif ;avx
-    psllw m0, 14-%2
+    psllw         m0, 14-%2
 %endmacro
 
 %macro EPEL_COMPUTE 4-8 ; bitdepth, width, filter1, filter2, HV/m0, m2, m1, m3
@@ -489,17 +485,17 @@ QPEL_TABLE 10, 8, w, avx2
 %if %1 == 8
 %if avx_enabled && (%0 == 5)
 %if %2 > 16
-    vextracti128 xm10, m0, 1
-    vinserti128 m10, m1, xm10, 0
+    vextracti128  xm10, m0, 1
+    vinserti128    m10, m1, xm10, 0
 %endif
-    vinserti128 m0, m0, xm1, 1
-    mova m1, m10
+    vinserti128    m0, m0, xm1, 1
+    mova           m1, m10
 %if %2 > 16
     vextracti128 xm10, m2, 1
-    vinserti128 m10, m3, xm10, 0
+    vinserti128   m10, m3, xm10, 0
 %endif
-    vinserti128 m2, m2, xm3, 1
-    mova m3, m10
+    vinserti128    m2, m2, xm3, 1
+    mova           m3, m10
 %endif
     pmaddubsw      %%reg0, %3   ;x1*c1+x2*c2
     pmaddubsw      %%reg2, %4   ;x3*c3+x4*c4
@@ -517,9 +513,13 @@ QPEL_TABLE 10, 8, w, avx2
     pmaddwd        %%reg1, %3
     pmaddwd        %%reg3, %4
     paddd          %%reg1, %%reg3
+%if %1 != 8
     psrad          %%reg1, %1-8
 %endif
+%endif
+%if %1 != 8
     psrad          %%reg0, %1-8
+%endif
     packssdw       %%reg0, %%reg1
 %endif
 %endmacro
@@ -556,8 +556,9 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m0, m2
     paddd             m4, m6
     paddd             m0, m4
+%if %2 != 8
     psrad             m0, %2-8
-
+%endif
 %if %1 > 4
     pmaddwd           m1, [rfilterq + %3q*8   ]
     pmaddwd           m3, [rfilterq + %3q*8+%%offset]
@@ -566,7 +567,9 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m1, m3
     paddd             m5, m7
     paddd             m1, m5
+%if %2 != 8
     psrad             m1, %2-8
+%endif
 %endif
     p%4               m0, m1
 %endif
@@ -622,7 +625,9 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m0, m2
     paddd             m4, m6
     paddd             m0, m4
+%if %2 != 8
     psrad             m0, %2-8
+%endif
 %if %1 > 4
     pmaddwd           m1, m12
     pmaddwd           m3, m13
@@ -631,7 +636,9 @@ QPEL_TABLE 10, 8, w, avx2
     paddd             m1, m3
     paddd             m5, m7
     paddd             m1, m5
+%if %2 != 8
     psrad             m1, %2-8
+%endif
 %endif
 %endif
 %endmacro
