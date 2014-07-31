@@ -768,11 +768,8 @@ cglobal hevc_put_hevc_bi_epel_h%1_%2, 8, 9, 7, dst, dststride, src, srcstride, s
 .loop
     EPEL_LOAD         %2, srcq-%%stride, %%stride, %1
     EPEL_COMPUTE      %2, %1, m4, m5, 1
-%if %1 = 32
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 32], m6, 1
-%else
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 16], m6, 1
-%endif
+    SIMPLE_BILOAD     %1, src2q, m2, m3
+    BI_COMPUTE        %1, %2, m0, m1, m2, m3, m6, 1
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
@@ -824,11 +821,8 @@ cglobal hevc_put_hevc_bi_epel_v%1_%2, 9, 10, 7, dst, dststride, src, srcstride, 
 .loop
     EPEL_LOAD         %2, srcq, srcstride, %1
     EPEL_COMPUTE      %2, %1, m4, m5, 1
-%if %1 = 32
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 32], m6, 1
-%else
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 16], m6, 1
-%endif
+    SIMPLE_BILOAD     %1, src2q, m2, m3
+    BI_COMPUTE        %1, %2, m0, m1, m2, m3, m6, 1
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
@@ -1097,11 +1091,8 @@ cglobal hevc_put_hevc_bi_qpel_h%1_%2, 8, 9, 16 , dst, dststride, src, srcstride,
 %if %2 > 8
     packssdw          m0, m1
 %endif
-%if %1 = 32
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 32], m9, 1
-%else
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 16], m9, 1
-%endif
+    SIMPLE_BILOAD     %1, src2q, m10, m11
+    BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9, 1
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
@@ -1158,11 +1149,8 @@ cglobal hevc_put_hevc_bi_qpel_v%1_%2, 9, 14, 16 , dst, dststride, src, srcstride
 %if %2 > 8
     packssdw          m0, m1
 %endif
-%if %1 = 32
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 32], m9, 1
-%else
-    BI_COMPUTE        %1, %2, m0, m1, [src2q], [src2q + 16], m9, 1
-%endif
+    SIMPLE_BILOAD     %1, src2q, m10, m11
+    BI_COMPUTE        %1, %2, m0, m1, m10, m11, m9, 1
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
