@@ -728,7 +728,7 @@ cglobal hevc_put_hevc_bi_pel_pixels%1_%2, 7, 7, 6, dst, dststride, src, srcstrid
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
@@ -779,7 +779,7 @@ cglobal hevc_put_hevc_bi_epel_h%1_%2, 8, 9, 7, dst, dststride, src, srcstride, s
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
@@ -831,7 +831,7 @@ cglobal hevc_put_hevc_bi_epel_v%1_%2, 9, 10, 7, dst, dststride, src, srcstride, 
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
@@ -1036,7 +1036,7 @@ cglobal hevc_put_hevc_bi_epel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
 %endif
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
@@ -1091,7 +1091,7 @@ cglobal hevc_put_hevc_bi_qpel_h%1_%2, 8, 9, 16 , dst, dststride, src, srcstride,
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
@@ -1148,7 +1148,7 @@ cglobal hevc_put_hevc_bi_qpel_v%1_%2, 9, 14, 16 , dst, dststride, src, srcstride
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
@@ -1395,7 +1395,7 @@ cglobal hevc_put_hevc_bi_qpel_hv%1_%2, 9, 11, 16, dst, dststride, src, srcstride
 %endif
     add             dstq, dststrideq             ; dst += dststride
     add             srcq, srcstrideq             ; src += srcstride
-    lea            src2q, [src2q+2*src2strideq]  ; src += srcstride
+    add            src2q, src2strideq            ; src += srcstride
     dec          heightd                         ; cmp height
     jnz               .loop                      ; height loop
     RET
