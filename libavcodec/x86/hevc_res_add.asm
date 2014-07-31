@@ -20,7 +20,7 @@
 ; */
 %include "libavutil/x86/x86util.asm"
 
-SECTION_RODATA
+SECTION_RODATA 32
 max_pixels_10:          times 16  dw ((1 << 10)-1)
 tr_add_10:              times 4 dd ((1 << 14-10) + 1)
 
@@ -53,10 +53,10 @@ SECTION .text
 %endmacro
 
 %macro TR_ADD_INIT_SSE_8 2
-    movu              m4, [r1]
-    movu              m6, [r1+16]
-    movu              m8, [r1+32]
-    movu             m10, [r1+48]
+    mova              m4, [r1]
+    mova              m6, [r1+16]
+    mova              m8, [r1+32]
+    mova             m10, [r1+48]
     lea               %1, [%2*3]
     pxor              m5, m5
     psubw             m5, m4
@@ -78,32 +78,32 @@ SECTION .text
 
 %macro TR_ADD_INIT_SSE_16 2
     lea               %1, [%2*3]
-    movu              m4, [r1]
-    movu              m6, [r1+16]
+    mova              m4, [r1]
+    mova              m6, [r1+16]
     pxor              m5, m5
     psubw             m7, m5, m6
     psubw             m5, m4
     packuswb          m4, m6
     packuswb          m5, m7
 
-    movu              m6, [r1+32]
-    movu              m8, [r1+48]
+    mova              m6, [r1+32]
+    mova              m8, [r1+48]
     pxor              m7, m7
     psubw             m9, m7, m8
     psubw             m7, m6
     packuswb          m6, m8
     packuswb          m7, m9
 
-    movu              m8, [r1+64]
-    movu             m10, [r1+80]
+    mova              m8, [r1+64]
+    mova             m10, [r1+80]
     pxor              m9, m9
     psubw            m11, m9, m10
     psubw             m9, m8
     packuswb          m8, m10
     packuswb          m9, m11
 
-    movu             m10, [r1+96]
-    movu             m12, [r1+112]
+    mova             m10, [r1+96]
+    mova             m12, [r1+112]
     pxor             m11, m11
     psubw            m13, m11, m12
     psubw            m11, m10
@@ -198,42 +198,27 @@ cglobal hevc_transform_add32_8, 3, 4, 6
 %endrep
     RET
 
-%if HAVE_AVX2_EXTERNAL
-INIT_YMM avx2
-
-%endif ;HAVE_AVX2_EXTERNAL
 %endif ;ARCH_X86_64
 ;-----------------------------------------------------------------------------
 ; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
 %macro TR_ADD_OP_10 4
-    movu              m6, [%4]
-    movu              m7, [%4+16]
-    movu              m8, [%4+32]
-    movu              m9, [%4+48]
-%if avx_enabled
-    paddw             m0, m6, [%1+0   ]
-    paddw             m1, m7, [%1+%2  ]
-    paddw             m2, m8, [%1+%2*2]
-    paddw             m3, m9, [%1+%3  ]
-%else
-    movu              m0, [%1+0   ]
-    movu              m1, [%1+%2  ]
-    movu              m2, [%1+%2*2]
-    movu              m3, [%1+%3  ]
-    paddw             m0, m6
-    paddw             m1, m7
-    paddw             m2, m8
-    paddw             m3, m9
-%endif
+    mova              m0, [%4]
+    mova              m1, [%4+16]
+    mova              m2, [%4+32]
+    mova              m3, [%4+48]
+    paddw             m0, [%1+0   ]
+    paddw             m1, [%1+%2  ]
+    paddw             m2, [%1+%2*2]
+    paddw             m3, [%1+%3  ]
     CLIPW             m0, m4, m5
     CLIPW             m1, m4, m5
     CLIPW             m2, m4, m5
     CLIPW             m3, m4, m5
-    movu       [%1+0   ], m0
-    movu       [%1+%2  ], m1
-    movu       [%1+%2*2], m2
-    movu       [%1+%3  ], m3
+    mova       [%1+0   ], m0
+    mova       [%1+%2  ], m1
+    mova       [%1+%2*2], m2
+    mova       [%1+%3  ], m3
 %endmacro
 
 %macro TR_ADD_MMX_10 3
@@ -250,26 +235,14 @@ INIT_YMM avx2
 %endmacro
 
 %macro TRANS_ADD16_10 3
-    mova              m6, [%3]
-    mova              m7, [%3+16]
-    mova              m8, [%3+32]
-    mova              m9, [%3+48]
-
-%if avx_enabled
-    paddw             m0, m6, [%1      ]
-    paddw             m1, m7, [%1+16   ]
-    paddw             m2, m8, [%1+%2   ]
-    paddw             m3, m9, [%1+%2+16]
-%else
-    mova              m0, [%1      ]
-    mova              m1, [%1+16   ]
-    mova              m2, [%1+%2   ]
-    mova              m3, [%1+%2+16]
-    paddw             m0, m6
-    paddw             m1, m7
-    paddw             m2, m8
-    paddw             m3, m9
-%endif
+    mova              m0, [%3]
+    mova              m1, [%3+16]
+    mova              m2, [%3+32]
+    mova              m3, [%3+48]
+    paddw             m0, [%1      ]
+    paddw             m1, [%1+16   ]
+    paddw             m2, [%1+%2   ]
+    paddw             m3, [%1+%2+16]
     CLIPW             m0, m4, m5
     CLIPW             m1, m4, m5
     CLIPW             m2, m4, m5
@@ -281,26 +254,15 @@ INIT_YMM avx2
 %endmacro
 
 %macro TRANS_ADD32_10 2
-    mova              m6, [%2]
-    mova              m7, [%2+16]
-    mova              m8, [%2+32]
-    mova              m9, [%2+48]
+    mova              m0, [%2]
+    mova              m1, [%2+16]
+    mova              m2, [%2+32]
+    mova              m3, [%2+48]
 
-%if avx_enabled
-    paddw             m0, m6, [%1   ]
-    paddw             m1, m7, [%1+16]
-    paddw             m2, m8, [%1+32]
-    paddw             m3, m9, [%1+48]
-%else
-    mova              m0, [%1   ]
-    mova              m1, [%1+16]
-    mova              m2, [%1+32]
-    mova              m3, [%1+48]
-    paddw             m0, m6
-    paddw             m1, m7
-    paddw             m2, m8
-    paddw             m3, m9
-%endif
+    paddw             m0, [%1   ]
+    paddw             m1, [%1+16]
+    paddw             m2, [%1+32]
+    paddw             m3, [%1+48]
     CLIPW             m0, m4, m5
     CLIPW             m1, m4, m5
     CLIPW             m2, m4, m5
@@ -311,48 +273,46 @@ INIT_YMM avx2
     mova         [%1+48], m3
 %endmacro
 
-
-
 %macro TRANS_ADD16_AVX2 4
-    movu              m6, [%4]
-    movu              m7, [%4+32]
-    movu              m8, [%4+64]
-    movu              m9, [%4+96]
+    mova              m0, [%4]
+    mova              m1, [%4+32]
+    mova              m2, [%4+64]
+    mova              m3, [%4+96]
 
-    paddw             m0, m6, [%1+0   ]
-    paddw             m1, m7, [%1+%2  ]
-    paddw             m2, m8, [%1+%2*2]
-    paddw             m3, m9, [%1+%3  ]
+    paddw             m0, [%1+0   ]
+    paddw             m1, [%1+%2  ]
+    paddw             m2, [%1+%2*2]
+    paddw             m3, [%1+%3  ]
 
     CLIPW             m0, m4, m5
     CLIPW             m1, m4, m5
     CLIPW             m2, m4, m5
     CLIPW             m3, m4, m5
-    movu       [%1+0   ], m0
-    movu       [%1+%2  ], m1
-    movu       [%1+%2*2], m2
-    movu       [%1+%3  ], m3
+    mova       [%1+0   ], m0
+    mova       [%1+%2  ], m1
+    mova       [%1+%2*2], m2
+    mova       [%1+%3  ], m3
 %endmacro
 
 %macro TRANS_ADD32_AVX2 3
-    movu              m6, [%3]
-    movu              m7, [%3+32]
-    movu              m8, [%3+64]
-    movu              m9, [%3+96]
+    mova              m0, [%3]
+    mova              m1, [%3+32]
+    mova              m2, [%3+64]
+    mova              m3, [%3+96]
 
-    paddw             m0, m6, [%1      ]
-    paddw             m1, m7, [%1+32   ]
-    paddw             m2, m8, [%1+%2   ]
-    paddw             m3, m9, [%1+%2+32]
+    paddw             m0, [%1      ]
+    paddw             m1, [%1+32   ]
+    paddw             m2, [%1+%2   ]
+    paddw             m3, [%1+%2+32]
 
     CLIPW             m0, m4, m5
     CLIPW             m1, m4, m5
     CLIPW             m2, m4, m5
     CLIPW             m3, m4, m5
-    movu      [%1      ], m0
-    movu      [%1+32   ], m1
-    movu      [%1+%2   ], m2
-    movu      [%1+%2+32], m3
+    mova      [%1      ], m0
+    mova      [%1+32   ], m1
+    mova      [%1+%2   ], m2
+    mova      [%1+%2+32], m3
 %endmacro
 
 
@@ -415,12 +375,6 @@ INIT_XMM sse2
 TR_ADD8
 TRANS_ADD16
 TRANS_ADD32
-%if HAVE_AVX_EXTERNAL
-INIT_XMM avx
-TR_ADD8
-TRANS_ADD16
-TRANS_ADD32
-%endif
 
 %if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2
@@ -451,3 +405,4 @@ cglobal hevc_transform_add32_10,3,4,10
     RET
 %endif ;HAVE_AVX_EXTERNAL
 %endif ;ARCH_X86_64
+

@@ -1558,7 +1558,10 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
             coeffs[i] = coeffs[i] + ((lc->tu.res_scale_val * coeffs_y[i]) >> 3);
         }
     }
-    s->hevcdsp.transform_add[log2_trafo_size-2](dst, coeffs, stride);
+    {START_TIMER
+        s->hevcdsp.transform_add[log2_trafo_size-2](dst, coeffs, stride);
+        STOP_TIMER("transform add")
+    }
 }
 
 void ff_hevc_hls_mvd_coding(HEVCContext *s, int x0, int y0, int log2_cb_size)
