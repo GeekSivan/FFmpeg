@@ -604,9 +604,9 @@ mc_bi_w_funcs(qpel_hv, 12, sse4);
 
 #ifdef OPTI_ASM
 
-#define BIT_DEPTH 8
-#include "hevcsao_template.c"
-#undef BIT_DEPTH
+//#define BIT_DEPTH 8
+//#include "hevcsao_template.c"
+//#undef BIT_DEPTH
 
 #endif // OPTI_ASM
 
@@ -658,14 +658,12 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     8, sse4);
             QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    8, sse4);
 
-#ifndef OPTI_ASM
             c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
             c->sao_edge_filter[0] = ff_hevc_sao_edge_filter_0_8_sse;
             c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
-#endif // OPTI_ASM
 #ifdef OPTI_ASM
             //                    c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
-            c->sao_edge_filter[0] = sao_edge_filter_0_sse_8;
+            //            c->sao_edge_filter[0] = sao_edge_filter_0_sse_8;
             //                    c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
 #endif
 #endif //HAVE_SSSE3

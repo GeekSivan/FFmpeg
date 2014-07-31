@@ -169,9 +169,7 @@ void ff_hevc_sao_band_filter_0_ ## D ##_sse(                                   \
         src += stride_src;                                                     \
     }                                                                          \
 }
-#ifndef OPTI_ASM
 SAO_BAND_FILTER( 8,  8)
-#endif
 SAO_BAND_FILTER( 8, 10)
 SAO_BAND_FILTER( 8, 12)
 
@@ -512,10 +510,8 @@ void ff_hevc_sao_edge_filter_1_ ## D ##_sse(uint8_t *_dst, uint8_t *_src,      \
         dst[_stride_dst * (height - 1)] = src[_stride_src * (height - 1)];     \
 }
 
-#ifndef OPTI_ASM
 SAO_EDGE_FILTER_0( 8)
 SAO_EDGE_FILTER_1( 8)
-#endif
 SAO_EDGE_FILTER_0(10)
 SAO_EDGE_FILTER_1(10)
 

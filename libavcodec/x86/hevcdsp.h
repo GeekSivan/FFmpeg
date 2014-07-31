@@ -30,7 +30,7 @@ struct AVFrame;
 struct UpsamplInf;
 struct HEVCWindow;
 
-//#define OPTI_ASM
+#define OPTI_ASM
 
 #define PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt) \
 dst[idx1][idx2][idx3] = ff_hevc_put_hevc_ ## name ## _ ## D ## _ ## opt; \
@@ -306,7 +306,7 @@ WEIGHTING_PROTOTYPES(12, sse4);
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions
 ///////////////////////////////////////////////////////////////////////////////
-#ifndef OPTI_ASM
+//#ifndef OPTI_ASM
 void ff_hevc_sao_edge_filter_0_8_sse(uint8_t *_dst, uint8_t *_src,
                                      ptrdiff_t _stride_dst, ptrdiff_t _stride_src, struct SAOParams *sao,
                                      int *borders, int _width, int _height, int c_idx,
@@ -315,7 +315,7 @@ void ff_hevc_sao_edge_filter_1_8_sse(uint8_t *_dst, uint8_t *_src,
                                      ptrdiff_t _stride_dst, ptrdiff_t _stride_src, struct SAOParams *sao,
                                      int *borders, int _width, int _height, int c_idx,
                                      uint8_t *vert_edge, uint8_t *horiz_edge, uint8_t *diag_edge);
-#endif
+//#endif
 void ff_hevc_sao_edge_filter_0_10_sse(uint8_t *_dst, uint8_t *_src,
                                       ptrdiff_t _stride_dst, ptrdiff_t _stride_src, struct SAOParams *sao,
                                       int *borders, int _width, int _height, int c_idx,
@@ -333,10 +333,10 @@ void ff_hevc_sao_edge_filter_1_12_sse(uint8_t *_dst, uint8_t *_src,
                                       int *borders, int _width, int _height, int c_idx,
                                       uint8_t *vert_edge, uint8_t *horiz_edge, uint8_t *diag_edge);
 
-#ifndef OPTI_ASM
+//#ifndef OPTI_ASM
 void ff_hevc_sao_band_filter_0_8_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
                                      struct SAOParams *sao, int *borders, int width, int height, int c_idx);
-#endif
+//#endif
 void ff_hevc_sao_band_filter_0_10_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
                                       struct SAOParams *sao, int *borders, int width, int height, int c_idx);
 void ff_hevc_sao_band_filter_0_12_sse(uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
