@@ -412,7 +412,7 @@ QPEL_TABLE 10, 8, w, avx2
 %endmacro
 %macro PEL_10STORE16 3
 %if avx_enabled
-    movu            [%1], %2
+    mova            [%1], %2
 %else
     PEL_10STORE8      %1, %2, %3
     movdqa       [%1+16], %3
@@ -421,7 +421,7 @@ QPEL_TABLE 10, 8, w, avx2
 
 %macro PEL_10STORE32 3
     PEL_10STORE16     %1, %2, %3
-    movu         [%1+32], %3
+    mova         [%1+32], %3
 %endmacro
 
 %macro PEL_8STORE2 3
@@ -444,13 +444,13 @@ QPEL_TABLE 10, 8, w, avx2
 %endmacro
 %macro PEL_8STORE16 3
 %if avx_enabled
-    movdqu        [%1], %2
+    movdqa        [%1], %2
 %else
     mova          [%1], %2
 %endif ; avx
 %endmacro
 %macro PEL_8STORE32 3
-    movu          [%1], %2
+    mova          [%1], %2
 %endmacro
 
 %macro LOOP_END 4
