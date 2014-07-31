@@ -202,7 +202,7 @@ cglobal hevc_transform_add32_8, 3, 4, 12
 ;-----------------------------------------------------------------------------
 ; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
-%macro TR_ADD_OP_10 4
+%macro TR_ADD_SSE_8_10 4
     mova              m0, [%4]
     mova              m1, [%4+16]
     mova              m2, [%4+32]
@@ -221,7 +221,7 @@ cglobal hevc_transform_add32_8, 3, 4, 12
     mova       [%1+%3  ], m3
 %endmacro
 
-%macro TR_ADD_MMX_10 3
+%macro TR_ADD_MMX4_10 3
     mova              m4, [%3]
     mova              m5, [%3+8]
     mova              m0, [%1+0   ]
@@ -234,7 +234,7 @@ cglobal hevc_transform_add32_8, 3, 4, 12
     mova       [%1+%2  ], m1
 %endmacro
 
-%macro TRANS_ADD16_10 3
+%macro TRANS_ADD_SSE_16_10 3
     mova              m0, [%3]
     mova              m1, [%3+16]
     mova              m2, [%3+32]
@@ -253,7 +253,7 @@ cglobal hevc_transform_add32_8, 3, 4, 12
     mova      [%1+%2+16], m3
 %endmacro
 
-%macro TRANS_ADD32_10 2
+%macro TRANS_ADD_SSE_32_10 2
     mova              m0, [%2]
     mova              m1, [%2+16]
     mova              m2, [%2+32]
@@ -320,60 +320,50 @@ INIT_MMX mmxext
 cglobal hevc_transform_add4_10,3,4, 6
     pxor              m2, m2
     mova              m3, [max_pixels_10]
-    TR_ADD_MMX_10     r0, r2, r1
-    lea               r1, [r1+16]
+    TR_ADD_MMX4_10     r0, r2, r1
+    add               r1, 16
     lea               r0, [r0+2*r2]
-    TR_ADD_MMX_10     r0, r2, r1
+    TR_ADD_MMX4_10     r0, r2, r1
     RET
 
 ;-----------------------------------------------------------------------------
 ; void ff_hevc_transform_add_10(pixel *dst, int16_t *block, int stride)
 ;-----------------------------------------------------------------------------
-%macro TR_ADD8 0
+INIT_XMM sse2
 cglobal hevc_transform_add8_10,3,4,6
     pxor              m4, m4
     mova              m5, [max_pixels_10]
     lea               r3, [r2*3]
 
-    TR_ADD_OP_10      r0, r2, r3, r1
+    TR_ADD_SSE_8_10      r0, r2, r3, r1
     lea               r0, [r0+r2*4]
-    lea               r1, [r1+64]
-    TR_ADD_OP_10      r0, r2, r3, r1
+    add               r1, 64
+    TR_ADD_SSE_8_10      r0, r2, r3, r1
     RET
-%endmacro
 
-%macro TRANS_ADD16 0
 cglobal hevc_transform_add16_10,3,4,6
     pxor              m4, m4
     mova              m5, [max_pixels_10]
 
-    TRANS_ADD16_10    r0, r2, r1
+    TRANS_ADD_SSE_16_10 r0, r2, r1
 %rep 7
-    lea               r0, [r0+r2*2]
-    lea               r1, [r1+64]
-    TRANS_ADD16_10    r0, r2, r1
+    lea                 r0, [r0+r2*2]
+    add                 r1, 64
+    TRANS_ADD_SSE_16_10 r0, r2, r1
 %endrep
     RET
-%endmacro
 
-
-%macro TRANS_ADD32 0
 cglobal hevc_transform_add32_10,3,4,6
     pxor              m4, m4
     mova              m5, [max_pixels_10]
 
-    TRANS_ADD32_10    r0, r1
+    TRANS_ADD_SSE_32_10 r0, r1
 %rep 31
-    lea               r0, [r0+r2]
-    lea               r1, [r1+64]
-    TRANS_ADD32_10    r0, r1
+    lea                 r0, [r0+r2]
+    add                 r1, 64
+    TRANS_ADD_SSE_32_10 r0, r1
 %endrep
     RET
-%endmacro
-INIT_XMM sse2
-TR_ADD8
-TRANS_ADD16
-TRANS_ADD32
 
 %if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2
