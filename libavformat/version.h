@@ -30,8 +30,9 @@
 #include "libavutil/version.h"
 
 #define LIBAVFORMAT_VERSION_MAJOR 55
-#define LIBAVFORMAT_VERSION_MINOR 49
-#define LIBAVFORMAT_VERSION_MICRO 100
+
+#define LIBAVFORMAT_VERSION_MINOR 51
+#define LIBAVFORMAT_VERSION_MICRO 101
 
 #define LIBAVFORMAT_VERSION_INT AV_VERSION_INT(LIBAVFORMAT_VERSION_MAJOR, \
                                                LIBAVFORMAT_VERSION_MINOR, \
@@ -85,4 +86,8 @@
 #ifndef FF_API_R_FRAME_RATE
 #define FF_API_R_FRAME_RATE            1
 #endif
+#ifndef FF_API_PROBE_MIME
+#define FF_API_PROBE_MIME               (LIBAVFORMAT_VERSION_MAJOR > 55)
+#endif
+
 #endif /* AVFORMAT_VERSION_H */

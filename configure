@@ -2484,6 +2484,7 @@ gopher_protocol_select="network"
 http_protocol_select="tcp_protocol"
 httpproxy_protocol_select="tcp_protocol"
 https_protocol_select="tls_protocol"
+icecast_protocol_select="http_protocol"
 librtmp_protocol_deps="librtmp"
 librtmpe_protocol_deps="librtmp"
 librtmps_protocol_deps="librtmp"
@@ -5230,6 +5231,8 @@ for thread in $THREADS_LIST; do
             thread_type="$thread"
     fi
 done
+
+enabled zlib && add_cppflags -DZLIB_CONST
 
 # conditional library dependencies, in linking order
 enabled aconvert_filter     && prepend avfilter_deps "swresample"

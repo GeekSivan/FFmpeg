@@ -872,6 +872,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
         print_error(filename, err);
         exit_program(1);
     }
+    remove_avoptions(&o->g->format_opts, o->g->codec_opts);
     assert_avoptions(o->g->format_opts);
 
     /* apply forced codec ids */
@@ -1828,7 +1829,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
         /* pick the "best" stream of each type */
 
         /* video: highest resolution */
-        if (!o->video_disable && oc->oformat->video_codec != AV_CODEC_ID_NONE) {
+        if (!o->video_disable && av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_VIDEO) != AV_CODEC_ID_NONE) {
             int area = 0, idx = -1;
             int qcr = avformat_query_codec(oc->oformat, oc->oformat->video_codec, 0);
             for (i = 0; i < nb_input_streams; i++) {
@@ -1850,7 +1851,7 @@ static int open_output_file(OptionsContext *o, const char *filename)
         }
 
         /* audio: most channels */
-        if (!o->audio_disable && oc->oformat->audio_codec != AV_CODEC_ID_NONE) {
+        if (!o->audio_disable && av_guess_codec(oc->oformat, NULL, filename, NULL, AVMEDIA_TYPE_AUDIO) != AV_CODEC_ID_NONE) {
             int channels = 0, idx = -1;
             for (i = 0; i < nb_input_streams; i++) {
                 ist = input_streams[i];
