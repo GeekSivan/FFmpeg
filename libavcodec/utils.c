@@ -119,24 +119,6 @@ static int volatile entangled_thread_counter = 0;
 static void *codec_mutex;
 static void *avformat_mutex;
 
-#if CONFIG_RAISE_MAJOR
-#    define LIBNAME "LIBAVCODEC_155"
-#else
-#    define LIBNAME "LIBAVCODEC_55"
-#endif
-
-#if FF_API_FAST_MALLOC && CONFIG_SHARED && HAVE_SYMVER
-FF_SYMVER(void*, av_fast_realloc, (void *ptr, unsigned int *size, size_t min_size), LIBNAME)
-{
-    return av_fast_realloc(ptr, size, min_size);
-}
-
-FF_SYMVER(void, av_fast_malloc, (void *ptr, unsigned int *size, size_t min_size), LIBNAME)
-{
-    av_fast_malloc(ptr, size, min_size);
-}
-#endif
-
 static inline int ff_fast_malloc(void *ptr, unsigned int *size, size_t min_size, int zero_realloc)
 {
     void **p = ptr;
@@ -661,7 +643,7 @@ static int video_get_buffer(AVCodecContext *s, AVFrame *pic)
     FramePool *pool = s->internal->pool;
     int i;
 
-    if (pic->data[0] != NULL) {
+    if (pic->data[0]) {
         av_log(s, AV_LOG_ERROR, "pic->data[0]!=NULL in avcodec_default_get_buffer\n");
         return -1;
     }
@@ -780,7 +762,6 @@ int ff_init_buffer_info(AVCodecContext *avctx, AVFrame *frame)
     }
     frame->reordered_opaque = avctx->reordered_opaque;
 
-#if FF_API_AVFRAME_COLORSPACE
     if (frame->color_primaries == AVCOL_PRI_UNSPECIFIED)
         frame->color_primaries = avctx->color_primaries;
     if (frame->color_trc == AVCOL_TRC_UNSPECIFIED)
@@ -791,7 +772,6 @@ int ff_init_buffer_info(AVCodecContext *avctx, AVFrame *frame)
         av_frame_set_color_range(frame, avctx->color_range);
     if (frame->chroma_location == AVCHROMA_LOC_UNSPECIFIED)
         frame->chroma_location = avctx->chroma_sample_location;
-#endif
 
     switch (avctx->codec->type) {
     case AVMEDIA_TYPE_VIDEO:
@@ -1533,9 +1513,7 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
         } else if (avctx->channel_layout) {
             avctx->channels = av_get_channel_layout_nb_channels(avctx->channel_layout);
         }
-        if(avctx->codec_type == AVMEDIA_TYPE_VIDEO &&
-           avctx->codec_id != AV_CODEC_ID_PNG // For mplayer
-        ) {
+        if(avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
             if (avctx->width <= 0 || avctx->height <= 0) {
                 av_log(avctx, AV_LOG_ERROR, "dimensions not set\n");
                 ret = AVERROR(EINVAL);
@@ -3326,6 +3304,17 @@ int av_get_audio_frame_duration(AVCodecContext *avctx, int frame_bytes)
                 }
             }
         }
+    }
+
+    /* Fall back on using frame_size */
+    if (avctx->frame_size > 1 && frame_bytes)
+        return avctx->frame_size;
+
+    //For WMA we currently have no other means to calculate duration thus we
+    //do it here by assuming CBR, which is true for all known cases.
+    if (avctx->bit_rate>0 && frame_bytes>0 && avctx->sample_rate>0 && avctx->block_align>1) {
+        if (avctx->codec_id == AV_CODEC_ID_WMAV1 || avctx->codec_id == AV_CODEC_ID_WMAV2)
+            return  (frame_bytes * 8LL * avctx->sample_rate) / avctx->bit_rate;
     }
 
     return 0;

@@ -506,6 +506,7 @@ static int analyze(const uint8_t *buf, int size, int packet_size, int *index)
     int stat[TS_MAX_PACKET_SIZE];
     int i;
     int best_score = 0;
+    int best_score2 = 0;
 
     memset(stat, 0, packet_size * sizeof(*stat));
 
@@ -517,11 +518,13 @@ static int analyze(const uint8_t *buf, int size, int packet_size, int *index)
                 best_score = stat[x];
                 if (index)
                     *index = x;
+            } else if (stat[x] > best_score2) {
+                best_score2 = stat[x];
             }
         }
     }
 
-    return best_score;
+    return best_score - best_score2;
 }
 
 /* autodetect fec presence. Must have at least 1024 bytes  */
@@ -2037,7 +2040,7 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
         return 0;
     is_start = packet[1] & 0x40;
     tss = ts->pids[pid];
-    if (ts->auto_guess && tss == NULL && is_start) {
+    if (ts->auto_guess && !tss && is_start) {
         add_pes_stream(ts, pid, -1);
         tss = ts->pids[pid];
     }
@@ -2073,16 +2076,18 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
         }
     }
 
-    if (!has_payload && tss->type != MPEGTS_PCR)
-        return 0;
     p = packet + 4;
     if (has_adaptation) {
+        int64_t pcr_h;
+        int pcr_l;
+        if (parse_pcr(&pcr_h, &pcr_l, packet) == 0)
+            tss->last_pcr = pcr_h * 300 + pcr_l;
         /* skip adaptation field */
         p += p[0] + 1;
     }
     /* if past the end of packet, ignore */
     p_end = packet + TS_PACKET_SIZE;
-    if (p > p_end || (p == p_end && tss->type != MPEGTS_PCR))
+    if (p >= p_end || !has_payload)
         return 0;
 
     pos = avio_tell(ts->stream->pb);
@@ -2135,10 +2140,6 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
 
     } else {
         int ret;
-        int64_t pcr_h;
-        int pcr_l;
-        if (parse_pcr(&pcr_h, &pcr_l, packet) == 0)
-            tss->last_pcr = pcr_h * 300 + pcr_l;
         // Note: The position here points actually behind the current packet.
         if (tss->type == MPEGTS_PES) {
             if ((ret = tss->u.pes_filter.pes_cb(tss, p, p_end - p, is_start,
@@ -2192,7 +2193,7 @@ static int mpegts_resync(AVFormatContext *s)
 
     for (i = 0; i < MAX_RESYNC_SIZE; i++) {
         c = avio_r8(pb);
-        if (url_feof(pb))
+        if (avio_feof(pb))
             return AVERROR_EOF;
         if (c == 0x47) {
             avio_seek(pb, -1, SEEK_CUR);
@@ -2625,7 +2626,7 @@ static int64_t mpegts_get_dts(AVFormatContext *s, int stream_index,
 /**************************************************************/
 /* parsing functions - called from other demuxers such as RTP */
 
-MpegTSContext *ff_mpegts_parse_open(AVFormatContext *s)
+MpegTSContext *avpriv_mpegts_parse_open(AVFormatContext *s)
 {
     MpegTSContext *ts;
 
@@ -2644,8 +2645,8 @@ MpegTSContext *ff_mpegts_parse_open(AVFormatContext *s)
 
 /* return the consumed length if a packet was output, or -1 if no
  * packet is output */
-int ff_mpegts_parse_packet(MpegTSContext *ts, AVPacket *pkt,
-                           const uint8_t *buf, int len)
+int avpriv_mpegts_parse_packet(MpegTSContext *ts, AVPacket *pkt,
+                               const uint8_t *buf, int len)
 {
     int len1;
 
@@ -2669,7 +2670,7 @@ int ff_mpegts_parse_packet(MpegTSContext *ts, AVPacket *pkt,
     return len1 - len;
 }
 
-void ff_mpegts_parse_close(MpegTSContext *ts)
+void avpriv_mpegts_parse_close(MpegTSContext *ts)
 {
     mpegts_free(ts);
     av_free(ts);

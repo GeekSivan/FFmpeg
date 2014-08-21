@@ -767,6 +767,7 @@ typedef struct RcOverride{
 
 #define CODEC_FLAG2_CHUNKS        0x00008000 ///< Input bitstream might be truncated at a packet boundaries instead of only at frame boundaries.
 #define CODEC_FLAG2_SHOW_ALL      0x00400000 ///< Show all frames before the first keyframe
+#define CODEC_FLAG2_EXPORT_MVS    0x10000000 ///< Export motion vectors through frame side data
 
 /* Unsupported options :
  *              Syntax Arithmetic coding (SAC)
@@ -2613,7 +2614,6 @@ typedef struct AVCodecContext {
     /**
      * opaque 64bit number (generally a PTS) that will be reordered and
      * output in AVFrame.reordered_opaque
-     * @deprecated in favor of pkt_pts
      * - encoding: unused
      * - decoding: Set by user.
      */
@@ -2679,7 +2679,10 @@ typedef struct AVCodecContext {
 #if FF_API_UNUSED_MEMBERS
 #define FF_IDCT_IPP           13
 #endif /* FF_API_UNUSED_MEMBERS */
+#define FF_IDCT_XVID          14
+#if FF_API_IDCT_XVIDMMX
 #define FF_IDCT_XVIDMMX       14
+#endif /* FF_API_IDCT_XVIDMMX */
 #define FF_IDCT_SIMPLEARMV5TE 16
 #define FF_IDCT_SIMPLEARMV6   17
 #if FF_API_ARCH_SPARC
@@ -3305,7 +3308,7 @@ typedef struct AVHWAccel {
     /**
      * Called for every Macroblock in a slice.
      *
-     * XvMC uses it to replace the ff_MPV_decode_mb().
+     * XvMC uses it to replace the ff_mpv_decode_mb().
      * Instead of decoding to raw picture, MB parameters are
      * stored in an array provided by the video driver.
      *

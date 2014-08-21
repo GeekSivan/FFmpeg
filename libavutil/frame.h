@@ -87,6 +87,13 @@ enum AVFrameSideDataType {
      * in ETSI TS 101 154 using AVActiveFormatDescription enum.
      */
     AV_FRAME_DATA_AFD,
+    /**
+     * Motion vectors exported by some codecs (on demand through the export_mvs
+     * flag set in the libavcodec AVCodecContext flags2 option).
+     * The data is the AVMotionVector struct defined in
+     * libavutil/motion_vector.h.
+     */
+    AV_FRAME_DATA_MOTION_VECTORS,
 };
 
 enum AVActiveFormatDescription {
@@ -446,7 +453,6 @@ typedef struct AVFrame {
      */
     int flags;
 
-#if FF_API_AVFRAME_COLORSPACE
     /**
      * MPEG vs JPEG YUV range.
      * It must be accessed using av_frame_get_color_range() and
@@ -470,7 +476,6 @@ typedef struct AVFrame {
     enum AVColorSpace colorspace;
 
     enum AVChromaLocation chroma_location;
-#endif
 
     /**
      * frame timestamp estimated using various heuristics, in stream time base

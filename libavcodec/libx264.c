@@ -236,10 +236,10 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
             case AV_STEREO3D_CHECKERBOARD:
                 fpa_type = 0;
                 break;
-            case AV_STEREO3D_LINES:
+            case AV_STEREO3D_COLUMNS:
                 fpa_type = 1;
                 break;
-            case AV_STEREO3D_COLUMNS:
+            case AV_STEREO3D_LINES:
                 fpa_type = 2;
                 break;
             case AV_STEREO3D_SIDEBYSIDE:
@@ -314,7 +314,7 @@ static av_cold int X264_close(AVCodecContext *avctx)
 #define OPT_STR(opt, param)                                                   \
     do {                                                                      \
         int ret;                                                              \
-        if (param!=NULL && (ret = x264_param_parse(&x4->params, opt, param)) < 0) { \
+        if (param && (ret = x264_param_parse(&x4->params, opt, param)) < 0) { \
             if(ret == X264_PARAM_BAD_NAME)                                    \
                 av_log(avctx, AV_LOG_ERROR,                                   \
                         "bad option '%s': '%s'\n", opt, param);               \

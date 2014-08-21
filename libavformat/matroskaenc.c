@@ -309,7 +309,7 @@ static mkv_seekhead *mkv_start_seekhead(AVIOContext *pb, int64_t segment_offset,
                                         int numelements)
 {
     mkv_seekhead *new_seekhead = av_mallocz(sizeof(mkv_seekhead));
-    if (new_seekhead == NULL)
+    if (!new_seekhead)
         return NULL;
 
     new_seekhead->segment_offset = segment_offset;
@@ -335,7 +335,7 @@ static int mkv_add_seekhead_entry(mkv_seekhead *seekhead, unsigned int elementid
         return -1;
 
     entries = av_realloc_array(entries, seekhead->num_entries + 1, sizeof(mkv_seekhead_entry));
-    if (entries == NULL)
+    if (!entries)
         return AVERROR(ENOMEM);
     seekhead->entries = entries;
 
@@ -401,7 +401,7 @@ fail:
 static mkv_cues *mkv_start_cues(int64_t segment_offset)
 {
     mkv_cues *cues = av_mallocz(sizeof(mkv_cues));
-    if (cues == NULL)
+    if (!cues)
         return NULL;
 
     cues->segment_offset = segment_offset;
@@ -417,7 +417,7 @@ static int mkv_add_cuepoint(mkv_cues *cues, int stream, int tracknum, int64_t ts
         return 0;
 
     entries = av_realloc_array(entries, cues->num_entries + 1, sizeof(mkv_cuepoint));
-    if (entries == NULL)
+    if (!entries)
         return AVERROR(ENOMEM);
     cues->entries = entries;
 
@@ -445,8 +445,21 @@ static int64_t mkv_write_cues(AVFormatContext *s, mkv_cues *cues, mkv_track *tra
         ebml_master cuepoint, track_positions;
         mkv_cuepoint *entry = &cues->entries[i];
         uint64_t pts = entry->pts;
+        int ctp_nb = 0;
 
-        cuepoint = start_ebml_master(pb, MATROSKA_ID_POINTENTRY, MAX_CUEPOINT_SIZE(num_tracks));
+        // Calculate the number of entries, so we know the element size
+        for (j = 0; j < num_tracks; j++)
+            tracks[j].has_cue = 0;
+        for (j = 0; j < cues->num_entries - i && entry[j].pts == pts; j++) {
+            int tracknum = entry[j].stream_idx;
+            av_assert0(tracknum>=0 && tracknum<num_tracks);
+            if (tracks[tracknum].has_cue && s->streams[tracknum]->codec->codec_type != AVMEDIA_TYPE_SUBTITLE)
+                continue;
+            tracks[tracknum].has_cue = 1;
+            ctp_nb ++;
+        }
+
+        cuepoint = start_ebml_master(pb, MATROSKA_ID_POINTENTRY, MAX_CUEPOINT_SIZE(ctp_nb));
         put_ebml_uint(pb, MATROSKA_ID_CUETIME, pts);
 
         // put all the entries from different tracks that have the exact same
@@ -1323,7 +1336,7 @@ static int mkv_write_header(AVFormatContext *s)
         mkv_write_seekhead(pb, mkv->main_seekhead);
 
     mkv->cues = mkv_start_cues(mkv->segment_offset);
-    if (mkv->cues == NULL)
+    if (!mkv->cues)
         return AVERROR(ENOMEM);
 
     if (pb->seekable && mkv->reserve_cues_space) {
