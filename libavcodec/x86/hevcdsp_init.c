@@ -72,7 +72,7 @@ IDCT_FUNCS(16x16, avx2);
 IDCT_FUNCS(32x32, avx2);
 
 #define mc_rep_func(name, bitd, step, W, opt) \
-void ff_hevc_put_hevc_##name##W##_##bitd##_##opt(int16_t *_dst, ptrdiff_t dststride,                            \
+void ff_hevc_put_hevc_##name##W##_##bitd##_##opt(int16_t *_dst,                                                 \
                                                 uint8_t *_src, ptrdiff_t _srcstride, int height,                \
                                                 intptr_t mx, intptr_t my, int width)                            \
 {                                                                                                               \
@@ -82,7 +82,7 @@ void ff_hevc_put_hevc_##name##W##_##bitd##_##opt(int16_t *_dst, ptrdiff_t dststr
     for (i = 0; i < W; i += step) {                                                                             \
         src  = _src + (i * ((bitd + 7) / 8));                                                                   \
         dst = _dst + i;                                                                                         \
-        ff_hevc_put_hevc_##name##step##_##bitd##_##opt(dst, dststride, src, _srcstride, height, mx, my, width); \
+        ff_hevc_put_hevc_##name##step##_##bitd##_##opt(dst, src, _srcstride, height, mx, my, width);            \
     }                                                                                                           \
 }
 #define mc_rep_uni_func(name, bitd, step, W, opt) \
@@ -127,12 +127,12 @@ void ff_hevc_put_hevc_bi_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t dst
 #if ARCH_X86_64 && HAVE_SSE4_EXTERNAL
 
 #define mc_rep_mix_10(name, width1, width2, width3, opt1, opt2, width4)                                                      \
-void ff_hevc_put_hevc_##name##width1##_10_##opt1(int16_t *dst, ptrdiff_t dststride,                                          \
+void ff_hevc_put_hevc_##name##width1##_10_##opt1(int16_t *dst,                                          \
                                                 uint8_t *src, ptrdiff_t _srcstride, int height,                              \
                                                 intptr_t mx, intptr_t my, int width)                                         \
 {                                                                                                                            \
-        ff_hevc_put_hevc_##name##width2##_10_##opt1(dst, dststride, src, _srcstride, height, mx, my, width);                 \
-        ff_hevc_put_hevc_##name##width3##_10_##opt2(dst+ width2, dststride, src+ width4, _srcstride, height, mx, my, width); \
+        ff_hevc_put_hevc_##name##width2##_10_##opt1(dst, src, _srcstride, height, mx, my, width);                 \
+        ff_hevc_put_hevc_##name##width3##_10_##opt2(dst+ width2, src+ width4, _srcstride, height, mx, my, width); \
 }
 
 #define mc_bi_rep_mix_10(name, width1, width2, width3, opt1, opt2, width4)                                                   \
@@ -163,12 +163,12 @@ mc_bi_rep_mix_10(name, width1, width2, width3, opt1, opt2, width4); \
 mc_uni_rep_mix_10(name, width1, width2, width3, opt1, opt2, width4)
 
 #define mc_rep_mix_8(name, width1, width2, width3, opt1, opt2)                                                               \
-void ff_hevc_put_hevc_##name##width1##_8_##opt1(int16_t *dst, ptrdiff_t dststride,                                           \
+void ff_hevc_put_hevc_##name##width1##_8_##opt1(int16_t *dst,                                                                \
                                                 uint8_t *src, ptrdiff_t _srcstride, int height,                              \
                                                 intptr_t mx, intptr_t my, int width)                                         \
 {                                                                                                                            \
-        ff_hevc_put_hevc_##name##width2##_8_##opt1(dst, dststride, src, _srcstride, height, mx, my, width);                  \
-        ff_hevc_put_hevc_##name##width3##_8_##opt2(dst+ width2, dststride, src+ width2, _srcstride, height, mx, my, width);  \
+        ff_hevc_put_hevc_##name##width2##_8_##opt1(dst, src, _srcstride, height, mx, my, width);                  \
+        ff_hevc_put_hevc_##name##width3##_8_##opt2(dst+ width2, src+ width2, _srcstride, height, mx, my, width);  \
 }
 
 #define mc_bi_rep_mix_8(name, width1, width2, width3, opt1, opt2)                                                            \
@@ -469,9 +469,9 @@ void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t 
                                                       int _wx, int _ox,                             \
                                                       intptr_t mx, intptr_t my, int width)          \
 {                                                                                                   \
-    LOCAL_ALIGNED_16(int16_t, temp, [71 * 64]);                                                     \
-    ff_hevc_put_hevc_##name##W##_##bitd##_##opt(temp, 64, _src, _srcstride, height, mx, my, width); \
-    ff_hevc_put_hevc_uni_w##W##_##bitd##_##opt(_dst, _dststride, temp, 64, height, denom, _wx, _ox);\
+    LOCAL_ALIGNED_16(int16_t, temp, [71 * MAX_PB_SIZE]);                                            \
+    ff_hevc_put_hevc_##name##W##_##bitd##_##opt(temp, _src, _srcstride, height, mx, my, width);     \
+    ff_hevc_put_hevc_uni_w##W##_##bitd##_##opt(_dst, _dststride, temp, MAX_PB_SIZE, height, denom, _wx, _ox);\
 }
 
 #define mc_uni_w_funcs(name, bitd, opt)       \
@@ -528,9 +528,9 @@ void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t _
                                                      int _wx0, int _wx1, int _ox0, int _ox1,         \
                                                      intptr_t mx, intptr_t my, int width)            \
 {                                                                                                    \
-    LOCAL_ALIGNED_16(int16_t, temp, [71 * 64]);                                                      \
-    ff_hevc_put_hevc_##name##W##_##bitd##_##opt(temp, 64, _src, _srcstride, height, mx, my, width);  \
-    ff_hevc_put_hevc_bi_w##W##_##bitd##_##opt(_dst, _dststride, temp, 64, _src2, _src2stride,        \
+    LOCAL_ALIGNED_16(int16_t, temp, [71 * MAX_PB_SIZE]);                                             \
+    ff_hevc_put_hevc_##name##W##_##bitd##_##opt(temp, _src, _srcstride, height, mx, my, width);      \
+    ff_hevc_put_hevc_bi_w##W##_##bitd##_##opt(_dst, _dststride, temp, MAX_PB_SIZE, _src2, _src2stride, \
                                              height, denom, _wx0, _wx1, _ox0, _ox1);                 \
 }
 
@@ -619,15 +619,14 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             if (ARCH_X86_64) {
                 c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_8_sse2;
                 c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_8_sse2;
-
-                c->transform_add[2]    = ff_hevc_transform_add16_8_sse2;
-                c->transform_add[3]    = ff_hevc_transform_add32_8_sse2;
             }
             c->idct_dc[1] = ff_hevc_idct8x8_dc_8_sse2;
             c->idct_dc[2] = ff_hevc_idct16x16_dc_8_sse2;
             c->idct_dc[3] = ff_hevc_idct32x32_dc_8_sse2;
 
             c->transform_add[1]    = ff_hevc_transform_add8_8_sse2;
+            c->transform_add[2]    = ff_hevc_transform_add16_8_sse2;
+            c->transform_add[3]    = ff_hevc_transform_add32_8_sse2;
         }
         if (EXTERNAL_SSSE3(cpu_flags) && ARCH_X86_64) {
             c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_8_ssse3;
@@ -651,11 +650,10 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             if (ARCH_X86_64) {
                 c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_8_avx;
                 c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_8_avx;
-
-                c->transform_add[2]    = ff_hevc_transform_add16_8_avx;
-                c->transform_add[3]    = ff_hevc_transform_add32_8_avx;
             }
             c->transform_add[1]    = ff_hevc_transform_add8_8_avx;
+            c->transform_add[2]    = ff_hevc_transform_add16_8_avx;
+            c->transform_add[3]    = ff_hevc_transform_add32_8_avx;
         }
         if (EXTERNAL_AVX2(cpu_flags)) {
             c->idct_dc[2] = ff_hevc_idct16x16_dc_8_avx2;
