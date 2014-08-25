@@ -92,24 +92,24 @@ QPEL_TABLE 10, 8, w, avx2
 %if %1 <= 4
     movq              %3, [%2]                                              ; load data from source2
 %elif %1 <= 8
-    movdqa            %3, [%2]                                              ; load data from source2
+    mova            %3, [%2]                                              ; load data from source2
 %elif %1 <= 12
 %if avx_enabled
     mova              %3, [%2]
 %else
-    movdqa            %3, [%2]                                              ; load data from source2
+    mova              %3, [%2]                                              ; load data from source2
     movq              %4, [%2+16]                                           ; load data from source2
 %endif ;avx
 %elif %1 <= 16
 %if avx_enabled
-    movu              %3, [%2]
+    mova              %3, [%2]
 %else
-    movdqa            %3, [%2]                                              ; load data from source2
-    movdqa            %4, [%2+16]                                           ; load data from source2
+    mova              %3, [%2]                                              ; load data from source2
+    mova              %4, [%2+16]                                           ; load data from source2
 %endif ; avx
 %else ; %1 = 32
-    movu              %3, [%2]
-    movu              %4, [%2+32]
+    mova              %3, [%2]
+    mova              %4, [%2+32]
 %endif
 %endmacro
 
