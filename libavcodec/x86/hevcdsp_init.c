@@ -507,7 +507,7 @@ void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t 
                                                       int _wx, int _ox,                             \
                                                       intptr_t mx, intptr_t my, int width)          \
 {                                                                                                   \
-    LOCAL_ALIGNED_16(int16_t, temp, [71 * MAX_PB_SIZE]);                                            \
+    LOCAL_ALIGNED_32(int16_t, temp, [71 * MAX_PB_SIZE]);                                            \
     ff_hevc_put_hevc_##name##W##_##bitd##_##opt(temp, _src, _srcstride, height, mx, my, width);     \
     ff_hevc_put_hevc_uni_w##W##_##bitd##_##opt(_dst, _dststride, temp, MAX_PB_SIZE, height, denom, _wx, _ox);\
 }
@@ -566,7 +566,7 @@ void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_##opt(uint8_t *_dst, ptrdiff_t _
                                                      int _wx0, int _wx1, int _ox0, int _ox1,         \
                                                      intptr_t mx, intptr_t my, int width)            \
 {                                                                                                    \
-    LOCAL_ALIGNED_16(int16_t, temp, [71 * MAX_PB_SIZE]);                                             \
+    LOCAL_ALIGNED_32(int16_t, temp, [71 * MAX_PB_SIZE]);                                             \
     ff_hevc_put_hevc_##name##W##_##bitd##_##opt(temp, _src, _srcstride, height, mx, my, width);      \
     ff_hevc_put_hevc_bi_w##W##_##bitd##_##opt(_dst, _dststride, temp, MAX_PB_SIZE, _src2,            \
                                              height, denom, _wx0, _wx1, _ox0, _ox1);                 \
@@ -777,9 +777,9 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                 c->put_hevc_qpel_bi[8][0][1] = ff_hevc_put_hevc_bi_qpel_h48_8_avx2;
                 c->put_hevc_qpel_bi[9][0][1] = ff_hevc_put_hevc_bi_qpel_h64_8_avx2;
 
-//                c->put_hevc_qpel_bi[7][1][0] = ff_hevc_put_hevc_bi_qpel_v32_8_avx2;
-//                c->put_hevc_qpel_bi[8][1][0] = ff_hevc_put_hevc_bi_qpel_v48_8_avx2;
-//                c->put_hevc_qpel_bi[9][1][0] = ff_hevc_put_hevc_bi_qpel_v64_8_avx2;
+                c->put_hevc_qpel_bi[7][1][0] = ff_hevc_put_hevc_bi_qpel_v32_8_avx2;
+                c->put_hevc_qpel_bi[8][1][0] = ff_hevc_put_hevc_bi_qpel_v48_8_avx2;
+                c->put_hevc_qpel_bi[9][1][0] = ff_hevc_put_hevc_bi_qpel_v64_8_avx2;
             }
         }
     } else if (bit_depth == 10) {

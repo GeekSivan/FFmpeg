@@ -92,7 +92,7 @@ QPEL_TABLE 10, 8, w, avx2
 %if %1 <= 4
     movq              %3, [%2]                                              ; load data from source2
 %elif %1 <= 8
-    mova            %3, [%2]                                              ; load data from source2
+    mova              %3, [%2]                                              ; load data from source2
 %elif %1 <= 12
 %if avx_enabled
     mova              %3, [%2]
@@ -1464,7 +1464,7 @@ cglobal hevc_put_hevc_uni_w%1_%2, 6, 6, 7, dst, dststride, src, srcstride, heigh
 %if %2 == 8
     packuswb          m0, m0
 %else
-     CLIPW             m0, [zero], [max_pixels_%2]
+    CLIPW             m0, [zero], [max_pixels_%2]
 %endif
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
@@ -1535,7 +1535,7 @@ cglobal hevc_put_hevc_bi_w%1_%2, 5, 7, 10, dst, dststride, src, srcstride, src2,
 %if %2 == 8
     packuswb          m0, m0
 %else
-     CLIPW            m0, [zero], [max_pixels_%2]
+    CLIPW            m0, [zero], [max_pixels_%2]
 %endif
     PEL_%2STORE%1   dstq, m0, m1
     add             dstq, dststrideq             ; dst += dststride
