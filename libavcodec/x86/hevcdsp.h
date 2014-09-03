@@ -306,6 +306,26 @@ WEIGHTING_PROTOTYPES(12, sse4);
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions
 ///////////////////////////////////////////////////////////////////////////////
+
+void ff_hevc_sao_band_filter_0_8_sse2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+        struct SAOParams *sao, int *borders, int width, int height, int c_idx);
+
+void ff_hevc_sao_band_filter_0_64_8_sse2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+void ff_hevc_sao_band_filter_0_56_8_sse2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+void ff_hevc_sao_band_filter_0_32_8_sse2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+void ff_hevc_sao_band_filter_0_16_8_sse2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+void ff_hevc_sao_band_filter_0_8_8_sse2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+
+
+void ff_hevc_sao_band_filter_0_8_avx2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+        struct SAOParams *sao, int *borders, int width, int height, int c_idx);
+
+void ff_hevc_sao_band_filter_0_32_8_avx2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+void ff_hevc_sao_band_filter_0_56_8_avx2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+void ff_hevc_sao_band_filter_0_64_8_avx2( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,int16_t* sao_val, int8_t sao_left, int height);
+
+
+
 //#ifndef OPTI_ASM
 void ff_hevc_sao_edge_filter_0_8_sse(uint8_t *_dst, uint8_t *_src,
                                      ptrdiff_t _stride_dst, ptrdiff_t _stride_src, struct SAOParams *sao,
