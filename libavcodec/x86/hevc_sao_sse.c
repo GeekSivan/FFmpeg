@@ -151,7 +151,6 @@ void ff_hevc_sao_band_filter_0_ ## D ##_sse(                                   \
         ptrdiff_t _stride_dst, ptrdiff_t _stride_src,                          \
         struct SAOParams *sao,                                                 \
         int *borders, int width, int height, int c_idx) {                      \
-    printf("WIDTH = %d", width);                                 \
     int y, x;                                                                  \
     int  shift          = D - 5;                                               \
     int16_t *sao_offset_val = sao->offset_val[c_idx];                          \
