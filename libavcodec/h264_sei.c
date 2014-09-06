@@ -180,6 +180,7 @@ static int decode_recovery_point(H264Context *h)
      * 1b broken_link_flag,
      * 2b changing_slice_group_idc */
     skip_bits(&h->gb, 4);
+    av_log(h->avctx, AV_LOG_ERROR, "sei_recovery_frame_cnt: %d\n", h->sei_recovery_frame_cnt);
 
     if (h->avctx->debug & FF_DEBUG_PICT_INFO)
         av_log(h->avctx, AV_LOG_DEBUG, "sei_recovery_frame_cnt: %d\n", h->sei_recovery_frame_cnt);

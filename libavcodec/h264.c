@@ -1567,6 +1567,8 @@ again:
             }
 
             err = 0;
+            av_log(h->avctx, AV_LOG_ERROR,
+                   "nal unit type %d\n", hx->nal_unit_type);
 
             switch (hx->nal_unit_type) {
             case NAL_IDR_SLICE:
