@@ -74,6 +74,48 @@ IDCT_FUNCS(32x32, avx2);
 
 #if !ARCH_X86_32 && defined(OPTI_ASM)
 
+void ff_hevc_sao_band_filter_0_8_sse2(
+        uint8_t *_dst, uint8_t *_src,
+        ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+        struct SAOParams *sao,
+        int *borders, int width, int height, int c_idx) {
+    int16_t *sao_offset_val = sao->offset_val[c_idx];
+    uint8_t  sao_left_class = sao->band_position[c_idx];
+
+    if(width == 8)
+        ff_hevc_sao_band_filter_0_8_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 16)
+        ff_hevc_sao_band_filter_0_16_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 32 || width == 28)
+        ff_hevc_sao_band_filter_0_32_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 56)
+        ff_hevc_sao_band_filter_0_56_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 64)
+        ff_hevc_sao_band_filter_0_64_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+
+}
+
+void ff_hevc_sao_band_filter_0_8_avx2(
+        uint8_t *_dst, uint8_t *_src,
+        ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+        struct SAOParams *sao,
+        int *borders, int width, int height, int c_idx) {
+    int16_t *sao_offset_val = sao->offset_val[c_idx];
+    uint8_t  sao_left_class = sao->band_position[c_idx];
+
+    if(width == 8)
+        ff_hevc_sao_band_filter_0_8_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 16)
+        ff_hevc_sao_band_filter_0_16_8_sse2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 32 || width == 28)
+        ff_hevc_sao_band_filter_0_32_8_avx2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 56)
+        ff_hevc_sao_band_filter_0_56_8_avx2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+    else if(width == 64)
+        ff_hevc_sao_band_filter_0_64_8_avx2(_dst, _src, _stride_dst, _stride_src, sao_offset_val, sao_left_class, height);
+
+}
+
 #define mc_rep_func(name, bitd, step, W, opt) \
 void ff_hevc_put_hevc_##name##W##_##bitd##_##opt(int16_t *_dst, ptrdiff_t dststride,                            \
                                                 uint8_t *_src, ptrdiff_t _srcstride, int height,                \
@@ -641,6 +683,9 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->idct[1] = ff_hevc_transform_8x8_8_sse4;
             c->idct[2] = ff_hevc_transform_16x16_8_sse4;
             c->idct[3] = ff_hevc_transform_32x32_8_sse4;
+#ifdef OPTI_ASM
+            c->sao_band_filter = ff_hevc_sao_band_filter_0_8_sse2;
+#endif
 #endif //HAVE_SSE2
 
         }
@@ -658,13 +703,19 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             QPEL_LINKS(c->put_hevc_qpel, 1, 0, qpel_v,     8, sse4);
             QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    8, sse4);
 
-            c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
             c->sao_edge_filter[0] = ff_hevc_sao_edge_filter_0_8_sse;
             c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
+
+
 #ifdef OPTI_ASM
+
             //                    c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
             //            c->sao_edge_filter[0] = sao_edge_filter_0_sse_8;
             //                    c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
+#endif
+#ifndef OPTI_ASM
+            c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
+
 #endif
 #endif //HAVE_SSSE3
         }
@@ -785,6 +836,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->put_hevc_qpel_bi[7][1][0] = ff_hevc_put_hevc_bi_qpel_v32_8_avx2;
             c->put_hevc_qpel_bi[8][1][0] = ff_hevc_put_hevc_bi_qpel_v48_8_avx2;
             c->put_hevc_qpel_bi[9][1][0] = ff_hevc_put_hevc_bi_qpel_v64_8_avx2;
+            c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_avx2;
 #endif
         }
     } else if (bit_depth == 10) {
@@ -995,6 +1047,9 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->put_hevc_qpel_bi[7][1][1] = ff_hevc_put_hevc_bi_qpel_hv32_10_avx2;
             c->put_hevc_qpel_bi[8][1][1] = ff_hevc_put_hevc_bi_qpel_hv48_10_avx2;
             c->put_hevc_qpel_bi[9][1][1] = ff_hevc_put_hevc_bi_qpel_hv64_10_avx2;
+
+
+
 #endif
         }
     } else if (bit_depth == 12) {
