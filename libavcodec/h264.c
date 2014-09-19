@@ -1624,6 +1624,8 @@ again:
 #else
                 h->cur_pic_ptr->recovered |= !!(h->frame_recovered & FRAME_RECOVERED_IDR);
 #endif
+                av_log(h->avctx, AV_LOG_ERROR,
+                       "PTS %d\n", h->cur_pic_ptr->f.pkt_pts);
 
                 if (h->current_slice == 1) {
                     if (!(avctx->flags2 & CODEC_FLAG2_CHUNKS))
