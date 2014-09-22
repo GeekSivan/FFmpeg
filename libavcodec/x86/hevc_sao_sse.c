@@ -392,8 +392,6 @@ static __attribute__((always_inline)) inline void ff_hevc_sao_edge_filter_8_sse(
                                0, 0, 0, sao_offset_val[edge_idx[4]],
                                sao_offset_val[edge_idx[3]], sao_offset_val[edge_idx[2]], sao_offset_val[edge_idx[1]], sao_offset_val[edge_idx[0]]);
 
-         printf("width = %d", width);
-
         for (y = init_y; y < height; y++) {
             for (x = 0; x < width; x += 8) {
                 x0   = _mm_loadl_epi64((__m128i *) (src + x + y_stride_src));
