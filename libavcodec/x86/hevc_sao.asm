@@ -22,6 +22,8 @@
 
 SECTION_RODATA 32
 
+edge_shuffle:          db   1, 2, 0, 3, 4
+              times 11 db  -1
 
 SECTION_TEXT 32
 
@@ -361,6 +363,119 @@ cglobal hevc_sao_band_filter_0_64_8, 7, 7, 6, dst, src, dststride, srcstride, of
 
     LOOP_END        dst, dststride, src, srcstride
     RET
+
+cglobal hevc_sao_edge_filter_border_8_8, 3, 3, 2, value, src, dst
+    movh              m0, valueq
+    SPLATW            m0, m0, 0
+    movh              m1, [srcq]
+    paddb             m0, m1
+    movh          [dstq], m0
+    RET
+
+
+cglobal hevc_sao_edge_filter_border_16_8, 3, 3, 2, value, src, dst
+    movd              m0, valued
+    SPLATW            m0, m0, 0
+    movu              m1, [srcq]
+    paddb             m0, m1
+    movu          [dstq], m0
+    RET
+
+INIT_XMM avx
+
+cglobal hevc_sao_edge_filter_main_8_8, 8, 13, 8, src0, src1, src2, dst, srcstride, dststride, sao_offset_val, height, rtmp0, rtmp1, rtmp2, rtmp3, rtmp4
+
+    movu              m0, [sao_offset_valq]
+    packsswb          m0, m0
+    movu              m1, [edge_shuffle]
+    pshufb            m0, m1
+    xor            rtmp0q, rtmp0q
+    mov            rtmp0q, 2
+.loop
+    movq               m1, [src0q]
+    movq               m2, [src1q]
+    movq               m3, [src2q]
+
+    pminub             m4, m1, m2
+    pcmpeqb            m5, m2, m4
+    pcmpeqb            m6, m1, m4
+    psubb              m5, m6, m5
+    pminub             m4, m1, m3
+    pcmpeqb            m7, m3, m4
+    pcmpeqb            m6, m1, m4
+    psubb              m7, m6, m7
+;                    movq           [dstq], m7
+
+    paddb              m5, m7
+    movq               m6, rtmp0q
+    punpcklbw          m6, m6
+    SPLATW             m6, m6
+    paddb              m5, m6
+
+    pshufb             m2, m0, m5                   ;SSSE3 instruction
+    pmovsxbw           m2, m2
+;    pxor               m3, m3
+;    pcmpgtb            m3, m2                        ;do not mix instruction with 256b registers
+;    punpcklbw          m2, m3
+    pxor               m3, m3
+    punpcklbw          m1, m3
+    paddw              m2, m1
+    packuswb           m2, m2
+    movq           [dstq], m2
+
+    add             src0q, srcstrideq
+    add             src1q, srcstrideq
+    add             src2q, srcstrideq
+    add              dstq, dststrideq
+    dec          heightd
+    jnz               .loop
+    RET
+
+
+;#if HAVE_SSE42
+;#define _MM_CVTEPI8_EPI16 _mm_cvtepi8_epi16
+;
+;#else
+;static inline __m128i _MM_CVTEPI8_EPI16(__m128i m0) {
+;    return _mm_unpacklo_epi8(m0, _mm_cmplt_epi8(m0, _mm_setzero_si128()));
+;}
+;#endif
+
+;         ff_hevc_sao_edge_filter_main_8_8_sse2(src + y_stride_src, src + y_stride_0_1, src + y_stride_1_1, dst + y_stride_dst, sao_offset_val[edge_idx[4]],
+;                 sao_offset_val[edge_idx[3]], sao_offset_val[edge_idx[2]], sao_offset_val[edge_idx[1]], sao_offset_val[edge_idx[0]], height);
+;         offset0 = _mm_set_epi8(0, 0, 0, 0,
+;                               0, 0, 0, 0,
+;                               0, 0, 0, sao_offset_val[edge_idx[4]],
+;                               sao_offset_val[edge_idx[3]], sao_offset_val[edge_idx[2]], sao_offset_val[edge_idx[1]], sao_offset_val[edge_idx[0]]);
+;        for (y = init_y; y < height; y++) {
+;            for (x = 0; x < width; x += 8) {
+;                x0   = _mm_loadl_epi64((__m128i *) (src + x + y_stride_src));
+;                cmp0 = _mm_loadl_epi64((__m128i *) (src + x + y_stride_0_1));
+;                cmp1 = _mm_loadl_epi64((__m128i *) (src + x + y_stride_1_1));
+;                r2 = _mm_min_epu8(x0, cmp0);
+;                x1 = _mm_cmpeq_epi8(cmp0, r2);
+;                x2 = _mm_cmpeq_epi8(x0, r2);
+;                x1 = _mm_sub_epi8(x2, x1);
+;                r2 = _mm_min_epu8(x0, cmp1);
+;                x3 = _mm_cmpeq_epi8(cmp1, r2);
+;                x2 = _mm_cmpeq_epi8(x0, r2);
+;                x3 = _mm_sub_epi8(x2, x3);
+;                x1 = _mm_add_epi8(x1, x3);
+;                x1 = _mm_add_epi8(x1, _mm_set1_epi8(2));
+;                r0 = _mm_shuffle_epi8(offset0, x1);
+;                r0 = _MM_CVTEPI8_EPI16(r0);
+;                x0 = _mm_unpacklo_epi8(x0, _mm_setzero_si128());
+;                r0 = _mm_add_epi16(r0, x0);
+;                r0 = _mm_packus_epi16(r0, r0);
+;                _mm_storel_epi64((__m128i *) (dst + x + y_stride_dst), r0);
+;            }
+;            y_stride_dst += stride_dst;
+;            y_stride_src += stride_src;
+;            y_stride_0_1 += stride_src;
+;            y_stride_1_1 += stride_src;
+;        }
+
+
 
 INIT_YMM avx2
 

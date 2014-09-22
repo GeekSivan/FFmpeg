@@ -392,6 +392,8 @@ static __attribute__((always_inline)) inline void ff_hevc_sao_edge_filter_8_sse(
                                0, 0, 0, sao_offset_val[edge_idx[4]],
                                sao_offset_val[edge_idx[3]], sao_offset_val[edge_idx[2]], sao_offset_val[edge_idx[1]], sao_offset_val[edge_idx[0]]);
 
+         printf("width = %d", width);
+
         for (y = init_y; y < height; y++) {
             for (x = 0; x < width; x += 8) {
                 x0   = _mm_loadl_epi64((__m128i *) (src + x + y_stride_src));
@@ -517,4 +519,139 @@ SAO_EDGE_FILTER_1(10)
 
 SAO_EDGE_FILTER_0(12)
 SAO_EDGE_FILTER_1(12)
+
+void ff_hevc_sao_edge_filter_8_avx( uint8_t *_dst, uint8_t *_src, ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+                                     struct SAOParams *sao, int *borders, int _width, int _height, int c_idx,
+                                     uint8_t *vert_edge, uint8_t *horiz_edge, uint8_t *diag_edge);
+
+void ff_hevc_sao_edge_filter_0_8_avx(uint8_t *_dst, uint8_t *_src,      \
+        ptrdiff_t _stride_dst, ptrdiff_t _stride_src,                          \
+        struct SAOParams *sao, int *borders, int _width,                       \
+        int _height, int c_idx, uint8_t *vert_edge, uint8_t *horiz_edge,       \
+        uint8_t *diag_edge) {                                                  \
+    ff_hevc_sao_edge_filter_8_avx(_dst, _src, _stride_dst, _stride_src, \
+            sao, borders, _width, _height, c_idx,                              \
+            vert_edge, horiz_edge, diag_edge);                                 \
+}
+
+void ff_hevc_sao_edge_filter_border_16_8_sse2(int value,uint8_t *src,uint8_t *dst);
+
+void ff_hevc_sao_edge_filter_border_8_8_sse2(int value,uint8_t *src,uint8_t *dst);
+
+void ff_hevc_sao_edge_filter_main_8_8_avx(uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *dst, ptrdiff_t stride_src, ptrdiff_t stride_dst,
+		int16_t * sao_offset, int height);
+
+
+void ff_hevc_sao_edge_filter_8_avx(
+                                                                                uint8_t *_dst, uint8_t *_src,
+                                                                                ptrdiff_t _stride_dst, ptrdiff_t _stride_src,
+                                                                                struct SAOParams *sao,
+                                                                                int *borders, int _width, int _height, int c_idx, uint8_t *vert_edge,
+                                                                                uint8_t *horiz_edge, uint8_t *diag_edge) {
+    int x, y;
+    int16_t *sao_offset_val = sao->offset_val[c_idx];
+    int  sao_eo_class   = sao->eo_class[c_idx];
+    const uint8_t edge_idx[]  = { 1, 2, 0, 3, 4 };
+    const int8_t pos[4][2][2] = {
+        { {-1, 0}, { 1, 0} }, /* horizontal */
+        { { 0,-1}, { 0, 1} }, /* vertical   */
+        { {-1,-1}, { 1, 1} }, /* 45 degree  */
+        { { 1,-1}, {-1, 1} }, /* 135 degree */
+    };
+    int init_y = 0, width = _width, height = _height;
+
+    uint8_t  *dst       = _dst;
+    uint8_t  *src       = _src;
+    ptrdiff_t stride_dst= _stride_dst;
+    ptrdiff_t stride_src= _stride_src;
+
+    if (sao_eo_class != SAO_EO_HORIZ) {
+        if (borders[1]) {
+            if((width & 15) == 1){
+                for (x = 0; x < width; x += 16)
+                    ff_hevc_sao_edge_filter_border_16_8_sse2(sao_offset_val[0], src, dst);
+            }
+            else{
+            for (x = 0; x < width; x += 8)
+                ff_hevc_sao_edge_filter_border_8_8_sse2(sao_offset_val[0], src, dst);
+            }
+            init_y = 1;
+        }
+        if (borders[3]) {
+            int y_stride_dst = stride_dst * (_height - 1);
+            int y_stride_src = stride_src * (_height - 1);
+            if((width & 15) == 1){
+                for (x = 0; x < width; x += 16)
+                    ff_hevc_sao_edge_filter_border_16_8_sse2(sao_offset_val[0], src + y_stride_src, dst + y_stride_dst);
+            }
+            else{
+            for (x = 0; x < width; x += 8)
+                ff_hevc_sao_edge_filter_border_8_8_sse2(sao_offset_val[0], src + y_stride_src, dst + y_stride_dst);
+            }
+
+            height--;
+        }
+    }
+    {
+        int y_stride_dst = init_y * stride_dst;
+        int y_stride_src = init_y * stride_src;
+        int pos_0_0 = pos[sao_eo_class][0][0];
+        int pos_0_1 = pos[sao_eo_class][0][1];
+        int pos_1_0 = pos[sao_eo_class][1][0];
+        int pos_1_1 = pos[sao_eo_class][1][1];
+        int y_stride_0_1 = (init_y + pos_0_1) * stride_src + pos_0_0;
+        int y_stride_1_1 = (init_y + pos_1_1) * stride_src + pos_1_0;
+
+            for (x = 0; x < width; x += 8) {
+            	ff_hevc_sao_edge_filter_main_8_8_avx(src + y_stride_src+x, src + y_stride_0_1+x, src + y_stride_1_1+x, dst + y_stride_dst+x, stride_src, stride_dst,
+            	        		 sao_offset_val, height - init_y);
+            }
+
+    }
+    if (sao_eo_class != SAO_EO_VERT) {
+        if (borders[0]) {
+            int idx_dst        = 0;
+            int idx_src        = 0;
+            int16_t offset_val = sao_offset_val[0];
+            for (y = 0; y < height; y++) {
+                dst[idx_dst] = av_clip_uintp2_c(src[idx_src] + offset_val, 8);
+                idx_dst     += stride_dst;
+                idx_src     += stride_src;
+            }
+        }
+        if (borders[2]) {
+            int idx_dst        = _width - 1;
+            int idx_src        = idx_dst;
+            int16_t offset_val = sao_offset_val[0];
+            for (y = 0; y < height; y++) {
+                dst[idx_dst] = av_clip_uintp2_c(src[idx_src] + offset_val, 8);
+                idx_dst     += stride_dst;
+                idx_src     += stride_src;
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #endif //HAVE_SSE42
