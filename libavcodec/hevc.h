@@ -631,10 +631,6 @@ typedef struct SliceHeader {
     int slice_ctb_addr_rs;
 } SliceHeader;
 
-typedef struct CodingTree {
-    int depth; ///< ctDepth
-} CodingTree;
-
 typedef struct CodingUnit {
     int x;
     int y;
@@ -772,7 +768,7 @@ typedef struct HEVCLocalContext {
     DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
     DECLARE_ALIGNED(32, uint8_t, edge_emu_buffer2)[(MAX_PB_SIZE + 7) * EDGE_EMU_BUFFER_STRIDE * 2];
 
-    CodingTree ct;
+    int ct_depth;
     CodingUnit cu;
     PredictionUnit pu;
     NeighbourAvailable na;
