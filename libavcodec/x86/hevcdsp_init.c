@@ -714,6 +714,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             //                    c->sao_edge_filter[1] = ff_hevc_sao_edge_filter_1_8_sse;
 #endif
 #ifndef OPTI_ASM
+
             c->sao_band_filter    = ff_hevc_sao_band_filter_0_8_sse;
 
 #endif
@@ -747,6 +748,10 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             if (ARCH_X86_64) {
                 c->hevc_v_loop_filter_luma = ff_hevc_v_loop_filter_luma_8_avx;
                 c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_8_avx;
+
+#ifdef OPTI_ASM
+                c->sao_edge_filter[0] = ff_hevc_sao_edge_filter_0_8_avx;
+#endif
             }
         }
         if (EXTERNAL_AVX2(cpu_flags)) {
