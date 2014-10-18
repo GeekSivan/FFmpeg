@@ -1082,11 +1082,12 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
     int16_t *coeffs = lc->tu.coeffs[c_idx > 0];
     uint8_t significant_coeff_group_flag[8][8] = {{0}};
     int explicit_rdpcm_flag = 0;
-    int explicit_rdpcm_dir_flag = 0;
+    int explicit_rdpcm_dir_flag;
 
     int trafo_size = 1 << log2_trafo_size;
     int i;
     int qp,shift,add,scale,scale_m;
+    int log2_transform_range = 15; //FFMAX(15, s->sps->bit_depth + 6); // extended_precision_processing_flag ?  : 15
     const uint8_t level_scale[] = { 40, 45, 51, 57, 64, 72 };
     const uint8_t *scale_matrix = NULL;
     uint8_t dc_scale;
@@ -1148,7 +1149,7 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
             qp += s->sps->qp_bd_offset;
         }
 
-        shift    = s->sps->bit_depth + log2_trafo_size - 5;
+        shift    = s->sps->bit_depth + log2_trafo_size + 10 - log2_transform_range;
         add      = 1 << (shift-1);
         scale    = level_scale[rem6[qp]] << (div6[qp]);
         scale_m  = 16; // default when no custom scaling lists.
@@ -1526,12 +1527,10 @@ void ff_hevc_hls_residual_coding(HEVCContext *s, int x0, int y0,
 
             s->hevcdsp.transform_skip(coeffs, log2_trafo_size);
 
-            if (explicit_rdpcm_flag) {
-                s->hevcdsp.transform_rdpcm(coeffs, log2_trafo_size, explicit_rdpcm_dir_flag);
-            } else if ((s->sps->implicit_rdpcm_enabled_flag &&
-                        lc->cu.pred_mode == MODE_INTRA &&
-                        (pred_mode_intra == 10 || pred_mode_intra == 26))) {
-                int mode = s->sps->implicit_rdpcm_enabled_flag ? (pred_mode_intra == 26) : 0;
+            if (explicit_rdpcm_flag || (s->sps->implicit_rdpcm_enabled_flag &&
+                                        lc->cu.pred_mode == MODE_INTRA &&
+                                        (pred_mode_intra == 10 || pred_mode_intra == 26))) {
+                int mode = explicit_rdpcm_flag ? explicit_rdpcm_dir_flag : (pred_mode_intra == 26);
 
                 s->hevcdsp.transform_rdpcm(coeffs, log2_trafo_size, mode);
             }
