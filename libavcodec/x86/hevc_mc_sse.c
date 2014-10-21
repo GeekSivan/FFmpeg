@@ -283,7 +283,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
         x1 = _mm_srai_epi32(_mm_add_epi32(x1, offset), shift2);                \
         x3 = _mm_add_epi32(x3, ox);                                            \
         x1 = _mm_add_epi32(x1, ox);                                            \
-        x1 = _mm_packss_epi32(x1, x3);                                         \
+        x1 = _mm_packs_epi32(x1, x3);                                         \
     }
 #define UNI_WEIGHTED_COMPUTE4(H)      UNI_WEIGHTED_COMPUTE2(H)
 #define UNI_WEIGHTED_COMPUTE6(H)      UNI_WEIGHTED_COMPUTE2(H)
@@ -300,7 +300,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
         x2 = _mm_srai_epi32(_mm_add_epi32(x2, offset), shift2);                \
         x3 = _mm_add_epi32(x3, ox);                                            \
         x2 = _mm_add_epi32(x2, ox);                                            \
-        x2 = _mm_packss_epi32(x2, x3);                                         \
+        x2 = _mm_packs_epi32(x2, x3);                                         \
     }
 
 #define BI_WEIGHTED_COMPUTE2(H)                                                \
@@ -319,7 +319,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
         x1 = _mm_add_epi32(x1, r5);                                            \
         x4 = _mm_srai_epi32(_mm_add_epi32(x4, offset), shift2);                \
         x1 = _mm_srai_epi32(_mm_add_epi32(x1, offset), shift2);                \
-        x1 = _mm_packss_epi32(x1, x4);                                         \
+        x1 = _mm_packs_epi32(x1, x4);                                         \
     }
 #define BI_WEIGHTED_COMPUTE4(H)      BI_WEIGHTED_COMPUTE2(H)
 #define BI_WEIGHTED_COMPUTE6(H)      BI_WEIGHTED_COMPUTE2(H)
@@ -340,7 +340,7 @@ DECLARE_ALIGNED(16, const int16_t, ff_hevc_qpel_filters_sse_10[3][4][8]) = {
         x2 = _mm_add_epi32(x2, r6);                                            \
         x4 = _mm_srai_epi32(_mm_add_epi32(x4, offset), shift2);                \
         x2 = _mm_srai_epi32(_mm_add_epi32(x2, offset), shift2);                \
-        x2 = _mm_packss_epi32(x2, x4);                                         \
+        x2 = _mm_packs_epi32(x2, x4);                                         \
     }
 
 ////////////////////////////////////////////////////////////////////////////////
