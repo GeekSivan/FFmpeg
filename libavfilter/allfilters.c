@@ -45,9 +45,6 @@ void avfilter_register_all(void)
         return;
     initialized = 1;
 
-#if FF_API_ACONVERT_FILTER
-    REGISTER_FILTER(ACONVERT,       aconvert,       af);
-#endif
     REGISTER_FILTER(ADELAY,         adelay,         af);
     REGISTER_FILTER(AECHO,          aecho,          af);
     REGISTER_FILTER(AEVAL,          aeval,          af);
@@ -96,6 +93,7 @@ void avfilter_register_all(void)
     REGISTER_FILTER(REPLAYGAIN,     replaygain,     af);
     REGISTER_FILTER(RESAMPLE,       resample,       af);
     REGISTER_FILTER(SILENCEDETECT,  silencedetect,  af);
+    REGISTER_FILTER(SILENCEREMOVE,  silenceremove,  af);
     REGISTER_FILTER(TREBLE,         treble,         af);
     REGISTER_FILTER(VOLUME,         volume,         af);
     REGISTER_FILTER(VOLUMEDETECT,   volumedetect,   af);

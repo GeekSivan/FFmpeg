@@ -91,6 +91,7 @@ int do_benchmark_all  = 0;
 int do_hex_dump       = 0;
 int do_pkt_dump       = 0;
 int copy_ts           = 0;
+int start_at_zero     = 0;
 int copy_tb           = -1;
 int debug_ts          = 0;
 int exit_on_error     = 0;
@@ -508,7 +509,8 @@ static int opt_recording_timestamp(void *optctx, const char *opt, const char *ar
     char buf[128];
     int64_t recording_timestamp = parse_time_or_die(opt, arg, 0) / 1E6;
     struct tm time = *gmtime((time_t*)&recording_timestamp);
-    strftime(buf, sizeof(buf), "creation_time=%FT%T%z", &time);
+    if (!strftime(buf, sizeof(buf), "creation_time=%FT%T%z", &time))
+        return -1;
     parse_option(o, "metadata", buf, options);
 
     av_log(NULL, AV_LOG_WARNING, "%s is deprecated, set the 'creation_time' metadata "
@@ -921,7 +923,7 @@ static int open_input_file(OptionsContext *o, const char *filename)
     f->start_time = o->start_time;
     f->recording_time = o->recording_time;
     f->input_ts_offset = o->input_ts_offset;
-    f->ts_offset  = o->input_ts_offset - (copy_ts ? 0 : timestamp);
+    f->ts_offset  = o->input_ts_offset - (copy_ts ? (start_at_zero && ic->start_time != AV_NOPTS_VALUE ? ic->start_time : 0) : timestamp);
     f->nb_streams = ic->nb_streams;
     f->rate_emu   = o->rate_emu;
     f->accurate_seek = o->accurate_seek;
@@ -1276,6 +1278,8 @@ static OutputStream *new_video_stream(OptionsContext *o, AVFormatContext *oc, in
         av_log(NULL, AV_LOG_FATAL, "Invalid framerate value: %s\n", frame_rate);
         exit_program(1);
     }
+    if (frame_rate && video_sync_method == VSYNC_PASSTHROUGH)
+        av_log(NULL, AV_LOG_ERROR, "Using -vsync 0 and -r can produce invalid output files\n");
 
     MATCH_PER_STREAM_OPT(frame_aspect_ratios, str, frame_aspect_ratio, oc, st);
     if (frame_aspect_ratio) {
@@ -1623,6 +1627,10 @@ static int read_ffserver_streams(OptionsContext *o, AVFormatContext *s, const ch
         AVCodecContext *avctx;
 
         codec = avcodec_find_encoder(ic->streams[i]->codec->codec_id);
+        if (!codec) {
+            av_log(s, AV_LOG_ERROR, "no encoder found for codec id %i\n", ic->streams[i]->codec->codec_id);
+            return AVERROR(EINVAL);
+        }
         ost   = new_output_stream(o, s, codec->type, -1);
         st    = ost->st;
         avctx = st->codec;
@@ -1728,8 +1736,8 @@ static int open_output_file(OptionsContext *o, const char *filename)
     if (o->stop_time != INT64_MAX && o->recording_time == INT64_MAX) {
         int64_t start_time = o->start_time == AV_NOPTS_VALUE ? 0 : o->start_time;
         if (o->stop_time <= start_time) {
-            av_log(NULL, AV_LOG_WARNING, "-to value smaller than -ss; ignoring -to.\n");
-            o->stop_time = INT64_MAX;
+            av_log(NULL, AV_LOG_ERROR, "-to value smaller than -ss; aborting.\n");
+            exit_program(1);
         } else {
             o->recording_time = o->stop_time - start_time;
         }
@@ -2221,19 +2229,19 @@ static int opt_target(void *optctx, const char *opt, const char *arg)
 
         parse_option(o, "s", norm == PAL ? "352x288" : "352x240", options);
         parse_option(o, "r", frame_rates[norm], options);
-        av_dict_set(&o->g->codec_opts, "g", norm == PAL ? "15" : "18", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "g", norm == PAL ? "15" : "18");
 
-        av_dict_set(&o->g->codec_opts, "b:v", "1150000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "maxrate", "1150000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "minrate", "1150000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "bufsize", "327680", AV_DICT_DONT_OVERWRITE); // 40*1024*8;
+        opt_default(NULL, "b:v", "1150000");
+        opt_default(NULL, "maxrate", "1150000");
+        opt_default(NULL, "minrate", "1150000");
+        opt_default(NULL, "bufsize", "327680"); // 40*1024*8;
 
-        av_dict_set(&o->g->codec_opts, "b:a", "224000", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "b:a", "224000");
         parse_option(o, "ar", "44100", options);
         parse_option(o, "ac", "2", options);
 
-        av_dict_set(&o->g->format_opts, "packetsize", "2324", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->format_opts, "muxrate", "1411200", AV_DICT_DONT_OVERWRITE); // 2352 * 75 * 8;
+        opt_default(NULL, "packetsize", "2324");
+        opt_default(NULL, "muxrate", "1411200"); // 2352 * 75 * 8;
 
         /* We have to offset the PTS, so that it is consistent with the SCR.
            SCR starts at 36000, but the first two packs contain only padding
@@ -2250,18 +2258,18 @@ static int opt_target(void *optctx, const char *opt, const char *arg)
         parse_option(o, "s", norm == PAL ? "480x576" : "480x480", options);
         parse_option(o, "r", frame_rates[norm], options);
         parse_option(o, "pix_fmt", "yuv420p", options);
-        av_dict_set(&o->g->codec_opts, "g", norm == PAL ? "15" : "18", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "g", norm == PAL ? "15" : "18");
 
-        av_dict_set(&o->g->codec_opts, "b:v", "2040000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "maxrate", "2516000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "minrate", "0", AV_DICT_DONT_OVERWRITE); // 1145000;
-        av_dict_set(&o->g->codec_opts, "bufsize", "1835008", AV_DICT_DONT_OVERWRITE); // 224*1024*8;
-        av_dict_set(&o->g->codec_opts, "scan_offset", "1", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "b:v", "2040000");
+        opt_default(NULL, "maxrate", "2516000");
+        opt_default(NULL, "minrate", "0"); // 1145000;
+        opt_default(NULL, "bufsize", "1835008"); // 224*1024*8;
+        opt_default(NULL, "scan_offset", "1");
 
-        av_dict_set(&o->g->codec_opts, "b:a", "224000", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "b:a", "224000");
         parse_option(o, "ar", "44100", options);
 
-        av_dict_set(&o->g->format_opts, "packetsize", "2324", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "packetsize", "2324");
 
     } else if (!strcmp(arg, "dvd")) {
 
@@ -2272,17 +2280,17 @@ static int opt_target(void *optctx, const char *opt, const char *arg)
         parse_option(o, "s", norm == PAL ? "720x576" : "720x480", options);
         parse_option(o, "r", frame_rates[norm], options);
         parse_option(o, "pix_fmt", "yuv420p", options);
-        av_dict_set(&o->g->codec_opts, "g", norm == PAL ? "15" : "18", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "g", norm == PAL ? "15" : "18");
 
-        av_dict_set(&o->g->codec_opts, "b:v", "6000000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "maxrate", "9000000", AV_DICT_DONT_OVERWRITE);
-        av_dict_set(&o->g->codec_opts, "minrate", "0", AV_DICT_DONT_OVERWRITE); // 1500000;
-        av_dict_set(&o->g->codec_opts, "bufsize", "1835008", AV_DICT_DONT_OVERWRITE); // 224*1024*8;
+        opt_default(NULL, "b:v", "6000000");
+        opt_default(NULL, "maxrate", "9000000");
+        opt_default(NULL, "minrate", "0"); // 1500000;
+        opt_default(NULL, "bufsize", "1835008"); // 224*1024*8;
 
-        av_dict_set(&o->g->format_opts, "packetsize", "2048", AV_DICT_DONT_OVERWRITE);  // from www.mpucoder.com: DVD sectors contain 2048 bytes of data, this is also the size of one pack.
-        av_dict_set(&o->g->format_opts, "muxrate", "10080000", AV_DICT_DONT_OVERWRITE); // from mplex project: data_rate = 1260000. mux_rate = data_rate * 8
+        opt_default(NULL, "packetsize", "2048");  // from www.mpucoder.com: DVD sectors contain 2048 bytes of data, this is also the size of one pack.
+        opt_default(NULL, "muxrate", "10080000"); // from mplex project: data_rate = 1260000. mux_rate = data_rate * 8
 
-        av_dict_set(&o->g->codec_opts, "b:a", "448000", AV_DICT_DONT_OVERWRITE);
+        opt_default(NULL, "b:a", "448000");
         parse_option(o, "ar", "48000", options);
 
     } else if (!strncmp(arg, "dv", 2)) {
@@ -2301,6 +2309,10 @@ static int opt_target(void *optctx, const char *opt, const char *arg)
         av_log(NULL, AV_LOG_ERROR, "Unknown target: %s\n", arg);
         return AVERROR(EINVAL);
     }
+
+    av_dict_copy(&o->g->codec_opts,  codec_opts, AV_DICT_DONT_OVERWRITE);
+    av_dict_copy(&o->g->format_opts, format_opts, AV_DICT_DONT_OVERWRITE);
+
     return 0;
 }
 
@@ -2832,6 +2844,8 @@ const OptionDef options[] = {
         "audio drift threshold", "threshold" },
     { "copyts",         OPT_BOOL | OPT_EXPERT,                       { &copy_ts },
         "copy timestamps" },
+    { "start_at_zero",  OPT_BOOL | OPT_EXPERT,                       { &start_at_zero },
+        "shift input timestamps to start at 0 when using copyts" },
     { "copytb",         HAS_ARG | OPT_INT | OPT_EXPERT,              { &copy_tb },
         "copy input stream time base when stream copying", "mode" },
     { "shortest",       OPT_BOOL | OPT_EXPERT | OPT_OFFSET |
@@ -2976,6 +2990,9 @@ const OptionDef options[] = {
     { "hwaccel_device",   OPT_VIDEO | OPT_STRING | HAS_ARG | OPT_EXPERT |
                           OPT_SPEC | OPT_INPUT,                                  { .off = OFFSET(hwaccel_devices) },
         "select a device for HW acceleration" "devicename" },
+#if HAVE_VDPAU_X11
+    { "vdpau_api_ver", HAS_ARG | OPT_INT | OPT_EXPERT, { &vdpau_api_ver }, "" },
+#endif
 
     /* audio options */
     { "aframes",        OPT_AUDIO | HAS_ARG  | OPT_PERFILE | OPT_OUTPUT,           { .func_arg = opt_audio_frames },

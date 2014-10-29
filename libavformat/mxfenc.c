@@ -26,6 +26,7 @@
  * SMPTE 377M MXF File Format Specifications
  * SMPTE 379M MXF Generic Container
  * SMPTE 381M Mapping MPEG Streams into the MXF Generic Container
+ * SMPTE 422M Mapping JPEG 2000 Codestreams into the MXF Generic Container
  * SMPTE RP210: SMPTE Metadata Dictionary
  * SMPTE RP224: Registry of SMPTE Universal Labels
  */
@@ -38,6 +39,7 @@
 #include "libavutil/random_seed.h"
 #include "libavutil/timecode.h"
 #include "libavutil/avassert.h"
+#include "libavutil/time_internal.h"
 #include "libavcodec/bytestream.h"
 #include "libavcodec/dnxhddata.h"
 #include "audiointerleave.h"
@@ -95,6 +97,7 @@ static const struct {
     { AV_CODEC_ID_PCM_S16LE,  1 },
     { AV_CODEC_ID_DVVIDEO,   15 },
     { AV_CODEC_ID_DNXHD,     24 },
+    { AV_CODEC_ID_JPEG2000,  34 },
     { AV_CODEC_ID_NONE }
 };
 
@@ -265,6 +268,11 @@ static const MXFContainerEssenceEntry mxf_essence_container_uls[] = {
     { { 0x06,0x0e,0x2b,0x34,0x04,0x01,0x01,0x01,0x0d,0x01,0x03,0x01,0x02,0x11,0x01,0x00 },
       { 0x06,0x0e,0x2b,0x34,0x01,0x02,0x01,0x01,0x0d,0x01,0x03,0x01,0x15,0x01,0x05,0x00 },
       { 0x06,0x0e,0x2b,0x34,0x04,0x01,0x01,0x0A,0x04,0x01,0x02,0x02,0x71,0x13,0x00,0x00 },
+      mxf_write_cdci_desc },
+    // JPEG2000
+    { { 0x06,0x0e,0x2b,0x34,0x04,0x01,0x01,0x07,0x0d,0x01,0x03,0x01,0x02,0x0c,0x01,0x00 },
+      { 0x06,0x0e,0x2b,0x34,0x01,0x02,0x01,0x01,0x0d,0x01,0x03,0x01,0x15,0x01,0x08,0x00 },
+      { 0x06,0x0e,0x2b,0x34,0x04,0x01,0x01,0x07,0x04,0x01,0x02,0x02,0x03,0x01,0x01,0x00 },
       mxf_write_cdci_desc },
     { { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 },
       { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 },
@@ -1023,7 +1031,7 @@ static void mxf_write_generic_sound_common(AVFormatContext *s, AVStream *st, con
             av_log(s, AV_LOG_WARNING, "d10_channelcount shall be set to 4 or 8 : the output will not comply to MXF D-10 specs\n");
         avio_wb32(pb, mxf->channel_count);
     } else {
-        if (show_warnings)
+        if (show_warnings && mxf->channel_count != -1)
             av_log(s, AV_LOG_ERROR, "-d10_channelcount requires MXF D-10 and will be ignored\n");
         avio_wb32(pb, st->codec->channels);
     }
@@ -1657,7 +1665,8 @@ static int mxf_parse_mpeg2_frame(AVFormatContext *s, AVStream *st,
 
 static uint64_t mxf_parse_timestamp(time_t timestamp)
 {
-    struct tm *time = gmtime(&timestamp);
+    struct tm tmbuf;
+    struct tm *time = gmtime_r(&timestamp, &tmbuf);
     if (!time)
         return 0;
     return (uint64_t)(time->tm_year+1900) << 48 |

@@ -1,5 +1,6 @@
 /*
- * XVID MPEG-4 VIDEO CODEC
+ * Blackmagic DeckLink output
+ * Copyright (c) 2013-2014 Ramiro Polla
  *
  * This file is part of FFmpeg.
  *
@@ -18,26 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-/**
- * @file
- * header for Xvid IDCT functions
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#ifndef AVCODEC_X86_IDCT_XVID_H
-#define AVCODEC_X86_IDCT_XVID_H
+int ff_decklink_read_header(AVFormatContext *avctx);
+int ff_decklink_read_packet(AVFormatContext *avctx, AVPacket *pkt);
+int ff_decklink_read_close(AVFormatContext *avctx);
 
-#include <stdint.h>
-
-void ff_idct_xvid_mmx(short *block);
-void ff_idct_xvid_mmx_put(uint8_t *dest, int line_size, int16_t *block);
-void ff_idct_xvid_mmx_add(uint8_t *dest, int line_size, int16_t *block);
-
-void ff_idct_xvid_mmxext(short *block);
-void ff_idct_xvid_mmxext_put(uint8_t *dest, int line_size, int16_t *block);
-void ff_idct_xvid_mmxext_add(uint8_t *dest, int line_size, int16_t *block);
-
-void ff_idct_xvid_sse2(short *block);
-void ff_idct_xvid_sse2_put(uint8_t *dest, int line_size, short *block);
-void ff_idct_xvid_sse2_add(uint8_t *dest, int line_size, short *block);
-
-#endif /* AVCODEC_X86_IDCT_XVID_H */
+#ifdef __cplusplus
+} /* extern "C" */
+#endif

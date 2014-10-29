@@ -1,6 +1,4 @@
 /*
- * DSP utils
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -18,39 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "me_cmp.h"
-#include "dsputil.h"
+#ifndef AVCODEC_WMA_FREQS_H
+#define AVCODEC_WMA_FREQS_H
 
-#if FF_API_DSPUTIL
+#include <stdint.h>
 
-void avpriv_dsputil_init(DSPContext* p, AVCodecContext *avctx)
-{
-    MECmpContext mecc;
+extern const uint16_t ff_wma_critical_freqs[25];
 
-    ff_me_cmp_init(&mecc, avctx);
-#define COPY(name) memcpy(&p->name, &mecc.name, sizeof(p->name))
-    COPY(sum_abs_dctelem);
-    COPY(sad);
-    COPY(sse);
-    COPY(hadamard8_diff);
-    COPY(dct_sad);
-    COPY(quant_psnr);
-    COPY(bit);
-    COPY(rd);
-    COPY(vsad);
-    COPY(vsse);
-    COPY(nsse);
-    COPY(w53);
-    COPY(w97);
-    COPY(dct_max);
-    COPY(dct264_sad);
-    COPY(me_pre_cmp);
-    COPY(me_cmp);
-    COPY(me_sub_cmp);
-    COPY(mb_cmp);
-    COPY(ildct_cmp);
-    COPY(frame_skip_cmp);
-    COPY(pix_abs);
-}
-
-#endif
+#endif /* AVCODEC_WMA_FREQS */
