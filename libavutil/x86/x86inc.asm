@@ -99,6 +99,9 @@
     %endif
 %endmacro
 
+; Always use long nops (reduces 0x90 spam in disassembly on x86_32)
+CPUNOP amdnop
+
 ; Macros to eliminate most code duplication between x86_32 and x86_64:
 ; Currently this works only for leaf functions which load all their arguments
 ; into registers at the start, and make no other use of the stack. Luckily that
@@ -756,26 +759,19 @@ SECTION .note.GNU-stack noalloc noexec nowrite progbits
 %define    cpuflag(x) ((cpuflags & (cpuflags_ %+ x)) == (cpuflags_ %+ x))
 %define notcpuflag(x) ((cpuflags & (cpuflags_ %+ x)) != (cpuflags_ %+ x))
 
-; Takes an arbitrary number of cpuflags from the above list.
+; Takes up to 2 cpuflags from the above list.
 ; All subsequent functions (up to the next INIT_CPUFLAGS) is built for the specified cpu.
 ; You shouldn't need to invoke this macro directly, it's a subroutine for INIT_MMX &co.
-%macro INIT_CPUFLAGS 0-*
-    %xdefine SUFFIX
-    %undef cpuname
-    %assign cpuflags 0
-
+%macro INIT_CPUFLAGS 0-2
+    CPUNOP amdnop
     %if %0 >= 1
-        %rep %0
-            %ifdef cpuname
-                %xdefine cpuname cpuname %+ _%1
-            %else
-                %xdefine cpuname %1
-            %endif
-            %assign cpuflags cpuflags | cpuflags_%1
-            %rotate 1
-        %endrep
+        %xdefine cpuname %1
+        %assign cpuflags cpuflags_%1
+        %if %0 >= 2
+            %xdefine cpuname %1_%2
+            %assign cpuflags cpuflags | cpuflags_%2
+        %endif
         %xdefine SUFFIX _ %+ cpuname
-
         %if cpuflag(avx)
             %assign avx_enabled 1
         %endif
@@ -786,15 +782,16 @@ SECTION .note.GNU-stack noalloc noexec nowrite progbits
         %endif
         %if cpuflag(aligned)
             %define movu mova
-        %elif cpuflag(sse3) && notcpuflag(ssse3)
+        %elifidn %1, sse3
             %define movu lddqu
         %endif
-    %endif
-
-    %if cpuflag(sse2)
-        CPUNOP amdnop
+        %if notcpuflag(sse2)
+            CPUNOP basicnop
+        %endif
     %else
-        CPUNOP basicnop
+        %xdefine SUFFIX
+        %undef cpuname
+        %undef cpuflags
     %endif
 %endmacro
 
