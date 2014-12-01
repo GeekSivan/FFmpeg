@@ -1030,7 +1030,7 @@ typedef struct HEVCFrame {
 #if FRAME_CONCEALMENT
     uint8_t is_concealment_frame;
 #endif
-
+    uint8_t field_order;
 } HEVCFrame;
 
 typedef struct HEVCNAL {
@@ -1225,6 +1225,8 @@ typedef struct HEVCContext {
     int sei_hflip, sei_vflip;
 
     int picture_struct;
+    int field_order;
+    int interlaced;
 
     /** 1 if the independent slice segment header was successfully parsed */
     uint8_t slice_initialized;
