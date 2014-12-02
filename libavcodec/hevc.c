@@ -620,15 +620,7 @@ static int hls_slice_header(HEVCContext *s)
             }
             s->poc = poc;
         }
-#if SIM_ERROR_CONCEALMENT
-        av_log(s->avctx, AV_LOG_ERROR, "Poc to decode: %d \n", s->poc);
-        if((s->poc % 8) == 6 /*|| (s->poc % 8) == 3 || (s->poc % 8)  == 5 || (s->poc % 8) == 7*/){
-#if FRAME_CONCEALMENT
-            ret = ff_hevc_output_frame(s, s->output_frame, 0);
-#endif
-            return -10;
-        }
-#endif
+
         if(!IS_IDR(s)) {
             int short_term_ref_pic_set_sps_flag = get_bits1(gb);
             if (!short_term_ref_pic_set_sps_flag) {
@@ -3666,10 +3658,6 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
         goto fail;
 
     ff_bswapdsp_init(&s->bdsp);
-#if FRAME_CONCEALMENT
-    s->prev_display_poc = -1;
-    s->no_display_pic   =  0;
-#endif
 
     s->temporal_layer_id   = 8;
     s->quality_layer_id    = 8;
