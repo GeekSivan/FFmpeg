@@ -312,6 +312,9 @@ ff_rm_read_mdpr_codecdata (AVFormatContext *s, AVIOContext *pb,
     int64_t codec_pos;
     int ret;
 
+    if (codec_data_size < 0)
+        return AVERROR_INVALIDDATA;
+
     avpriv_set_pts_info(st, 64, 1, 1000);
     codec_pos = avio_tell(pb);
     v = avio_rb32(pb);
@@ -610,7 +613,7 @@ static int get_num(AVIOContext *pb, int *len)
 /* multiple of 20 bytes for ra144 (ugly) */
 #define RAW_PACKET_SIZE 1000
 
-static int sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stream_index, int64_t *pos){
+static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stream_index, int64_t *pos){
     RMDemuxContext *rm = s->priv_data;
     AVIOContext *pb = s->pb;
     AVStream *st;
@@ -964,7 +967,7 @@ static int rm_read_packet(AVFormatContext *s, AVPacket *pkt)
                 flags = (seq++ == 1) ? 2 : 0;
                 pos = avio_tell(s->pb);
             } else {
-                len=sync(s, &timestamp, &flags, &i, &pos);
+                len = rm_sync(s, &timestamp, &flags, &i, &pos);
                 if (len > 0)
                     st = s->streams[i];
             }
@@ -1035,7 +1038,7 @@ static int64_t rm_read_dts(AVFormatContext *s, int stream_index,
         int seq=1;
         AVStream *st;
 
-        len=sync(s, &dts, &flags, &stream_index2, &pos);
+        len = rm_sync(s, &dts, &flags, &stream_index2, &pos);
         if(len<0)
             return AV_NOPTS_VALUE;
 

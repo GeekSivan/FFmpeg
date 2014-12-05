@@ -103,6 +103,7 @@ static int64_t wrap_timestamp(AVStream *st, int64_t timestamp)
 }
 
 MAKE_ACCESSORS(AVStream, stream, AVRational, r_frame_rate)
+MAKE_ACCESSORS(AVStream, stream, char *, recommended_encoder_configuration)
 MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, video_codec)
 MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, audio_codec)
 MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, subtitle_codec)
@@ -2786,10 +2787,16 @@ static void compute_chapters_end(AVFormatContext *s)
 
 static int get_std_framerate(int i)
 {
-    if (i < 60 * 12)
+    if (i < 30*12)
         return (i + 1) * 1001;
-    else
-        return ((const int[]) { 24, 30, 60, 12, 15, 48 })[i - 60 * 12] * 1000 * 12;
+    i -= 30*12;
+
+    if (i < 7)
+        return ((const int[]) { 40, 48, 50, 60, 80, 120, 240})[i] * 1001 * 12;
+
+    i -= 7;
+
+    return ((const int[]) { 24, 30, 60, 12, 15, 48 })[i] * 1000 * 12;
 }
 
 /* Is the time base unreliable?
@@ -2982,6 +2989,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
     int orig_nb_streams = ic->nb_streams;
     int flush_codecs;
     int64_t max_analyze_duration = ic->max_analyze_duration2;
+    int64_t max_stream_analyze_duration;
     int64_t probesize = ic->probesize2;
 
     if (!max_analyze_duration)
@@ -2992,11 +3000,12 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
     av_opt_set(ic, "skip_clear", "1", AV_OPT_SEARCH_CHILDREN);
 
+    max_stream_analyze_duration = max_analyze_duration;
     if (!max_analyze_duration) {
-        if (!strcmp(ic->iformat->name, "flv") && !(ic->ctx_flags & AVFMTCTX_NOHEADER)) {
-            max_analyze_duration = 10*AV_TIME_BASE;
-        } else
-            max_analyze_duration = 5*AV_TIME_BASE;
+        max_stream_analyze_duration =
+        max_analyze_duration        = 5*AV_TIME_BASE;
+        if (!strcmp(ic->iformat->name, "flv"))
+            max_stream_analyze_duration = 30*AV_TIME_BASE;
     }
 
     if (ic->pb)
@@ -3069,6 +3078,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
     count     = 0;
     read_size = 0;
     for (;;) {
+        int analyzed_all_streams;
         if (ff_check_interrupt(&ic->interrupt_callback)) {
             ret = AVERROR_EXIT;
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
@@ -3108,7 +3118,9 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                  st->codec->codec_type == AVMEDIA_TYPE_AUDIO))
                 break;
         }
+        analyzed_all_streams = 0;
         if (i == ic->nb_streams) {
+            analyzed_all_streams = 1;
             /* NOTE: If the format has no header, then we need to read some
              * packets to get most of the streams, so we cannot stop here. */
             if (!(ic->ctx_flags & AVFMTCTX_NOHEADER)) {
@@ -3216,7 +3228,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                 && st->info->fps_last_dts  != AV_NOPTS_VALUE)
                 t = FFMAX(t, av_rescale_q(st->info->fps_last_dts - st->info->fps_first_dts, st->time_base, AV_TIME_BASE_Q));
 
-            if (t >= max_analyze_duration) {
+            if (t >= (analyzed_all_streams ? max_analyze_duration : max_stream_analyze_duration)) {
                 av_log(ic, AV_LOG_VERBOSE, "max_analyze_duration %"PRId64" reached at %"PRId64" microseconds\n",
                        max_analyze_duration,
                        t);
@@ -3286,7 +3298,6 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             }
         }
     }
-    av_opt_set(ic, "skip_clear", "0", AV_OPT_SEARCH_CHILDREN);
 
     // close codecs which were opened in try_decode_frame()
     for (i = 0; i < ic->nb_streams; i++) {
@@ -3347,6 +3358,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                     st->r_frame_rate.den = st->time_base.num;
                 }
             }
+            if (st->display_aspect_ratio.num && st->display_aspect_ratio.den) {
+                AVRational hw_ratio = { st->codec->height, st->codec->width };
+                st->sample_aspect_ratio = av_mul_q(st->display_aspect_ratio,
+                                                   hw_ratio);
+            }
         } else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
             if (!st->codec->bits_per_coded_sample)
                 st->codec->bits_per_coded_sample =
@@ -3374,6 +3390,8 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
     if (probesize)
     estimate_timings(ic, old_offset);
+
+    av_opt_set(ic, "skip_clear", "0", AV_OPT_SEARCH_CHILDREN);
 
     if (ret >= 0 && ic->nb_streams)
         /* We could not have all the codec parameters before EOF. */
@@ -3536,6 +3554,7 @@ void ff_free_stream(AVFormatContext *s, AVStream *st) {
     if (st->info)
         av_freep(&st->info->duration_error);
     av_freep(&st->info);
+    av_freep(&st->recommended_encoder_configuration);
     av_freep(&s->streams[ --s->nb_streams ]);
 }
 
@@ -4272,6 +4291,21 @@ int ff_generate_avci_extradata(AVStream *st)
         0x00, 0x00, 0x00, 0x01, 0x68, 0xce, 0x33, 0x48,
         0xd0
     };
+    static const uint8_t avci50_1080p_extradata[] = {
+        // SPS
+        0x00, 0x00, 0x00, 0x01, 0x67, 0x6e, 0x10, 0x28,
+        0xa6, 0xd4, 0x20, 0x32, 0x33, 0x0c, 0x71, 0x18,
+        0x88, 0x62, 0x10, 0x19, 0x19, 0x86, 0x38, 0x8c,
+        0x44, 0x30, 0x21, 0x02, 0x56, 0x4e, 0x6f, 0x37,
+        0xcd, 0xf9, 0xbf, 0x81, 0x6b, 0xf3, 0x7c, 0xde,
+        0x6e, 0x6c, 0xd3, 0x3c, 0x05, 0xa0, 0x22, 0x7e,
+        0x5f, 0xfc, 0x00, 0x0c, 0x00, 0x13, 0x8c, 0x04,
+        0x04, 0x05, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00,
+        0x00, 0x03, 0x00, 0x32, 0x84, 0x00, 0x00, 0x00,
+        // PPS
+        0x00, 0x00, 0x00, 0x01, 0x68, 0xee, 0x31, 0x12,
+        0x11
+    };
     static const uint8_t avci50_1080i_extradata[] = {
         // SPS
         0x00, 0x00, 0x00, 0x01, 0x67, 0x6e, 0x10, 0x28,
@@ -4305,6 +4339,21 @@ int ff_generate_avci_extradata(AVStream *st)
         0x00, 0x00, 0x00, 0x01, 0x68, 0xce, 0x31, 0x12,
         0x11
     };
+    static const uint8_t avci50_720p_extradata[] = {
+        // SPS
+        0x00, 0x00, 0x00, 0x01, 0x67, 0x6e, 0x10, 0x20,
+        0xa6, 0xd4, 0x20, 0x32, 0x33, 0x0c, 0x71, 0x18,
+        0x88, 0x62, 0x10, 0x19, 0x19, 0x86, 0x38, 0x8c,
+        0x44, 0x30, 0x21, 0x02, 0x56, 0x4e, 0x6f, 0x37,
+        0xcd, 0xf9, 0xbf, 0x81, 0x6b, 0xf3, 0x7c, 0xde,
+        0x6e, 0x6c, 0xd3, 0x3c, 0x0f, 0x01, 0x6e, 0xff,
+        0xc0, 0x00, 0xc0, 0x01, 0x38, 0xc0, 0x40, 0x40,
+        0x50, 0x00, 0x00, 0x03, 0x00, 0x10, 0x00, 0x00,
+        0x06, 0x48, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+        // PPS
+        0x00, 0x00, 0x00, 0x01, 0x68, 0xee, 0x31, 0x12,
+        0x11
+    };
 
     const uint8_t *data = NULL;
     int size            = 0;
@@ -4318,11 +4367,19 @@ int ff_generate_avci_extradata(AVStream *st)
             size = sizeof(avci100_1080i_extradata);
         }
     } else if (st->codec->width == 1440) {
-        data = avci50_1080i_extradata;
-        size = sizeof(avci50_1080i_extradata);
+        if (st->codec->field_order == AV_FIELD_PROGRESSIVE) {
+            data = avci50_1080p_extradata;
+            size = sizeof(avci50_1080p_extradata);
+        } else {
+            data = avci50_1080i_extradata;
+            size = sizeof(avci50_1080i_extradata);
+        }
     } else if (st->codec->width == 1280) {
         data = avci100_720p_extradata;
         size = sizeof(avci100_720p_extradata);
+    } else if (st->codec->width == 960) {
+        data = avci50_720p_extradata;
+        size = sizeof(avci50_720p_extradata);
     }
 
     if (!size)

@@ -245,6 +245,7 @@ typedef struct SingleChannelElement {
  * channel element - generic struct for SCE/CPE/CCE/LFE
  */
 typedef struct ChannelElement {
+    int present;
     // CPE specific
     int common_window;        ///< Set if channels share a common 'IndividualChannelStream' in bitstream.
     int     ms_mode;          ///< Signals mid/side stereo flags coding mode (used by encoder)
@@ -294,7 +295,7 @@ struct AACContext {
     FFTContext mdct_ld;
     FFTContext mdct_ltp;
     FmtConvertContext fmt_conv;
-    AVFloatDSPContext fdsp;
+    AVFloatDSPContext *fdsp;
     int random_state;
     /** @} */
 
