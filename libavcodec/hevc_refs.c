@@ -79,8 +79,10 @@ static HEVCFrame *alloc_frame(HEVCContext *s)
         if (frame->frame->buf[0])
             continue;
 
-        if (s->interlaced)
+        if (s->interlaced) {
             s->avctx->height = s->sps->output_height * 2;
+            s->avctx->coded_height = s->avctx->height;
+        }
 
         ret = ff_thread_get_buffer(s->avctx, &frame->tf,
                                    AV_GET_BUFFER_FLAG_REF);
