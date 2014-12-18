@@ -182,8 +182,6 @@ HEVC_SAMPLES_444_12BIT =        \
 
 # do not pass:
 # TSUNEQBD_A_MAIN10_Technicolor_2.bit (segfault mix 9-10bits)
-# PERSIST_RPARAM_A_RExt_Sony_1 (rext)
-
 
 define FATE_HEVC_TEST
 FATE_HEVC += fate-hevc-conformance-$(1)

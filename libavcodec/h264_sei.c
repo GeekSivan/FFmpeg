@@ -180,7 +180,6 @@ static int decode_recovery_point(H264Context *h)
      * 1b broken_link_flag,
      * 2b changing_slice_group_idc */
     skip_bits(&h->gb, 4);
-    av_log(h->avctx, AV_LOG_ERROR, "sei_recovery_frame_cnt: %d\n", h->sei_recovery_frame_cnt);
 
     if (h->avctx->debug & FF_DEBUG_PICT_INFO)
         av_log(h->avctx, AV_LOG_DEBUG, "sei_recovery_frame_cnt: %d\n", h->sei_recovery_frame_cnt);
@@ -282,7 +281,7 @@ static int decode_display_orientation(H264Context *h)
 
 int ff_h264_decode_sei(H264Context *h)
 {
-    while (get_bits_left(&h->gb) > 16) {
+    while (get_bits_left(&h->gb) > 16 && show_bits(&h->gb, 16)) {
         int type = 0;
         unsigned size = 0;
         unsigned next;

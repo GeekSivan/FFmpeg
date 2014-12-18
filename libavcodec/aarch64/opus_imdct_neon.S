@@ -23,7 +23,7 @@
 #include "asm-offsets.h"
 
 .macro shuffle a, b, c, d
-const shuffle_\a\b\c\d align=4
+const shuffle_\a\b\c\d, align=4
         .byte (\a * 4), (\a * 4 + 1), (\a * 4 + 2), (\a * 4 + 3)
         .byte (\b * 4), (\b * 4 + 1), (\b * 4 + 2), (\b * 4 + 3)
         .byte (\c * 4), (\c * 4 + 1), (\c * 4 + 2), (\c * 4 + 3)
@@ -344,7 +344,7 @@ function fft15_pass
         ret
 endfunc
 
-function fft30_neon  align=6
+function fft30_neon, align=6
         sub             sp,  sp,  #0x20
         stp             x20, x21, [sp]
         stp             x22, x30, [sp, #0x10]
@@ -372,7 +372,7 @@ function fft30_neon  align=6
 endfunc
 
 .macro  def_fft n, n2
-function fft\n\()_neon  align=6
+function fft\n\()_neon, align=6
         sub             sp,  sp,  #0x30
         stp             x20, x21, [sp]
         stp             x22, x30, [sp, #0x10]
@@ -438,8 +438,8 @@ function fft_b15_calc_neon
         uzp1            v12.4s, v4.4s,  v5.4s   // exp[11 - 14].re
         uzp2            v13.4s, v4.4s,  v5.4s   // exp[11 - 14].im
         zip1            v14.4s, v6.4s,  v7.4s   // exp[5,10].re/exp[5,10].im
-        add             x5,  x5,  x3,  lsl #3
-        ldr             x5,  [x5]
+        ldr             x6,  [x5, x3, lsl #3]
+        add             x5,  x5,  x6
         mov             x10, x0
         blr             x5
         ldp             x20, x30, [sp]
@@ -452,13 +452,13 @@ function fft_b15_calc_neon
 endfunc
 
 const   fft_tab_neon
-        .quad fft15_neon
-        .quad fft30_neon
-        .quad fft60_neon
-        .quad fft120_neon
-        .quad fft240_neon
-        .quad fft480_neon
-        .quad fft960_neon
+        .quad fft15_neon  - fft_tab_neon
+        .quad fft30_neon  - fft_tab_neon
+        .quad fft60_neon  - fft_tab_neon
+        .quad fft120_neon - fft_tab_neon
+        .quad fft240_neon - fft_tab_neon
+        .quad fft480_neon - fft_tab_neon
+        .quad fft960_neon - fft_tab_neon
 endconst
 
 function ff_celt_imdct_half_neon, export=1
@@ -641,7 +641,7 @@ function ff_celt_imdct_half_neon, export=1
 endfunc
 
 // [0] = exp(2 * i * pi / 5), [1] = exp(2 * i * pi * 2 / 5)
-const   fact5           align=4
+const   fact5,          align=4
         .float           0.30901699437494745, 0.95105651629515353
         .float          -0.80901699437494734, 0.58778525229247325
 endconst

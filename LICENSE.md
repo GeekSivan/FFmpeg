@@ -15,6 +15,7 @@ Specifically, the GPL parts of FFmpeg are:
 - libpostproc
 - libmpcodecs
 - optional x86 optimizations in the files
+  libavcodec/x86/flac_dsp_gpl.asm
   libavcodec/x86/idct_mmx.c
 - libutvideo encoding/decoding wrappers in
   libavcodec/libutvideo*.cpp
@@ -33,6 +34,7 @@ Specifically, the GPL parts of FFmpeg are:
     - vf_geq.c
     - vf_histeq.c
     - vf_hqdn3d.c
+    - vf_interlace.c
     - vf_kerndeint.c
     - vf_mcdeint.c
     - vf_mp.c
@@ -62,6 +64,7 @@ There are a handful of files under other licensing terms, namely:
   documentation accompanying your program if you only distribute executables.
   You must also indicate any changes including additions and deletions to
   those three files in the documentation.
+  tests/reference.pnm is under the expat license
 
 
 external libraries
