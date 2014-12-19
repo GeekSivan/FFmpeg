@@ -819,6 +819,10 @@ static void do_subtitle_out(AVFormatContext *s,
 
     if (!subtitle_out) {
         subtitle_out = av_malloc(subtitle_out_max_size);
+        if (!subtitle_out) {
+            av_log(NULL, AV_LOG_FATAL, "Failed to allocate subtitle_out\n");
+            exit_program(1);
+        }
     }
 
     /* Note: DVB subtitle need one packet to draw them and one other
@@ -2740,6 +2744,7 @@ static int transcode_init(void)
                     sar = dec_ctx->sample_aspect_ratio;
                 ost->st->sample_aspect_ratio = enc_ctx->sample_aspect_ratio = sar;
                 ost->st->avg_frame_rate = ist->st->avg_frame_rate;
+                ost->st->r_frame_rate = ist->st->r_frame_rate;
                 break;
             case AVMEDIA_TYPE_SUBTITLE:
                 enc_ctx->width  = dec_ctx->width;

@@ -174,7 +174,7 @@ static void softthresh_mmx(int16_t dst[64], const int16_t src[64],
     dst[0] = (src[0] + 4) >> 3;
 }
 
-static void store_slice_mmx(uint8_t *dst, const int16_t *src,
+static void store_slice_mmx(uint8_t *dst, const uint16_t *src,
                             int dst_stride, int src_stride,
                             int width, int height, int log2_scale,
                             const uint8_t dither[8][8])
@@ -224,9 +224,11 @@ av_cold void ff_spp_init_x86(SPPContext *s)
 
     if (cpu_flags & AV_CPU_FLAG_MMX) {
         s->store_slice = store_slice_mmx;
-        switch (s->mode) {
-        case 0: s->requantize = hardthresh_mmx; break;
-        case 1: s->requantize = softthresh_mmx; break;
+        if (av_get_int(s->dct, "bits_per_sample", NULL) <= 8) {
+            switch (s->mode) {
+            case 0: s->requantize = hardthresh_mmx; break;
+            case 1: s->requantize = softthresh_mmx; break;
+            }
         }
     }
 #endif

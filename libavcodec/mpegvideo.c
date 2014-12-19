@@ -361,7 +361,8 @@ static void mpeg_er_decode_mb(void *opaque, int ref, int mv_dir, int mv_type,
     s->dest[2] = s->current_picture.f->data[2] + (s->mb_y * (16 >> s->chroma_y_shift) * s->uvlinesize) + s->mb_x * (16 >> s->chroma_x_shift);
 
     if (ref)
-        av_log(s->avctx, AV_LOG_DEBUG, "Interlaced error concealment is not fully implemented\n");
+        av_log(s->avctx, AV_LOG_DEBUG,
+               "Interlaced error concealment is not fully implemented\n");
     ff_mpv_decode_mb(s, s->block);
 }
 
@@ -1014,6 +1015,11 @@ do {\
     UPDATE_PICTURE(current_picture);
     UPDATE_PICTURE(last_picture);
     UPDATE_PICTURE(next_picture);
+
+#define REBASE_PICTURE(pic, new_ctx, old_ctx)                                 \
+    ((pic && pic >= old_ctx->picture &&                                       \
+      pic < old_ctx->picture + MAX_PICTURE_COUNT) ?                           \
+        &new_ctx->picture[pic - old_ctx->picture] : NULL)
 
     s->last_picture_ptr    = REBASE_PICTURE(s1->last_picture_ptr,    s, s1);
     s->current_picture_ptr = REBASE_PICTURE(s1->current_picture_ptr, s, s1);
