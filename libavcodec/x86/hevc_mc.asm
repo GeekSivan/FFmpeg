@@ -150,13 +150,8 @@ QPEL_TABLE 10, 8, w, avx2
   %else
     shl              %2q, 5                      ; multiply by 32
 %endif
-%if %0 == 2
-    mova           m14, [rfilterq + %2q]        ; get 2 first values of filters
-    mova           m15, [rfilterq + %2q+%%offset]     ; get 2 last values of filters
-%else
     mova           %3, [rfilterq + %2q]        ; get 2 first values of filters
     mova           %4, [rfilterq + %2q+%%offset]     ; get 2 last values of filters
-%endif
 %endmacro
 
 %macro EPEL_HV_FILTER 1
