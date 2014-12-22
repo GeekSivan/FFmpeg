@@ -105,26 +105,26 @@ typedef struct HEVCDSPContext {
 
 
     void (*hevc_h_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
-                                    int beta, int *tc,
+                                    int beta, int32_t *tc,
                                     uint8_t *no_p, uint8_t *no_q);
     void (*hevc_v_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
-                                    int beta, int *tc,
+                                    int beta, int32_t *tc,
                                     uint8_t *no_p, uint8_t *no_q);
     void (*hevc_h_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
-                                      int *tc, uint8_t *no_p, uint8_t *no_q);
+                                      int32_t *tc, uint8_t *no_p, uint8_t *no_q);
     void (*hevc_v_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
-                                      int *tc, uint8_t *no_p, uint8_t *no_q);
+                                      int32_t *tc, uint8_t *no_p, uint8_t *no_q);
     void (*hevc_h_loop_filter_luma_c)(uint8_t *pix, ptrdiff_t stride,
-                                      int beta, int *tc,
+                                      int beta, int32_t *tc,
                                       uint8_t *no_p, uint8_t *no_q);
     void (*hevc_v_loop_filter_luma_c)(uint8_t *pix, ptrdiff_t stride,
-                                      int beta, int *tc,
+                                      int beta, int32_t *tc,
                                       uint8_t *no_p, uint8_t *no_q);
     void (*hevc_h_loop_filter_chroma_c)(uint8_t *pix, ptrdiff_t stride,
-                                        int *tc, uint8_t *no_p,
+                                        int32_t *tc, uint8_t *no_p,
                                         uint8_t *no_q);
     void (*hevc_v_loop_filter_chroma_c)(uint8_t *pix, ptrdiff_t stride,
-                                        int *tc, uint8_t *no_p,
+                                        int32_t *tc, uint8_t *no_p,
                                         uint8_t *no_q);
 
     void (*upsample_base_layer_frame)  (struct AVFrame *FrameEL, struct AVFrame *FrameBL, short *Buffer[3], const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info, int channel);
