@@ -153,7 +153,6 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
         s->buffer_frame[1] = av_malloc((pic_size>>2)*sizeof(short));
         s->buffer_frame[2] = av_malloc((pic_size>>2)*sizeof(short));
         s->is_upsampled = av_malloc(sps->ctb_width * sps->ctb_height);
-        s->dynamic_alloc += (sps->ctb_width * sps->ctb_height);
 #else
 #if !ACTIVE_PU_UPSAMPLING
         s->buffer_frame[0] = av_malloc(pic_size*sizeof(short));
@@ -161,7 +160,6 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
         s->buffer_frame[2] = av_malloc((pic_size>>2)*sizeof(short));
 #else
         s->is_upsampled = av_malloc(sps->ctb_width * sps->ctb_height);
-        s->dynamic_alloc += (sps->ctb_width * sps->ctb_height);
 #endif
 #endif
     }
@@ -2440,10 +2438,11 @@ static void hls_decode_neighbour(HEVCContext *s, int x_ctb, int y_ctb,
         if (ctb_addr_in_slice < s->sps->ctb_width)
             lc->boundary_flags |= BOUNDARY_UPPER_SLICE;
     }
-    lc->ctb_left_flag = ((x_ctb > 0) && (ctb_addr_in_slice > 0)                  && !(lc->boundary_flags & BOUNDARY_LEFT_TILE));
+
+    lc->ctb_left_flag = ((x_ctb > 0) && (ctb_addr_in_slice > 0) && !(lc->boundary_flags & BOUNDARY_LEFT_TILE));
     lc->ctb_up_flag   = ((y_ctb > 0) && (ctb_addr_in_slice >= s->sps->ctb_width) && !(lc->boundary_flags & BOUNDARY_UPPER_TILE));
-    lc->ctb_up_right_flag = ((y_ctb > 0)                 && (ctb_addr_in_slice+1 >= s->sps->ctb_width) && (s->pps->tile_id[ctb_addr_ts] == s->pps->tile_id[s->pps->ctb_addr_rs_to_ts[ctb_addr_rs+1 - s->sps->ctb_width]]));
-    lc->ctb_up_left_flag  = ((x_ctb > 0) && (y_ctb > 0)  && (ctb_addr_in_slice-1 >= s->sps->ctb_width) && (s->pps->tile_id[ctb_addr_ts] == s->pps->tile_id[s->pps->ctb_addr_rs_to_ts[ctb_addr_rs-1 - s->sps->ctb_width]]));
+    lc->ctb_up_right_flag = ((y_ctb > 0)  && (ctb_addr_in_slice+1 >= s->sps->ctb_width) && (s->pps->tile_id[ctb_addr_ts] == s->pps->tile_id[s->pps->ctb_addr_rs_to_ts[ctb_addr_rs+1 - s->sps->ctb_width]]));
+    lc->ctb_up_left_flag = ((x_ctb > 0) && (y_ctb > 0)  && (ctb_addr_in_slice-1 >= s->sps->ctb_width) && (s->pps->tile_id[ctb_addr_ts] == s->pps->tile_id[s->pps->ctb_addr_rs_to_ts[ctb_addr_rs-1 - s->sps->ctb_width]]));
 }
 
 static int hls_decode_entry(AVCodecContext *avctxt, void *isFilterThread)
@@ -2471,8 +2470,8 @@ static int hls_decode_entry(AVCodecContext *avctxt, void *isFilterThread)
     while (more_data && ctb_addr_ts < s->sps->ctb_size) {
         int ctb_addr_rs = s->pps->ctb_addr_ts_to_rs[ctb_addr_ts];
 
-        x_ctb = (ctb_addr_rs % ((s->sps->width + ctb_size - 1) >> s->sps->log2_ctb_size)) << s->sps->log2_ctb_size;
-        y_ctb = (ctb_addr_rs / ((s->sps->width + ctb_size - 1) >> s->sps->log2_ctb_size)) << s->sps->log2_ctb_size;
+        x_ctb = FFUMOD(ctb_addr_rs, s->sps->ctb_width) << s->sps->log2_ctb_size;
+        y_ctb = FFUDIV(ctb_addr_rs, s->sps->ctb_width) << s->sps->log2_ctb_size;
         hls_decode_neighbour(s, x_ctb, y_ctb, ctb_addr_ts);
 
         ff_hevc_cabac_init(s, ctb_addr_ts);
@@ -3331,6 +3330,13 @@ static int decode_nal_units(HEVCContext *s, const uint8_t *buf, int length)
         nal = &s->nals[s->nb_nals];
 
         consumed = ff_hevc_extract_rbsp(s, buf, extract_length, nal);
+
+        if (s->is_nalff && consumed != extract_length) {
+            av_log(s->avctx, AV_LOG_WARNING,
+                   "NALU type #%d, Consumed rbsp not equal to extracted length from mp4 (%d!=%d)\n",
+                   s->nal_unit_type, consumed, extract_length);
+            consumed = extract_length;
+        }
 
         s->skipped_bytes_nal[s->nb_nals] = s->skipped_bytes;
         s->skipped_bytes_pos_size_nal[s->nb_nals] = s->skipped_bytes_pos_size;

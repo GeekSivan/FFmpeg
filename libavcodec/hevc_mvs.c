@@ -255,7 +255,7 @@ static int temporal_luma_motion_vector(HEVCContext *s, int x0, int y0,
         x < s->sps->width) {
         x                 &= ~15;
         y                 &= ~15;
-        if (s->threads_type == FF_THREAD_FRAME)
+        if (s->threads_type & FF_THREAD_FRAME)
             ff_thread_await_progress(&ref->tf, y, 0);
         x_pu               = x >> s->sps->log2_min_pu_size;
         y_pu               = y >> s->sps->log2_min_pu_size;
@@ -269,7 +269,7 @@ static int temporal_luma_motion_vector(HEVCContext *s, int x0, int y0,
         y                  = y0 + (nPbH >> 1);
         x                 &= ~15;
         y                 &= ~15;
-        if (s->threads_type == FF_THREAD_FRAME)
+        if (s->threads_type & FF_THREAD_FRAME)
             ff_thread_await_progress(&ref->tf, y, 0);
         x_pu               = x >> s->sps->log2_min_pu_size;
         y_pu               = y >> s->sps->log2_min_pu_size;
