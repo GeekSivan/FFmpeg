@@ -303,24 +303,27 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
 
             ret = av_frame_ref(dst, src);
 
+            if (frame->frame->interlaced_frame)
+                for (i = 0; i < 3; i++)
+                    dst->linesize[i] /= 2;
+
             if (frame->flags & HEVC_FRAME_FLAG_BUMPING)
                 ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
             else
                 ff_hevc_unref_frame(s, frame, HEVC_FRAME_FLAG_OUTPUT);
 
-            if (field &&
-                field->frame->interlaced_frame &&
-                 (field->field_order != AV_FIELD_TT ||
-                 field->field_order != AV_FIELD_BB)) {
+            if (frame->field_order == AV_FIELD_TT ||
+                frame->field_order == AV_FIELD_BB) {
+                if (field &&
+                    field->frame->interlaced_frame &&
+                    (field->field_order != AV_FIELD_TT ||
+                     field->field_order != AV_FIELD_BB)) {
 
-                 if (field->flags & HEVC_FRAME_FLAG_BUMPING)
-                    ff_hevc_unref_frame(s, field, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
-                 else
-                    ff_hevc_unref_frame(s, field, HEVC_FRAME_FLAG_OUTPUT);
+                    if (field->flags & HEVC_FRAME_FLAG_BUMPING)
+                        ff_hevc_unref_frame(s, field, HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_BUMPING);
+                    else
+                        ff_hevc_unref_frame(s, field, HEVC_FRAME_FLAG_OUTPUT);
 
-                if (frame->frame->interlaced_frame) {
-                    for (i = 0; i < 3; i++)
-                        dst->linesize[i] /= 2;
                 }
             }
 
