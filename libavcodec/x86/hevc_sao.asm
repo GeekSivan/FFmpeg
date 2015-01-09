@@ -27,6 +27,8 @@ edge_shuffle:          db   1, 2, 0, 3, 4
 
 SECTION_TEXT 32
 
+%if ARCH_X86_64
+
 %macro LOOP_END 4
     add              %1q, %2q                    ; dst += dststride
     add              %3q, %4q                    ; src += srcstride
@@ -691,3 +693,4 @@ cglobal hevc_sao_band_filter_0_64_8, 7, 7, 6, dst, src, dststride, srcstride, of
 
     LOOP_END        dst, dststride, src, srcstride
     RET
+%endif
