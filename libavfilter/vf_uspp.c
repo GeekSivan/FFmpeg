@@ -250,7 +250,7 @@ static void filter(USPPContext *p, uint8_t *dst[3], uint8_t *src[3],
         const int y1c = y1 >> p->vsub;
         const int BLOCKc = BLOCK >> p->hsub;
         int offset;
-        AVPacket pkt;
+        AVPacket pkt = {0};
         int got_pkt_ptr;
 
         av_init_packet(&pkt);
@@ -335,9 +335,9 @@ static int config_input(AVFilterLink *inlink)
         int h = ((height + 4 * BLOCK-1) & (~(2 * BLOCK-1))) >> (is_chroma ? uspp->vsub : 0);
 
         uspp->temp_stride[i] = w;
-        if (!(uspp->temp[i] = av_malloc(uspp->temp_stride[i] * h * sizeof(int16_t))))
+        if (!(uspp->temp[i] = av_malloc_array(uspp->temp_stride[i], h * sizeof(int16_t))))
             return AVERROR(ENOMEM);
-        if (!(uspp->src [i] = av_malloc(uspp->temp_stride[i] * h * sizeof(uint8_t))))
+        if (!(uspp->src [i] = av_malloc_array(uspp->temp_stride[i], h * sizeof(uint8_t))))
             return AVERROR(ENOMEM);
     }
 

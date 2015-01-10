@@ -34,6 +34,7 @@ static const AVOption idet_options[] = {
     { "prog_thres", "set progressive threshold", OFFSET(progressive_threshold), AV_OPT_TYPE_FLOAT, {.dbl = 1.5},  -1, FLT_MAX, FLAGS },
     { "rep_thres",  "set repeat threshold",      OFFSET(repeat_threshold),      AV_OPT_TYPE_FLOAT, {.dbl = 3.0},  -1, FLT_MAX, FLAGS },
     { "half_life", "half life of cumulative statistics", OFFSET(half_life),     AV_OPT_TYPE_FLOAT, {.dbl = 0.0},  -1, INT_MAX, FLAGS },
+    { "analyze_interlaced_flag", "set number of frames to use to determine if the interlace flag is accurate", OFFSET(analyze_interlaced_flag), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, INT_MAX, FLAGS },
     { NULL }
 };
 
@@ -235,6 +236,19 @@ static int filter_frame(AVFilterLink *link, AVFrame *picref)
     AVFilterContext *ctx = link->dst;
     IDETContext *idet = ctx->priv;
 
+    // initial frame(s) and not interlaced, just pass through for
+    // the analyze_interlaced_flag mode
+    if (idet->analyze_interlaced_flag &&
+        !picref->interlaced_frame &&
+        !idet->next) {
+        return ff_filter_frame(ctx->outputs[0], picref);
+    }
+    if (idet->analyze_interlaced_flag_done) {
+        if (picref->interlaced_frame && idet->interlaced_flag_accuracy < 0)
+            picref->interlaced_frame = 0;
+        return ff_filter_frame(ctx->outputs[0], picref);
+    }
+
     if (idet->prev)
         av_frame_free(&idet->prev);
     idet->prev = idet->cur;
@@ -256,7 +270,30 @@ static int filter_frame(AVFilterLink *link, AVFrame *picref)
             ff_idet_init_x86(idet, 1);
     }
 
-    filter(ctx);
+    if (idet->analyze_interlaced_flag) {
+        if (idet->cur->interlaced_frame) {
+            idet->cur->interlaced_frame = 0;
+            filter(ctx);
+            if (idet->last_type == PROGRESSIVE) {
+                idet->interlaced_flag_accuracy --;
+                idet->analyze_interlaced_flag --;
+            } else if (idet->last_type != UNDETERMINED) {
+                idet->interlaced_flag_accuracy ++;
+                idet->analyze_interlaced_flag --;
+            }
+            if (idet->analyze_interlaced_flag == 1) {
+                ff_filter_frame(ctx->outputs[0], av_frame_clone(idet->cur));
+
+                if (idet->next->interlaced_frame && idet->interlaced_flag_accuracy < 0)
+                    idet->next->interlaced_frame = 0;
+                idet->analyze_interlaced_flag_done = 1;
+                av_log(ctx, AV_LOG_INFO, "Final flag accuracy %d\n", idet->interlaced_flag_accuracy);
+                return ff_filter_frame(ctx->outputs[0], av_frame_clone(idet->next));
+            }
+        }
+    } else {
+        filter(ctx);
+    }
 
     return ff_filter_frame(ctx->outputs[0], av_frame_clone(idet->cur));
 }
@@ -274,7 +311,7 @@ static int request_frame(AVFilterLink *link)
 
         ret = ff_request_frame(link->src->inputs[0]);
 
-        if (ret == AVERROR_EOF && idet->cur) {
+        if (ret == AVERROR_EOF && idet->cur && !idet->analyze_interlaced_flag_done) {
             AVFrame *next = av_frame_clone(idet->next);
 
             if (!next)
@@ -285,7 +322,7 @@ static int request_frame(AVFilterLink *link)
         } else if (ret < 0) {
             return ret;
         }
-    } while (!idet->prev);
+    } while (link->frame_requested);
 
     return 0;
 }
@@ -332,9 +369,18 @@ static int query_formats(AVFilterContext *ctx)
         AV_PIX_FMT_GRAY16,
         AV_PIX_FMT_YUV440P,
         AV_PIX_FMT_YUVJ440P,
+        AV_PIX_FMT_YUV420P9,
+        AV_PIX_FMT_YUV422P9,
+        AV_PIX_FMT_YUV444P9,
         AV_PIX_FMT_YUV420P10,
         AV_PIX_FMT_YUV422P10,
         AV_PIX_FMT_YUV444P10,
+        AV_PIX_FMT_YUV420P12,
+        AV_PIX_FMT_YUV422P12,
+        AV_PIX_FMT_YUV444P12,
+        AV_PIX_FMT_YUV420P14,
+        AV_PIX_FMT_YUV422P14,
+        AV_PIX_FMT_YUV444P14,
         AV_PIX_FMT_YUV420P16,
         AV_PIX_FMT_YUV422P16,
         AV_PIX_FMT_YUV444P16,
