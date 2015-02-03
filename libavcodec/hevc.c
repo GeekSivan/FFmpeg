@@ -3154,6 +3154,7 @@ static int hevc_ref_frame(HEVCContext *s, HEVCFrame *dst, HEVCFrame *src)
     dst->window     = src->window;
     dst->flags      = src->flags;
     dst->sequence   = src->sequence;
+    dst->field_order= src->field_order;
 
     if (src->hwaccel_picture_private) {
         dst->hwaccel_priv_buf = av_buffer_ref(src->hwaccel_priv_buf);

@@ -701,6 +701,7 @@ typedef struct DBParams {
 #define HEVC_FRAME_FLAG_SHORT_REF (1 << 1)
 #define HEVC_FRAME_FLAG_LONG_REF  (1 << 2)
 #define HEVC_FRAME_FLAG_BUMPING   (1 << 3)
+#define HEVC_FRAME_FIRST_FIELD    (1 << 4)
 
 typedef struct HEVCFrame {
     AVFrame *frame;
@@ -731,6 +732,7 @@ typedef struct HEVCFrame {
      * A combination of HEVC_FRAME_FLAG_*
      */
     uint8_t flags;
+    uint8_t field_order;
 } HEVCFrame;
 
 typedef struct HEVCNAL {
@@ -922,6 +924,8 @@ typedef struct HEVCContext {
     int sei_hflip, sei_vflip;
 
     int picture_struct;
+    int field_order;
+    int interlaced;
 } HEVCContext;
 
 int ff_hevc_decode_short_term_rps(HEVCContext *s, ShortTermRPS *rps,
