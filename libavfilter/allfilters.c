@@ -132,6 +132,7 @@ void avfilter_register_all(void)
     REGISTER_FILTER(DRAWTEXT,       drawtext,       vf);
     REGISTER_FILTER(EDGEDETECT,     edgedetect,     vf);
     REGISTER_FILTER(ELBG,           elbg,           vf);
+    REGISTER_FILTER(EQ,             eq,             vf);
     REGISTER_FILTER(EXTRACTPLANES,  extractplanes,  vf);
     REGISTER_FILTER(FADE,           fade,           vf);
     REGISTER_FILTER(FIELD,          field,          vf);
@@ -142,6 +143,7 @@ void avfilter_register_all(void)
     REGISTER_FILTER(FRAMEPACK,      framepack,      vf);
     REGISTER_FILTER(FRAMESTEP,      framestep,      vf);
     REGISTER_FILTER(FREI0R,         frei0r,         vf);
+    REGISTER_FILTER(FSPP,           fspp,           vf);
     REGISTER_FILTER(GEQ,            geq,            vf);
     REGISTER_FILTER(GRADFUN,        gradfun,        vf);
     REGISTER_FILTER(HALDCLUT,       haldclut,       vf);
@@ -163,7 +165,6 @@ void avfilter_register_all(void)
     REGISTER_FILTER(LUTYUV,         lutyuv,         vf);
     REGISTER_FILTER(MCDEINT,        mcdeint,        vf);
     REGISTER_FILTER(MERGEPLANES,    mergeplanes,    vf);
-    REGISTER_FILTER(MP,             mp,             vf);
     REGISTER_FILTER(MPDECIMATE,     mpdecimate,     vf);
     REGISTER_FILTER(NEGATE,         negate,         vf);
     REGISTER_FILTER(NOFORMAT,       noformat,       vf);
@@ -178,8 +179,10 @@ void avfilter_register_all(void)
     REGISTER_FILTER(PHASE,          phase,          vf);
     REGISTER_FILTER(PIXDESCTEST,    pixdesctest,    vf);
     REGISTER_FILTER(PP,             pp,             vf);
+    REGISTER_FILTER(PP7,            pp7,            vf);
     REGISTER_FILTER(PSNR,           psnr,           vf);
     REGISTER_FILTER(PULLUP,         pullup,         vf);
+    REGISTER_FILTER(QP,             qp,             vf);
     REGISTER_FILTER(REMOVELOGO,     removelogo,     vf);
     REGISTER_FILTER(ROTATE,         rotate,         vf);
     REGISTER_FILTER(SAB,            sab,            vf);
@@ -193,6 +196,7 @@ void avfilter_register_all(void)
     REGISTER_FILTER(SETSAR,         setsar,         vf);
     REGISTER_FILTER(SETTB,          settb,          vf);
     REGISTER_FILTER(SHOWINFO,       showinfo,       vf);
+    REGISTER_FILTER(SHOWPALETTE,    showpalette,    vf);
     REGISTER_FILTER(SHUFFLEPLANES,  shuffleplanes,  vf);
     REGISTER_FILTER(SIGNALSTATS,    signalstats,    vf);
     REGISTER_FILTER(SMARTBLUR,      smartblur,      vf);
@@ -202,6 +206,7 @@ void avfilter_register_all(void)
     REGISTER_FILTER(SUBTITLES,      subtitles,      vf);
     REGISTER_FILTER(SUPER2XSAI,     super2xsai,     vf);
     REGISTER_FILTER(SWAPUV,         swapuv,         vf);
+    REGISTER_FILTER(TBLEND,         tblend,         vf);
     REGISTER_FILTER(TELECINE,       telecine,       vf);
     REGISTER_FILTER(THUMBNAIL,      thumbnail,      vf);
     REGISTER_FILTER(TILE,           tile,           vf);

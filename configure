@@ -226,6 +226,7 @@ External library support:
   --enable-libopencore-amrnb enable AMR-NB de/encoding via libopencore-amrnb [no]
   --enable-libopencore-amrwb enable AMR-WB decoding via libopencore-amrwb [no]
   --enable-libopencv       enable video filtering via libopencv [no]
+  --enable-libopenh264     enable H.264 encoding via OpenH264 [no]
   --enable-libopenjpeg     enable JPEG 2000 de/encoding via OpenJPEG [no]
   --enable-libopus         enable Opus de/encoding via libopus [no]
   --enable-libpulse        enable Pulseaudio input via libpulse [no]
@@ -1367,6 +1368,7 @@ EXTERNAL_LIBRARY_LIST="
     libopencore_amrnb
     libopencore_amrwb
     libopencv
+    libopenh264
     libopenjpeg
     libopus
     libpulse
@@ -1640,7 +1642,6 @@ HEADERS_LIST="
     asm_types_h
     cdio_paranoia_h
     cdio_paranoia_paranoia_h
-    CL_cl_h
     dev_bktr_ioctl_bt848_h
     dev_bktr_ioctl_meteor_h
     dev_ic_bt8xx_h
@@ -1741,7 +1742,6 @@ SYSTEM_FUNCS="
     lzo1x_999_compress
     mach_absolute_time
     MapViewOfFile
-    MoveFileExA
     memalign
     mkstemp
     mmap
@@ -1788,6 +1788,7 @@ TOOLCHAIN_FEATURES="
 
 TYPES_LIST="
     CONDITION_VARIABLE_Ptr
+    DXVA_PicParams_HEVC
     socklen_t
     struct_addrinfo
     struct_group_source_req
@@ -1867,6 +1868,7 @@ CONFIG_EXTRA="
     huffyuvencdsp
     idctdsp
     iirfilter
+    imdct15
     intrax8
     lgplv3
     llauddsp
@@ -2191,6 +2193,7 @@ nellymoser_encoder_select="audio_frame_queue mdct sinewin"
 nuv_decoder_select="idctdsp lzo"
 on2avc_decoder_select="mdct"
 opus_decoder_deps="swresample"
+opus_decoder_select="imdct15"
 png_decoder_select="zlib"
 png_encoder_select="huffyuvencdsp zlib"
 prores_decoder_select="blockdsp idctdsp"
@@ -2293,6 +2296,8 @@ h264_vdpau_decoder_deps="vdpau"
 h264_vdpau_decoder_select="h264_decoder"
 h264_vdpau_hwaccel_deps="vdpau"
 h264_vdpau_hwaccel_select="h264_decoder"
+hevc_dxva2_hwaccel_deps="dxva2 DXVA_PicParams_HEVC"
+hevc_dxva2_hwaccel_select="hevc_decoder"
 mpeg_vdpau_decoder_deps="vdpau"
 mpeg_vdpau_decoder_select="mpeg2video_decoder"
 mpeg_xvmc_hwaccel_deps="xvmc"
@@ -2364,6 +2369,7 @@ libopencore_amrnb_decoder_deps="libopencore_amrnb"
 libopencore_amrnb_encoder_deps="libopencore_amrnb"
 libopencore_amrnb_encoder_select="audio_frame_queue"
 libopencore_amrwb_decoder_deps="libopencore_amrwb"
+libopenh264_encoder_deps="libopenh264"
 libopenjpeg_decoder_deps="libopenjpeg"
 libopenjpeg_encoder_deps="libopenjpeg"
 libopus_decoder_deps="libopus"
@@ -2486,7 +2492,7 @@ decklink_outdev_extralibs="-lstdc++"
 decklink_indev_deps="decklink pthreads"
 decklink_indev_extralibs="-lstdc++"
 dshow_indev_deps="IBaseFilter"
-dshow_indev_extralibs="-lpsapi -lole32 -lstrmiids -luuid"
+dshow_indev_extralibs="-lpsapi -lole32 -lstrmiids -luuid -loleaut32"
 dv1394_indev_deps="dv1394"
 dv1394_indev_select="dv_demuxer"
 fbdev_indev_deps="linux_fb_h"
@@ -2580,9 +2586,11 @@ delogo_filter_deps="gpl"
 deshake_filter_select="pixelutils"
 drawtext_filter_deps="libfreetype"
 ebur128_filter_deps="gpl"
+eq_filter_deps="gpl"
 flite_filter_deps="libflite"
 frei0r_filter_deps="frei0r dlopen"
 frei0r_src_filter_deps="frei0r dlopen"
+fspp_filter_deps="gpl"
 geq_filter_deps="gpl"
 histeq_filter_deps="gpl"
 hqdn3d_filter_deps="gpl"
@@ -2591,12 +2599,12 @@ kerndeint_filter_deps="gpl"
 ladspa_filter_deps="ladspa dlopen"
 mcdeint_filter_deps="avcodec gpl"
 movie_filter_deps="avcodec avformat"
-mp_filter_deps="gpl avcodec swscale"
 mpdecimate_filter_deps="gpl"
 mpdecimate_filter_select="pixelutils"
 mptestsrc_filter_deps="gpl"
 negate_filter_deps="lut_filter"
 perspective_filter_deps="gpl"
+pp7_filter_deps="gpl"
 ocv_filter_deps="libopencv"
 owdenoise_filter_deps="gpl"
 pan_filter_deps="swresample"
@@ -2685,7 +2693,6 @@ docdir_default='${prefix}/share/doc/ffmpeg'
 incdir_default='${prefix}/include'
 libdir_default='${prefix}/lib'
 mandir_default='${prefix}/share/man'
-shlibdir_default='${LIBDIR}'
 
 # toolchain
 ar_default="ar"
@@ -2699,7 +2706,11 @@ ln_s="ln -s -f"
 nm_default="nm -g"
 objformat="elf"
 pkg_config_default=pkg-config
-ranlib_default="ranlib"
+if ranlib 2>&1 | grep -q "\-D "; then
+    ranlib_default="ranlib -D"
+else
+    ranlib_default="ranlib"
+fi
 strip_default="strip"
 yasmexe_default="yasm"
 windres_default="windres"
@@ -3219,6 +3230,7 @@ msvc_common_flags(){
             -lavifil32)           echo vfw32.lib ;;
             -lavicap32)           echo vfw32.lib user32.lib ;;
             -l*)                  echo ${flag#-l}.lib ;;
+            -L*)                  echo -libpath:${flag#-L} ;;
             *)                    echo $flag ;;
         esac
     done
@@ -3595,6 +3607,9 @@ elif $ar 2>&1 | grep -q 'Texas Instruments'; then
     ar_o='$@'
 elif $ar 2>&1 | grep -q 'Usage: ar.*-X.*any'; then
     arflags='-Xany -r -c'
+    ar_o='$@'
+elif $ar 2>&1 | grep -q "\[D\] "; then
+    arflags="rcD"
     ar_o='$@'
 else
     arflags="rc"
@@ -4325,6 +4340,9 @@ echo "config:$arch:$subarch:$cpu:$target_os:$(esc $cc_ident):$(esc $FFMPEG_CONFI
 
 check_cpp_condition stdlib.h "defined(__PIC__) || defined(__pic__) || defined(PIC)" && enable_weak pic
 
+set_default libdir
+: ${shlibdir_default:="$libdir"}
+
 set_default $PATHS_LIST
 set_default nm
 
@@ -4425,7 +4443,7 @@ unsigned int endian = 'B' << 24 | 'I' << 16 | 'G' << 8 | 'E';
 EOF
 od -t x1 $TMPO | grep -q '42 *49 *47 *45' && enable bigendian
 
-if  [ "$cpu" = "power7" ] || [ "$cpu" = "power8" ] ;then
+if  [ "$cpu" = "power7" ] || [ "$cpu" = "power8" ] || enabled ppc64; then
     if ! enabled bigendian && enabled altivec ;then
         enable vsx
     fi
@@ -4759,7 +4777,6 @@ check_func_headers windows.h GetProcessAffinityMask
 check_func_headers windows.h GetProcessTimes
 check_func_headers windows.h GetSystemTimeAsFileTime
 check_func_headers windows.h MapViewOfFile
-check_func_headers windows.h MoveFileExA
 check_func_headers windows.h PeekNamedPipe
 check_func_headers windows.h SetConsoleTextAttribute
 check_func_headers windows.h Sleep
@@ -4769,7 +4786,6 @@ check_func_headers glob.h glob
 enabled xlib &&
     check_func_headers "X11/Xlib.h X11/extensions/Xvlib.h" XvGetPortAttribute -lXv -lX11 -lXext
 
-check_header cl/cl.h
 check_header direct.h
 check_header dlfcn.h
 check_header dxva.h
@@ -4800,6 +4816,8 @@ check_lib2 "windows.h wincrypt.h" CryptGenRandom -ladvapi32
 check_lib2 "windows.h psapi.h" GetProcessMemoryInfo -lpsapi
 
 check_struct "sys/time.h sys/resource.h" "struct rusage" ru_maxrss
+
+check_type "windows.h dxva.h" "DXVA_PicParams_HEVC"
 
 if ! disabled w32threads && ! enabled pthreads; then
     check_func_headers "windows.h process.h" _beginthreadex &&
@@ -4886,6 +4904,7 @@ enabled libnut            && require libnut libnut.h nut_demuxer_init -lnut
 enabled libopencore_amrnb && require libopencore_amrnb opencore-amrnb/interf_dec.h Decoder_Interface_init -lopencore-amrnb
 enabled libopencore_amrwb && require libopencore_amrwb opencore-amrwb/dec_if.h D_IF_init -lopencore-amrwb
 enabled libopencv         && require_pkg_config opencv opencv/cxcore.h cvCreateImageHeader
+enabled libopenh264       && require_pkg_config openh264 wels/codec_api.h WelsGetCodecVersion
 enabled libopenjpeg       && { check_lib openjpeg.h opj_version -lopenmj2 -DOPJ_STATIC ||
                                check_lib openjpeg-1.5/openjpeg.h opj_version -lopenjpeg -DOPJ_STATIC ||
                                check_lib openjpeg.h opj_version -lopenjpeg -DOPJ_STATIC ||
@@ -5058,8 +5077,8 @@ enabled xlib &&
     check_lib X11/Xlib.h XOpenDisplay -lX11 || disable xlib
 
 if ! disabled libxcb; then
-    check_pkg_config xcb xcb/xcb.h xcb_connect || {
-        enabled libxcb && die "ERROR: libxcb not found";
+    check_pkg_config "xcb >= 1.4" xcb/xcb.h xcb_connect || {
+        enabled libxcb && die "ERROR: libxcb >= 1.4 not found";
     } && disable x11grab && enable libxcb
 
 if enabled libxcb; then
@@ -5406,7 +5425,6 @@ enabled ebur128_filter && enabled swresample && prepend avfilter_deps "swresampl
 enabled elbg_filter         && prepend avfilter_deps "avcodec"
 enabled mcdeint_filter      && prepend avfilter_deps "avcodec"
 enabled movie_filter    && prepend avfilter_deps "avformat avcodec"
-enabled mp_filter           && prepend avfilter_deps "avcodec"
 enabled pan_filter          && prepend avfilter_deps "swresample"
 enabled pp_filter           && prepend avfilter_deps "postproc"
 enabled removelogo_filter   && prepend avfilter_deps "avformat avcodec swscale"
@@ -5694,7 +5712,7 @@ cat > $TMPH <<EOF
 #define FFMPEG_CONFIG_H
 #define FFMPEG_CONFIGURATION "$(c_escape $FFMPEG_CONFIGURATION)"
 #define FFMPEG_LICENSE "$(c_escape $license)"
-#define CONFIG_THIS_YEAR 2014
+#define CONFIG_THIS_YEAR 2015
 #define FFMPEG_DATADIR "$(eval c_escape $datadir)"
 #define AVCONV_DATADIR "$(eval c_escape $datadir)"
 #define CC_IDENT "$(c_escape ${cc_ident:-Unknown compiler})"

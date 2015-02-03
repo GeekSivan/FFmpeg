@@ -1032,6 +1032,12 @@ enum AVPacketSideDataType {
     AV_PKT_DATA_STEREO3D,
 
     /**
+     * This side data should be associated with an audio stream and corresponds
+     * to enum AVAudioServiceType.
+     */
+    AV_PKT_DATA_AUDIO_SERVICE_TYPE,
+
+    /**
      * Recommmends skipping the specified number of samples
      * @code
      * u32le number of samples to skip from start of this packet
@@ -1260,13 +1266,13 @@ typedef struct AVCodecContext {
      */
     unsigned int codec_tag;
 
+#if FF_API_STREAM_CODEC_TAG
     /**
-     * fourcc from the AVI stream header (LSB first, so "ABCD" -> ('D'<<24) + ('C'<<16) + ('B'<<8) + 'A').
-     * This is used to work around some encoder bugs.
-     * - encoding: unused
-     * - decoding: Set by user, will be converted to uppercase by libavcodec during init.
+     * @deprecated this field is unused
      */
+    attribute_deprecated
     unsigned int stream_codec_tag;
+#endif
 
     void *priv_data;
 
@@ -3005,6 +3011,13 @@ typedef struct AVCodecContext {
     AVRational framerate;
 
     /**
+     * Nominal unaccelerated pixel format, see AV_PIX_FMT_xxx.
+     * - encoding: unused.
+     * - decoding: Set by libavcodec before calling get_format()
+     */
+    enum AVPixelFormat sw_pix_fmt;
+
+    /**
      * Timebase in which pkt_dts/pts and AVPacket.dts/pts are.
      * Code outside libavcodec should access this field using:
      * av_codec_{get,set}_pkt_timebase(avctx)
@@ -3395,6 +3408,12 @@ typedef struct AVHWAccel {
  * hardware driver.
  */
 #define AV_HWACCEL_FLAG_IGNORE_LEVEL (1 << 0)
+
+/**
+ * Hardware acceleration can output YUV pixel formats with a different chroma
+ * sampling than 4:2:0 and/or other than 8 bits per component.
+ */
+#define AV_HWACCEL_FLAG_ALLOW_HIGH_DEPTH (1 << 1)
 
 /**
  * @}

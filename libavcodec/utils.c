@@ -66,6 +66,9 @@
 #include "compat/os2threads.h"
 #endif
 
+#include "libavutil/ffversion.h"
+const char av_codec_ffversion[] = "FFmpeg version " FFMPEG_VERSION;
+
 #if HAVE_PTHREADS || HAVE_W32THREADS || HAVE_OS2THREADS
 static int default_lockmgr_cb(void **arg, enum AVLockOp op)
 {
@@ -294,8 +297,8 @@ void avcodec_align_dimensions2(AVCodecContext *s, int *width, int *height,
     case AV_PIX_FMT_YUV422P:
     case AV_PIX_FMT_YUV440P:
     case AV_PIX_FMT_YUV444P:
-    case AV_PIX_FMT_GBRAP:
     case AV_PIX_FMT_GBRP:
+    case AV_PIX_FMT_GBRAP:
     case AV_PIX_FMT_GRAY8:
     case AV_PIX_FMT_GRAY16BE:
     case AV_PIX_FMT_GRAY16LE:
@@ -743,6 +746,7 @@ int ff_init_buffer_info(AVCodecContext *avctx, AVFrame *frame)
         { AV_PKT_DATA_REPLAYGAIN ,   AV_FRAME_DATA_REPLAYGAIN },
         { AV_PKT_DATA_DISPLAYMATRIX, AV_FRAME_DATA_DISPLAYMATRIX },
         { AV_PKT_DATA_STEREO3D,      AV_FRAME_DATA_STEREO3D },
+        { AV_PKT_DATA_AUDIO_SERVICE_TYPE, AV_FRAME_DATA_AUDIO_SERVICE_TYPE },
     };
 
     if (pkt) {
@@ -887,10 +891,13 @@ static int get_buffer_internal(AVCodecContext *avctx, AVFrame *frame, int flags)
     if ((ret = ff_init_buffer_info(avctx, frame)) < 0)
         return ret;
 
-    if (hwaccel && hwaccel->alloc_frame) {
-        ret = hwaccel->alloc_frame(avctx, frame);
-        goto end;
-    }
+    if (hwaccel) {
+        if (hwaccel->alloc_frame) {
+            ret = hwaccel->alloc_frame(avctx, frame);
+            goto end;
+        }
+    } else
+        avctx->sw_pix_fmt = avctx->pix_fmt;
 
 #if FF_API_GET_BUFFER
 FF_DISABLE_DEPRECATION_WARNINGS
@@ -1192,6 +1199,10 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
 
     while (fmt[n] != AV_PIX_FMT_NONE)
         ++n;
+
+    av_assert0(n >= 1);
+    avctx->sw_pix_fmt = fmt[n - 1];
+    av_assert2(!is_hwaccel_pix_fmt(avctx->sw_pix_fmt));
 
     choices = av_malloc_array(n + 1, sizeof(*choices));
     if (!choices)
@@ -1844,6 +1855,13 @@ int attribute_align_arg avcodec_encode_audio2(AVCodecContext *avctx,
         memcpy(extended_frame, frame, sizeof(AVFrame));
         extended_frame->extended_data = extended_frame->data;
         frame = extended_frame;
+    }
+
+    /* extract audio service type metadata */
+    if (frame) {
+        AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_AUDIO_SERVICE_TYPE);
+        if (sd && sd->size >= sizeof(enum AVAudioServiceType))
+            avctx->audio_service_type = *(enum AVAudioServiceType*)sd->data;
     }
 
     /* check for valid frame size */

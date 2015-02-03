@@ -65,6 +65,8 @@ typedef struct {
     int audio_pkt_cnt; ///< Output packet counter
 } RMDemuxContext;
 
+static int rm_read_close(AVFormatContext *s);
+
 static inline void get_strl(AVIOContext *pb, char *buf, int buf_size, int len)
 {
     int i;
@@ -505,6 +507,7 @@ static int rm_read_header(AVFormatContext *s)
     unsigned int data_off = 0, indx_off = 0;
     char buf[128], mime[128];
     int flags = 0;
+    int ret = -1;
 
     tag = avio_rl32(pb);
     if (tag == MKTAG('.', 'r', 'a', 0xfd)) {
@@ -519,7 +522,7 @@ static int rm_read_header(AVFormatContext *s)
 
     for(;;) {
         if (avio_feof(pb))
-            return -1;
+            goto fail;
         tag = avio_rl32(pb);
         tag_size = avio_rb32(pb);
         avio_rb16(pb);
@@ -531,7 +534,7 @@ static int rm_read_header(AVFormatContext *s)
                 tag,
                 tag_size);
         if (tag_size < 10 && tag != MKTAG('D', 'A', 'T', 'A'))
-            return -1;
+            goto fail;
         switch(tag) {
         case MKTAG('P', 'R', 'O', 'P'):
             /* file header */
@@ -553,8 +556,10 @@ static int rm_read_header(AVFormatContext *s)
             break;
         case MKTAG('M', 'D', 'P', 'R'):
             st = avformat_new_stream(s, NULL);
-            if (!st)
-                return AVERROR(ENOMEM);
+            if (!st) {
+                ret = AVERROR(ENOMEM);
+                goto fail;
+            }
             st->id = avio_rb16(pb);
             avio_rb32(pb); /* max bit rate */
             st->codec->bit_rate = avio_rb32(pb); /* bit rate */
@@ -573,7 +578,7 @@ static int rm_read_header(AVFormatContext *s)
             st->priv_data = ff_rm_alloc_rmstream();
             if (ff_rm_read_mdpr_codecdata(s, s->pb, st, st->priv_data,
                                           avio_rb32(pb), mime) < 0)
-                return -1;
+                goto fail;
             break;
         case MKTAG('D', 'A', 'T', 'A'):
             goto header_end;
@@ -598,6 +603,10 @@ static int rm_read_header(AVFormatContext *s)
     }
 
     return 0;
+
+fail:
+    rm_read_close(s);
+    return ret;
 }
 
 static int get_num(AVIOContext *pb, int *len)
@@ -887,11 +896,14 @@ ff_rm_parse_packet (AVFormatContext *s, AVIOContext *pb,
             } else
                 return -1;
         } else {
-            av_get_packet(pb, pkt, len);
+            if ((ret = av_get_packet(pb, pkt, len)) < 0)
+                return ret;
             rm_ac3_swap_bytes(st, pkt);
         }
-    } else
-        av_get_packet(pb, pkt, len);
+    } else {
+        if ((ret = av_get_packet(pb, pkt, len)) < 0)
+            return ret;
+    }
 
     pkt->stream_index = st->index;
 
@@ -924,9 +936,11 @@ ff_rm_retrieve_cache (AVFormatContext *s, AVIOContext *pb,
     av_assert0 (rm->audio_pkt_cnt > 0);
 
     if (ast->deint_id == DEINT_ID_VBRF ||
-        ast->deint_id == DEINT_ID_VBRS)
-        av_get_packet(pb, pkt, ast->sub_packet_lengths[ast->sub_packet_cnt - rm->audio_pkt_cnt]);
-    else {
+        ast->deint_id == DEINT_ID_VBRS) {
+        int ret = av_get_packet(pb, pkt, ast->sub_packet_lengths[ast->sub_packet_cnt - rm->audio_pkt_cnt]);
+        if (ret < 0)
+            return ret;
+    } else {
         int ret = av_new_packet(pkt, st->codec->block_align);
         if (ret < 0)
             return ret;

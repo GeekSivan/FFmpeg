@@ -1080,7 +1080,7 @@ static void ebml_free(EbmlSyntax *syntax, void *data)
                 for (j = 0; j < list->nb_elem;
                      j++, ptr += syntax[i].list_elem_size)
                     ebml_free(syntax[i].def.n, ptr);
-                av_free(list->elem);
+                av_freep(&list->elem);
             } else
                 ebml_free(syntax[i].def.n, data_off);
         default:
@@ -1929,8 +1929,8 @@ static int matroska_parse_tracks(AVFormatContext *s)
                 av_reduce(&st->avg_frame_rate.num, &st->avg_frame_rate.den,
                           1000000000, track->default_duration, 30000);
 #if FF_API_R_FRAME_RATE
-                if (   st->avg_frame_rate.num < st->avg_frame_rate.den * 1000L
-                    && st->avg_frame_rate.num > st->avg_frame_rate.den * 5L)
+                if (   st->avg_frame_rate.num < st->avg_frame_rate.den * 1000LL
+                    && st->avg_frame_rate.num > st->avg_frame_rate.den * 5LL)
                     st->r_frame_rate = st->avg_frame_rate;
 #endif
             }
@@ -2137,7 +2137,7 @@ static int matroska_deliver_packet(MatroskaDemuxContext *matroska,
 {
     if (matroska->num_packets > 0) {
         memcpy(pkt, matroska->packets[0], sizeof(AVPacket));
-        av_free(matroska->packets[0]);
+        av_freep(&matroska->packets[0]);
         if (matroska->num_packets > 1) {
             void *newpackets;
             memmove(&matroska->packets[0], &matroska->packets[1],
@@ -2168,7 +2168,7 @@ static void matroska_clear_queue(MatroskaDemuxContext *matroska)
         int n;
         for (n = 0; n < matroska->num_packets; n++) {
             av_free_packet(matroska->packets[n]);
-            av_free(matroska->packets[n]);
+            av_freep(&matroska->packets[n]);
         }
         av_freep(&matroska->packets);
         matroska->num_packets = 0;
@@ -2507,6 +2507,8 @@ static int matroska_parse_webvtt(MatroskaDemuxContext *matroska,
         return AVERROR_INVALIDDATA;
 
     pkt = av_mallocz(sizeof(*pkt));
+    if (!pkt)
+        return AVERROR(ENOMEM);
     err = av_new_packet(pkt, text_len);
     if (err < 0) {
         av_free(pkt);
@@ -2592,6 +2594,8 @@ static int matroska_parse_frame(MatroskaDemuxContext *matroska,
         offset = 8;
 
     pkt = av_mallocz(sizeof(AVPacket));
+    if (!pkt)
+        return AVERROR(ENOMEM);
     /* XXX: prevent data copy... */
     if (av_new_packet(pkt, pkt_size + offset) < 0) {
         av_free(pkt);
@@ -3006,7 +3010,7 @@ static int matroska_read_close(AVFormatContext *s)
 
     for (n = 0; n < matroska->tracks.nb_elem; n++)
         if (tracks[n].type == MATROSKA_TRACK_TYPE_AUDIO)
-            av_free(tracks[n].audio.buf);
+            av_freep(&tracks[n].audio.buf);
     ebml_free(matroska_cluster, &matroska->current_cluster);
     ebml_free(matroska_segment, matroska);
 
@@ -3309,7 +3313,7 @@ static int webm_dash_manifest_cues(AVFormatContext *s)
 
     // store cue point timestamps as a comma separated list for checking subsegment alignment in
     // the muxer. assumes that each timestamp cannot be more than 20 characters long.
-    buf = av_malloc(s->streams[0]->nb_index_entries * 20 * sizeof(char));
+    buf = av_malloc_array(s->streams[0]->nb_index_entries, 20 * sizeof(char));
     if (!buf) return -1;
     strcpy(buf, "");
     for (i = 0; i < s->streams[0]->nb_index_entries; i++) {

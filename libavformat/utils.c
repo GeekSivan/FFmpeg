@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#undef NDEBUG
-#include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
 
@@ -52,6 +50,9 @@
 #endif
 #include "riff.h"
 #include "url.h"
+
+#include "libavutil/ffversion.h"
+const char av_format_ffversion[] = "FFmpeg version " FFMPEG_VERSION;
 
 /**
  * @file
@@ -107,6 +108,7 @@ MAKE_ACCESSORS(AVStream, stream, char *, recommended_encoder_configuration)
 MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, video_codec)
 MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, audio_codec)
 MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, subtitle_codec)
+MAKE_ACCESSORS(AVFormatContext, format, AVCodec *, data_codec)
 MAKE_ACCESSORS(AVFormatContext, format, int, metadata_header_padding)
 MAKE_ACCESSORS(AVFormatContext, format, void *, opaque)
 MAKE_ACCESSORS(AVFormatContext, format, av_format_control_message, control_message_cb)
@@ -270,6 +272,7 @@ static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
         { "aac",       AV_CODEC_ID_AAC,        AVMEDIA_TYPE_AUDIO },
         { "ac3",       AV_CODEC_ID_AC3,        AVMEDIA_TYPE_AUDIO },
         { "dts",       AV_CODEC_ID_DTS,        AVMEDIA_TYPE_AUDIO },
+        { "dvbsub",    AV_CODEC_ID_DVB_SUBTITLE,AVMEDIA_TYPE_SUBTITLE },
         { "eac3",      AV_CODEC_ID_EAC3,       AVMEDIA_TYPE_AUDIO },
         { "h264",      AV_CODEC_ID_H264,       AVMEDIA_TYPE_VIDEO },
         { "hevc",      AV_CODEC_ID_HEVC,       AVMEDIA_TYPE_VIDEO },
@@ -492,7 +495,7 @@ fail:
     ff_id3v2_free_extra_meta(&id3v2_extra_meta);
     av_dict_free(&tmp);
     if (s->pb && !(s->flags & AVFMT_FLAG_CUSTOM_IO))
-        avio_close(s->pb);
+        avio_closep(&s->pb);
     avformat_free_context(s);
     *ps = NULL;
     return ret;
@@ -2822,8 +2825,8 @@ static int get_std_framerate(int i)
  * And there are "variable" fps files this needs to detect as well. */
 static int tb_unreliable(AVCodecContext *c)
 {
-    if (c->time_base.den >= 101L * c->time_base.num ||
-        c->time_base.den <    5L * c->time_base.num ||
+    if (c->time_base.den >= 101LL * c->time_base.num ||
+        c->time_base.den <    5LL * c->time_base.num ||
         // c->codec_tag == AV_RL32("DIVX") ||
         // c->codec_tag == AV_RL32("XVID") ||
         c->codec_tag == AV_RL32("mp4v") ||
@@ -2839,6 +2842,7 @@ int ff_alloc_extradata(AVCodecContext *avctx, int size)
     int ret;
 
     if (size < 0 || size >= INT32_MAX - FF_INPUT_BUFFER_PADDING_SIZE) {
+        avctx->extradata = NULL;
         avctx->extradata_size = 0;
         return AVERROR(EINVAL);
     }
@@ -3823,6 +3827,8 @@ int av_get_frame_filename(char *buf, int buf_size, const char *path, int number)
                 if (percentd_found)
                     goto fail;
                 percentd_found = 1;
+                if(number < 0)
+                    nd += 1;
                 snprintf(buf1, sizeof(buf1), "%0*d", nd, number);
                 len = strlen(buf1);
                 if ((q - buf + len) > buf_size - 1)
@@ -4091,7 +4097,8 @@ int avformat_network_init(void)
     ff_network_inited_globally = 1;
     if ((ret = ff_network_init()) < 0)
         return ret;
-    ff_tls_init();
+    if ((ret = ff_tls_init()) < 0)
+        return ret;
 #endif
     return 0;
 }
@@ -4426,4 +4433,41 @@ uint8_t *av_stream_get_side_data(AVStream *st, enum AVPacketSideDataType type,
         }
     }
     return NULL;
+}
+
+uint8_t *ff_stream_new_side_data(AVStream *st, enum AVPacketSideDataType type,
+                                 int size)
+{
+    AVPacketSideData *sd, *tmp;
+    int i;
+    uint8_t *data = av_malloc(size);
+
+    if (!data)
+        return NULL;
+
+    for (i = 0; i < st->nb_side_data; i++) {
+        sd = &st->side_data[i];
+
+        if (sd->type == type) {
+            av_freep(&sd->data);
+            sd->data = data;
+            sd->size = size;
+            return sd->data;
+        }
+    }
+
+    tmp = av_realloc_array(st->side_data, st->nb_side_data + 1, sizeof(*tmp));
+    if (!tmp) {
+        av_freep(&data);
+        return NULL;
+    }
+
+    st->side_data = tmp;
+    st->nb_side_data++;
+
+    sd = &st->side_data[st->nb_side_data - 1];
+    sd->type = type;
+    sd->data = data;
+    sd->size = size;
+    return data;
 }
