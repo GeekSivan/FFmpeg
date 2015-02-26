@@ -196,36 +196,6 @@ int ff_hevc_set_new_iter_layer_ref(HEVCContext *s, AVFrame **frame, int poc)
 }
 #endif
 
-static void copy_field(HEVCContext *s, AVFrame *_dst, AVFrame *_src) {
-    int stride = _dst->linesize[0];
-    uint8_t *dst = _dst->data[0] + stride / 2;
-    uint8_t *src = _src->data[0];
-
-    int i, j, k;
-
-    for (j = 0; j < s->sps->height; j++) {
-        for (i = 0; i < stride / 2; i++) {
-            dst[i] = src[i];
-        }
-        dst += stride;
-        src += stride;
-    }
-
-    for (k = 1; k < 3; k++) {
-        stride = _dst->linesize[k];
-        dst = _dst->data[k] + stride / 2;
-        src = _src->data[k];
-
-        for (j = 0; j < s->sps->height / 2; j++) {
-            for (i = 0; i < stride / 2; i++) {
-                dst[i] = src[i];
-            }
-            dst += stride;
-            src += stride;
-        }
-    }
-
-}
 
 static void copy_field(HEVCContext *s, AVFrame *_dst, AVFrame *_src, int height) {
     const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(_src->format);
@@ -313,7 +283,7 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
 
                 frame->flags &= ~(HEVC_FRAME_FIRST_FIELD);
                 field = &s->DPB[min_idx[1]];
-                if (frame->frame->interlaced_frame &&
+                if (field->poc != s->poc &&
                     field->frame->interlaced_frame &&
                     (field->field_order != AV_FIELD_TT ||
                      field->field_order != AV_FIELD_BB)) {
