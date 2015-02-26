@@ -80,6 +80,8 @@ const char *av_get_colorspace_name(enum AVColorSpace val)
         [AVCOL_SPC_SMPTE170M] = "smpte170m",
         [AVCOL_SPC_SMPTE240M] = "smpte240m",
         [AVCOL_SPC_YCOCG]     = "YCgCo",
+        [AVCOL_SPC_BT2020_NCL]= "bt2020ncl",
+        [AVCOL_SPC_BT2020_CL] = "bt2020cl",
     };
     if ((unsigned)val >= FF_ARRAY_ELEMS(name))
         return NULL;
