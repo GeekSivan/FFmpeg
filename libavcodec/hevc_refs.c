@@ -152,13 +152,6 @@ int ff_hevc_set_new_ref(HEVCContext *s, AVFrame **frame, int poc)
     s->ref = ref;
 
     ref->field_order = s->field_order;
-<<<<<<< HEAD
-=======
-    if (s->sh.pic_output_flag)
-        ref->flags = HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_SHORT_REF;
-    else
-        ref->flags = HEVC_FRAME_FLAG_SHORT_REF;
->>>>>>> 6b93a7a... avcodec/hevc: add support for interlace decoding
 
     ref->poc      = poc;
     ref->flags    = HEVC_FRAME_FLAG_OUTPUT | HEVC_FRAME_FLAG_SHORT_REF;
@@ -327,11 +320,7 @@ int ff_hevc_output_frame(HEVCContext *s, AVFrame *out, int flush)
                     if (s->threads_type & FF_THREAD_FRAME )
                         ff_thread_await_progress(&field->tf, s->sps->height, 0);
 
-<<<<<<< HEAD
-                    copy_field(s, src, field->frame);
-=======
                     copy_field(s, src, field->frame, s->sps->height);
->>>>>>> 6b93a7a... avcodec/hevc: add support for interlace decoding
                 }
             }
 
