@@ -22,7 +22,10 @@ OBJS-$(CONFIG_HEVC_DECODER)            += x86/hevcdsp_init.o          \
                                           x86/hevc_sao_sse.o          \
                                           x86/hevcpred_init.o         \
                                           x86/hevc_il_pred_sse.o      \
-                                          x86/hevc_intra_pred_sse.o
+                                          x86/hevc_intra_pred_sse.o   \
+                                          x86/hevc_mc_avx2.o          \
+                                          x86/idct_sse2_xvid.o        \
+                                          x86/idct_mmx_xvid.o
 OBJS-$(CONFIG_HPELDSP)                 += x86/hpeldsp_init.o
 OBJS-$(CONFIG_LLAUDDSP)                += x86/lossless_audiodsp_init.o
 OBJS-$(CONFIG_LLVIDDSP)                += x86/lossless_videodsp_init.o

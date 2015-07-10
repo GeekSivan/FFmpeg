@@ -43,16 +43,16 @@ static void FUNC(put_pcm)(uint8_t *_dst, ptrdiff_t stride, int width, int height
     }
 }
 
-static av_always_inline void FUNC(transquant_bypass)(uint8_t *_dst, int16_t *coeffs,
-                                                     ptrdiff_t stride, int size)
+static void FUNC(transform_add4x4)(uint8_t *_dst, int16_t *coeffs,
+                                       ptrdiff_t stride)
 {
     int x, y;
     pixel *dst = (pixel *)_dst;
 
     stride /= sizeof(pixel);
 
-    for (y = 0; y < size; y++) {
-        for (x = 0; x < size; x++) {
+    for (y = 0; y < 4; y++) {
+        for (x = 0; x < 4; x++) {
             dst[x] = av_clip_pixel(dst[x] + *coeffs);
             coeffs++;
         }
@@ -60,28 +60,55 @@ static av_always_inline void FUNC(transquant_bypass)(uint8_t *_dst, int16_t *coe
     }
 }
 
-static void FUNC(transform_add4x4)(uint8_t *_dst, int16_t *coeffs,
-                                       ptrdiff_t stride)
-{
-    FUNC(transquant_bypass)(_dst, coeffs, stride, 4);
-}
-
 static void FUNC(transform_add8x8)(uint8_t *_dst, int16_t *coeffs,
                                        ptrdiff_t stride)
 {
-    FUNC(transquant_bypass)(_dst, coeffs, stride, 8);
+    int x, y;
+    pixel *dst = (pixel *)_dst;
+
+    stride /= sizeof(pixel);
+
+    for (y = 0; y < 8; y++) {
+        for (x = 0; x < 8; x++) {
+            dst[x] = av_clip_pixel(dst[x] + *coeffs);
+            coeffs++;
+        }
+        dst += stride;
+    }
 }
 
 static void FUNC(transform_add16x16)(uint8_t *_dst, int16_t *coeffs,
                                          ptrdiff_t stride)
 {
-    FUNC(transquant_bypass)(_dst, coeffs, stride, 16);
+    int x, y;
+    pixel *dst = (pixel *)_dst;
+
+    stride /= sizeof(pixel);
+
+    for (y = 0; y < 16; y++) {
+        for (x = 0; x < 16; x++) {
+            dst[x] = av_clip_pixel(dst[x] + *coeffs);
+            coeffs++;
+        }
+        dst += stride;
+    }
 }
 
 static void FUNC(transform_add32x32)(uint8_t *_dst, int16_t *coeffs,
                                          ptrdiff_t stride)
 {
-    FUNC(transquant_bypass)(_dst, coeffs, stride, 32);
+    int x, y;
+    pixel *dst = (pixel *)_dst;
+
+    stride /= sizeof(pixel);
+
+    for (y = 0; y < 32; y++) {
+        for (x = 0; x < 32; x++) {
+            dst[x] = av_clip_pixel(dst[x] + *coeffs);
+            coeffs++;
+        }
+        dst += stride;
+    }
 }
 
 
@@ -175,6 +202,9 @@ static void FUNC(transform_4x4_luma)(int16_t *coeffs)
 
 #undef TR_4x4_LUMA
 
+////////////////////////////////////////////////////////////////////////////////
+//
+////////////////////////////////////////////////////////////////////////////////
 #define TR_4(dst, src, dstep, sstep, assign, end)                              \
     do {                                                                       \
         const int e0 = 64 * src[0 * sstep] + 64 * src[2 * sstep];              \
@@ -302,10 +332,14 @@ IDCT_DC(32)
 #undef SCALE
 #undef ADD_AND_SCALE
 
+////////////////////////////////////////////////////////////////////////////////
+//
+////////////////////////////////////////////////////////////////////////////////
 static void FUNC(sao_band_filter_0)(uint8_t *_dst, uint8_t *_src,
-                                  ptrdiff_t stride_dst, ptrdiff_t stride_src, SAOParams *sao,
-                                  int *borders, int width, int height,
-                                  int c_idx)
+                                    ptrdiff_t stride_dst, ptrdiff_t stride_src,
+                                    SAOParams *sao,
+                                    int *borders, int width, int height,
+                                    int c_idx)
 {
     pixel *dst = (pixel *)_dst;
     pixel *src = (pixel *)_src;
@@ -313,10 +347,10 @@ static void FUNC(sao_band_filter_0)(uint8_t *_dst, uint8_t *_src,
     int k, y, x;
     int shift  = BIT_DEPTH - 5;
     int16_t *sao_offset_val = sao->offset_val[c_idx];
-    int sao_left_class  = sao->band_position[c_idx];
+    uint8_t sao_left_class  = sao->band_position[c_idx];
 
-    stride_dst /= sizeof(pixel);
     stride_src /= sizeof(pixel);
+    stride_dst /= sizeof(pixel);
 
     for (k = 0; k < 4; k++)
         offset_table[(k + sao_left_class) & 31] = sao_offset_val[k + 1];
@@ -328,13 +362,16 @@ static void FUNC(sao_band_filter_0)(uint8_t *_dst, uint8_t *_src,
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+////////////////////////////////////////////////////////////////////////////////
 #define CMP(a, b) ((a) > (b) ? 1 : ((a) == (b) ? 0 : -1))
 
 static void FUNC(sao_edge_filter)(uint8_t *_dst, uint8_t *_src,
-                                  ptrdiff_t stride_dst, ptrdiff_t stride_src, SAOParams *sao,
+                                  ptrdiff_t stride_dst, ptrdiff_t stride_src,
+                                  SAOParams *sao,
                                   int width, int height,
-                                  int c_idx, int init_x, int init_y) {
-
+                                  int c_idx) {
     static const uint8_t edge_idx[] = { 1, 2, 0, 3, 4 };
     static const int8_t pos[4][2][2] = {
         { { -1,  0 }, {  1, 0 } }, // horizontal
@@ -343,36 +380,34 @@ static void FUNC(sao_edge_filter)(uint8_t *_dst, uint8_t *_src,
         { {  1, -1 }, { -1, 1 } }, // 135 degree
     };
     int16_t *sao_offset_val = sao->offset_val[c_idx];
-    int sao_eo_class    = sao->eo_class[c_idx];
+    uint8_t eo = sao->eo_class[c_idx];
     pixel *dst = (pixel *)_dst;
     pixel *src = (pixel *)_src;
 
-    int y_stride_src = init_y * stride_src;
-    int y_stride_dst = init_y * stride_dst;
-    int pos_0_0  = pos[sao_eo_class][0][0];
-    int pos_0_1  = pos[sao_eo_class][0][1];
-    int pos_1_0  = pos[sao_eo_class][1][0];
-    int pos_1_1  = pos[sao_eo_class][1][1];
+    int a_stride, b_stride;
+    int src_offset = 0;
+    int dst_offset = 0;
     int x, y;
+    stride_src /= sizeof(pixel);
+    stride_dst /= sizeof(pixel);
 
-    int y_stride_0_1 = (init_y + pos_0_1) * stride_src;
-    int y_stride_1_1 = (init_y + pos_1_1) * stride_src;
-    for (y = init_y; y < height; y++) {
-        for (x = init_x; x < width; x++) {
-            int diff0             = CMP(src[x + y_stride_src], src[x + pos_0_0 + y_stride_0_1]);
-            int diff1             = CMP(src[x + y_stride_src], src[x + pos_1_0 + y_stride_1_1]);
-            int offset_val        = edge_idx[2 + diff0 + diff1];
-            dst[x + y_stride_dst] = av_clip_pixel(src[x + y_stride_src] + sao_offset_val[offset_val]);
+    a_stride = pos[eo][0][0] + pos[eo][0][1] * stride_src;
+    b_stride = pos[eo][1][0] + pos[eo][1][1] * stride_src;
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            int diff0         = CMP(src[x + src_offset], src[x + src_offset + a_stride]);
+            int diff1         = CMP(src[x + src_offset], src[x + src_offset + b_stride]);
+            int offset_val    = edge_idx[2 + diff0 + diff1];
+            dst[x + dst_offset] = av_clip_pixel(src[x + src_offset] + sao_offset_val[offset_val]);
         }
-        y_stride_src += stride_src;
-        y_stride_dst += stride_dst;
-        y_stride_0_1 += stride_src;
-        y_stride_1_1 += stride_src;
+        src_offset += stride_src;
+        dst_offset += stride_dst;
     }
 }
 
-static void FUNC(sao_edge_filter_0)(uint8_t *_dst, uint8_t *_src,
-                                    ptrdiff_t stride_dst, ptrdiff_t stride_src, SAOParams *sao,
+static void FUNC(sao_edge_restore_0)(uint8_t *_dst, uint8_t *_src,
+                                    ptrdiff_t stride_dst,  ptrdiff_t stride_src,
+                                    SAOParams *sao,
                                     int *borders, int _width, int _height,
                                     int c_idx, uint8_t *vert_edge,
                                     uint8_t *horiz_edge, uint8_t *diag_edge)
@@ -381,25 +416,32 @@ static void FUNC(sao_edge_filter_0)(uint8_t *_dst, uint8_t *_src,
     pixel *dst = (pixel *)_dst;
     pixel *src = (pixel *)_src;
     int16_t *sao_offset_val = sao->offset_val[c_idx];
-    int sao_eo_class    = sao->eo_class[c_idx];
+    uint8_t sao_eo_class    = sao->eo_class[c_idx];
     int init_x = 0, init_y = 0, width = _width, height = _height;
 
-    stride_dst /= sizeof(pixel);
     stride_src /= sizeof(pixel);
+    stride_dst /= sizeof(pixel);
 
     if (sao_eo_class != SAO_EO_VERT) {
         if (borders[0]) {
             int offset_val = sao_offset_val[0];
+            int y_stride_src   = 0;
+            int y_stride_dst   = 0;
             for (y = 0; y < height; y++) {
-                dst[y * stride_dst] = av_clip_pixel(src[y * stride_src] + offset_val);
+                dst[y_stride_dst] = av_clip_pixel(src[y_stride_src] + offset_val);
+                y_stride_src     += stride_src;
+                y_stride_dst     += stride_dst;
             }
             init_x = 1;
         }
         if (borders[2]) {
             int offset_val = sao_offset_val[0];
-            int offset     = width - 1;
+            int x_stride_src   = width - 1;
+            int x_stride_dst   = width - 1;
             for (x = 0; x < height; x++) {
-                dst[x * stride_dst + offset] = av_clip_pixel(src[x * stride_src + offset] + offset_val);
+                dst[x_stride_dst] = av_clip_pixel(src[x_stride_src] + offset_val);
+                x_stride_src     += stride_src;
+                x_stride_dst     += stride_dst;
             }
             width--;
         }
@@ -409,23 +451,21 @@ static void FUNC(sao_edge_filter_0)(uint8_t *_dst, uint8_t *_src,
             int offset_val = sao_offset_val[0];
             for (x = init_x; x < width; x++)
                 dst[x] = av_clip_pixel(src[x] + offset_val);
-            init_y = 1;
         }
         if (borders[3]) {
-            int offset_val   = sao_offset_val[0];
-            int y_stride_dst = stride_dst * (height - 1);
-            int y_stride_src = stride_src * (height - 1);
+            int offset_val = sao_offset_val[0];
+            int y_stride_src   = stride_src * (height - 1);
+            int y_stride_dst   = stride_dst * (height - 1);
             for (x = init_x; x < width; x++)
                 dst[x + y_stride_dst] = av_clip_pixel(src[x + y_stride_src] + offset_val);
             height--;
         }
     }
-
-    FUNC(sao_edge_filter)((uint8_t *)dst, (uint8_t *)src, stride_dst, stride_src, sao, width, height, c_idx, init_x, init_y);
 }
 
-static void FUNC(sao_edge_filter_1)(uint8_t *_dst, uint8_t *_src,
-                                    ptrdiff_t stride_dst, ptrdiff_t stride_src, SAOParams *sao,
+static void FUNC(sao_edge_restore_1)(uint8_t *_dst, uint8_t *_src,
+                                    ptrdiff_t stride_dst, ptrdiff_t stride_src, 
+                                    SAOParams *sao,
                                     int *borders, int _width, int _height,
                                     int c_idx, uint8_t *vert_edge,
                                     uint8_t *horiz_edge, uint8_t *diag_edge)
@@ -434,25 +474,32 @@ static void FUNC(sao_edge_filter_1)(uint8_t *_dst, uint8_t *_src,
     pixel *dst = (pixel *)_dst;
     pixel *src = (pixel *)_src;
     int16_t *sao_offset_val = sao->offset_val[c_idx];
-    int sao_eo_class    = sao->eo_class[c_idx];
+    uint8_t sao_eo_class    = sao->eo_class[c_idx];
     int init_x = 0, init_y = 0, width = _width, height = _height;
 
-    stride_dst /= sizeof(pixel);
     stride_src /= sizeof(pixel);
+    stride_dst /= sizeof(pixel);
 
     if (sao_eo_class != SAO_EO_VERT) {
         if (borders[0]) {
             int offset_val = sao_offset_val[0];
+            int y_stride_src   = 0;
+            int y_stride_dst   = 0;
             for (y = 0; y < height; y++) {
-                dst[y * stride_dst] = av_clip_pixel(src[y * stride_src] + offset_val);
+                dst[y_stride_dst] = av_clip_pixel(src[y_stride_src] + offset_val);
+                y_stride_src     += stride_src;
+                y_stride_dst     += stride_dst;
             }
             init_x = 1;
         }
         if (borders[2]) {
             int offset_val = sao_offset_val[0];
-            int offset     = width - 1;
+            int x_stride_src   = width - 1;
+            int x_stride_dst   = width - 1;
             for (x = 0; x < height; x++) {
-                dst[x * stride_dst + offset] = av_clip_pixel(src[x * stride_src + offset] + offset_val);
+                dst[x_stride_dst] = av_clip_pixel(src[x_stride_src] + offset_val);
+                x_stride_src     += stride_src;
+                x_stride_dst     += stride_dst;
             }
             width--;
         }
@@ -462,19 +509,16 @@ static void FUNC(sao_edge_filter_1)(uint8_t *_dst, uint8_t *_src,
             int offset_val = sao_offset_val[0];
             for (x = init_x; x < width; x++)
                 dst[x] = av_clip_pixel(src[x] + offset_val);
-            init_y = 1;
         }
         if (borders[3]) {
-            int offset_val   = sao_offset_val[0];
-            int y_stride_dst = stride_dst * (height - 1);
-            int y_stride_src = stride_src * (height - 1);
+            int offset_val = sao_offset_val[0];
+            int y_stride_src   = stride_src * (height - 1);
+            int y_stride_dst   = stride_dst * (height - 1);
             for (x = init_x; x < width; x++)
                 dst[x + y_stride_dst] = av_clip_pixel(src[x + y_stride_src] + offset_val);
             height--;
         }
     }
-
-    FUNC(sao_edge_filter)((uint8_t *)dst, (uint8_t *)src, stride_dst, stride_src, sao, width, height, c_idx, init_x, init_y);
 
     {
         int save_upper_left  = !diag_edge[0] && sao_eo_class == SAO_EO_135D && !borders[0] && !borders[1];
@@ -1667,21 +1711,21 @@ static void FUNC(hevc_loop_filter_chroma)(uint8_t *_pix, ptrdiff_t _xstride,
 }
 
 static void FUNC(hevc_h_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
-                                            int32_t *tc, uint8_t *no_p,
+                                            int *tc, uint8_t *no_p,
                                             uint8_t *no_q)
 {
     FUNC(hevc_loop_filter_chroma)(pix, stride, sizeof(pixel), tc, no_p, no_q);
 }
 
 static void FUNC(hevc_v_loop_filter_chroma)(uint8_t *pix, ptrdiff_t stride,
-                                            int32_t *tc, uint8_t *no_p,
+                                            int *tc, uint8_t *no_p,
                                             uint8_t *no_q)
 {
     FUNC(hevc_loop_filter_chroma)(pix, sizeof(pixel), stride, tc, no_p, no_q);
 }
 
 static void FUNC(hevc_h_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
-                                          int beta, int32_t *tc, uint8_t *no_p,
+                                          int beta, int *tc, uint8_t *no_p,
                                           uint8_t *no_q)
 {
     FUNC(hevc_loop_filter_luma)(pix, stride, sizeof(pixel),
@@ -1689,7 +1733,7 @@ static void FUNC(hevc_h_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
 }
 
 static void FUNC(hevc_v_loop_filter_luma)(uint8_t *pix, ptrdiff_t stride,
-                                          int beta, int32_t *tc, uint8_t *no_p,
+                                          int beta, int *tc, uint8_t *no_p,
                                           uint8_t *no_q)
 {
     FUNC(hevc_loop_filter_luma)(pix, sizeof(pixel), stride,
@@ -1902,7 +1946,7 @@ static void FUNC(upsample_filter_block_cr_h_x2)(  int16_t *dst, ptrdiff_t dststr
     
     for( i = 0; i < block_w; i++ )	{
         x        = av_clip_c(i+x_EL, leftStartC, rightEndC);
-        coeff    = up_sample_filter_chroma_x2[x&0x01];
+        coeff    = up_sample_filter_chroma_x2_h[x&0x01];
         dst_tmp  = dst  + i;
         src_tmp  = src + (x>>1) ;
         for( j = 0; j < block_h ; j++ ) {
@@ -2006,7 +2050,7 @@ static void FUNC(upsample_filter_block_cr_h_x1_5)(  int16_t *dst, ptrdiff_t dsts
 
     for( i = 0; i < block_w; i++ )	{
         x        = av_clip_c(i+x_EL, leftStartC, rightEndC);
-        coeff    = up_sample_filter_chroma_x1_5[(x-leftStartC)%3];
+        coeff    = up_sample_filter_chroma_x1_5_h[(x-leftStartC)%3];
         dst_tmp  = dst  + i;
         src_tmp  = src + (((x-leftStartC)<<1)/3);
         for( j = 0; j < block_h ; j++ ) {
@@ -2058,7 +2102,7 @@ static void FUNC(upsample_filter_block_cr_v_x1_5)( uint8_t *_dst, ptrdiff_t dsts
     for ( j = 0; j < block_h; j++ ) {
         y        = av_clip_c(y_EL+j, topStartC, bottomEndC-1);
         refPos16 = ((( y - topStartC )* up_info->scaleYCr + up_info->addYCr) >> 12)-4;
-        coeff    = up_sample_filter_x1_5chroma[y%3];
+        coeff    = up_sample_filter_chroma_x1_5_v[y%3];
         refPos   = (refPos16>>4) - y_BL;
         src_tmp  = _src  + refPos  * _srcstride;
         dst_tmp  =  dst  + y* dststride + x_EL;
