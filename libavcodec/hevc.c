@@ -743,6 +743,9 @@ static int hls_slice_header(HEVCContext *s)
             }
         }
 
+        sh->slice_sample_adaptive_offset_flag[0] =
+        sh->slice_sample_adaptive_offset_flag[1] =
+        sh->slice_sample_adaptive_offset_flag[2] = 0;
         if (s->sps->sao_enabled) {
             enum ChromaFormat format; 
             sh->slice_sample_adaptive_offset_flag[0] = get_bits1(gb);
@@ -1889,6 +1892,9 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
             if (inter_pred_idc != PRED_L1) {
                 if (s->sh.nb_refs[L0]) {
                     current_mv.ref_idx[0] = ff_hevc_ref_idx_lx_decode(s, s->sh.nb_refs[L0]);
+#ifdef TEST_MV_POC
+                    current_mv.poc[0] = refPicList[0].list[current_mv.ref_idx[0]];
+#endif
                 }
                 current_mv.pred_flag = PF_L0;
                 ff_hevc_hls_mvd_coding(s, x0, y0, 0);
@@ -1899,12 +1905,13 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
                 current_mv.mv[0].x += lc->pu.mvd.x;
                 current_mv.mv[0].y += lc->pu.mvd.y;
             }
-
             if (inter_pred_idc != PRED_L0) {
                 if (s->sh.nb_refs[L1]) {
                     current_mv.ref_idx[1] = ff_hevc_ref_idx_lx_decode(s, s->sh.nb_refs[L1]);
+#ifdef TEST_MV_POC
+                    current_mv.poc[1] = refPicList[1].list[current_mv.ref_idx[1]];
+#endif
                 }
-
                 if (s->sh.mvd_l1_zero_flag == 1 && inter_pred_idc == PRED_BI) {
                     lc->pu.mvd.x = 0;
                     lc->pu.mvd.y = 0;

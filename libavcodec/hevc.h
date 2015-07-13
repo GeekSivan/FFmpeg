@@ -42,7 +42,7 @@
 
 #define MAX_SLICES_FRAME 64
 
-
+#define TEST_MV_POC
 #define MAX_DPB_SIZE 16 // A.4.1
 #define MAX_REFS 16
 
@@ -1015,7 +1015,12 @@ typedef struct Mv {
 
 typedef struct MvField {
     Mv mv[2];
+#ifdef TEST_MV_POC
+    int32_t poc[2];
+    uint32_t pred_flag;
+#else
     uint8_t pred_flag;
+#endif
     uint8_t ref_idx[2];
 } MvField;
 
@@ -1071,7 +1076,7 @@ typedef struct HEVCFrame {
     AVFrame *frame;
     ThreadFrame tf;
     MvField *tab_mvf;
-    RefPicList *refPicList[MAX_SLICES_IN_FRAME];
+    RefPicListTab *refPicList[MAX_SLICES_IN_FRAME];
     RefPicListTab **rpl_tab;
     int ctb_count;
     int poc;
