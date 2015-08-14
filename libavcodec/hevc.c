@@ -2960,6 +2960,13 @@ static int decode_nal_units(HEVCContext *s, const uint8_t *buf, int length)
 
         consumed = ff_hevc_extract_rbsp(s, buf, extract_length, nal);
 
+        if (s->is_nalff && consumed != extract_length) {
+            av_log(s->avctx, AV_LOG_WARNING,
+                   "NALU type #%d, Consumed rbsp not equal to extracted length from mp4 (%d!=%d)\n",
+                   s->nal_unit_type, consumed, extract_length);
+            consumed = extract_length;
+        }
+
         s->skipped_bytes_nal[s->nb_nals] = s->skipped_bytes;
         s->skipped_bytes_pos_size_nal[s->nb_nals] = s->skipped_bytes_pos_size;
         s->skipped_bytes_pos_nal[s->nb_nals++] = s->skipped_bytes_pos;
