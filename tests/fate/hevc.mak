@@ -22,7 +22,6 @@ HEVC_SAMPLES =                  \
     CIP_A_Panasonic_3           \
     cip_B_NEC_3                 \
     CIP_C_Panasonic_2           \
-    CONFWIN_A_Sony_1            \
     DBLK_A_SONY_3               \
     DBLK_B_SONY_3               \
     DBLK_C_SONY_3               \
@@ -40,10 +39,6 @@ HEVC_SAMPLES =                  \
     ENTP_B_Qualcomm_1           \
     ENTP_C_Qualcomm_1           \
     EXT_A_ericsson_4            \
-    FILLER_A_Sony_1             \
-    HRD_A_Fujitsu_2             \
-    HRD_A_Fujitsu_3             \
-    INITQP_A_Sony_1             \
     ipcm_A_NEC_3                \
     ipcm_B_NEC_3                \
     ipcm_C_NEC_3                \
@@ -152,23 +147,7 @@ HEVC_SAMPLES_10BIT =            \
     WPP_D_ericsson_MAIN10_2     \
     WPP_E_ericsson_MAIN10_2     \
     WPP_F_ericsson_MAIN10_2     \
-    INITQP_B_Sony_1             \
 
-HEVC_SAMPLES_422_10BIT =        \
-    ADJUST_IPRED_ANGLE_A_RExt_Mitsubishi_1 \
-    IPCM_A_RExt_NEC             \
-
-HEVC_SAMPLES_422_10BIN =        \
-    Main_422_10_A_RExt_Sony_1   \
-    Main_422_10_B_RExt_Sony_1   \
-
-HEVC_SAMPLES_444_8BIT =         \
-    QMATRIX_A_RExt_Sony_1       \
-
-HEVC_SAMPLES_444_12BIT =        \
-    IPCM_B_RExt_NEC             \
-    PERSIST_RPARAM_A_RExt_Sony_1\
-    SAO_A_RExt_MediaTek_1       \
 
 
 # equivalent bitstreams

@@ -100,7 +100,6 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
     int log2_min_cb_size = sps->log2_min_cb_size;
     int width            = sps->width;
     int height           = sps->height;
-    int pic_size         = width * height;
     int pic_size_in_ctb  = ((width  >> log2_min_cb_size) + 1) *
                            ((height >> log2_min_cb_size) + 1);
     int ctb_count        = sps->ctb_width * sps->ctb_height;
@@ -117,9 +116,7 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
     s->skip_flag    = av_malloc(sps->min_cb_height * sps->min_cb_width);
     s->tab_ct_depth = av_malloc(sps->min_cb_height * sps->min_cb_width);
 
-#if PARALLEL_SLICE
-    s->decoded_rows = av_malloc(sps->ctb_height);
-#endif
+
     if (!s->skip_flag || !s->tab_ct_depth)
         goto fail;
 
@@ -150,7 +147,6 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
     if (!s->tab_mvf_pool || !s->rpl_tab_pool)
         goto fail;
     if(s->decoder_id)    {
-
 #if ACTIVE_BOTH_FRAME_AND_PU
         s->buffer_frame[0] = av_malloc(pic_size*sizeof(short));
         s->buffer_frame[1] = av_malloc((pic_size>>2)*sizeof(short));
@@ -374,9 +370,9 @@ static int set_sps(HEVCContext *s, const HEVCSPS *sps)
         s->avctx->colorspace      = AVCOL_SPC_UNSPECIFIED;
     }
 
-    ff_hevc_pred_init(&s->hpc,     sps->bit_depth);
-    ff_hevc_dsp_init (&s->hevcdsp, sps->bit_depth);
-    ff_videodsp_init (&s->vdsp,    sps->bit_depth);
+    ff_hevc_pred_init(&s->hpc,     sps->bit_depth[CHANNEL_TYPE_LUMA]);
+    ff_hevc_dsp_init (&s->hevcdsp, sps->bit_depth[CHANNEL_TYPE_LUMA]);
+    ff_videodsp_init (&s->vdsp,    sps->bit_depth[CHANNEL_TYPE_LUMA]);
 
     if (sps->sao_enabled) {
 #ifdef USE_SAO_SMALL_BUFFER
@@ -389,17 +385,17 @@ static int set_sps(HEVCContext *s, const HEVCSPS *sps)
                 HEVCLocalContext    *lc = s->HEVClcList[i];
                 lc->sao_pixel_buffer =
                     av_malloc(((FFMAX(ctb_size, 16) + 16) * (ctb_size + 2)) <<
-                              sps->pixel_shift);
+                              sps->pixel_shift[CHANNEL_TYPE_LUMA]);
             }
             for(c_idx = 0; c_idx < c_count; c_idx++) {
                 int w = sps->width >> sps->hshift[c_idx];
                 int h = sps->height >> sps->vshift[c_idx];
                 s->sao_pixel_buffer_h[c_idx] =
                 av_malloc((w * 2 * sps->ctb_height) <<
-                          sps->pixel_shift);
+                          sps->pixel_shift[c_idx ? CHANNEL_TYPE_CHROMA:CHANNEL_TYPE_LUMA]);
                 s->sao_pixel_buffer_v[c_idx] =
                 av_malloc((h * 2 * sps->ctb_width) <<
-                          sps->pixel_shift);
+                          sps->pixel_shift[c_idx ? CHANNEL_TYPE_CHROMA:CHANNEL_TYPE_LUMA]);
             }
         }
 #else
@@ -424,62 +420,6 @@ static int set_sps(HEVCContext *s, const HEVCSPS *sps)
         av_reduce(&s->avctx->time_base.num, &s->avctx->time_base.den,
                   num, den, 1 << 30);
 
-    if (s->decoder_id) {
-        int heightBL, widthBL, heightEL, widthEL;
-        const int phaseXC = 0;
-        const int phaseYC = 1;
-        const int phaseAlignFlag = 0; // TO DO ((HEVCVPS*)s->vps_list[s->sps->vps_id]->data)->phase_align_flag;
-        const int   phaseX = phaseAlignFlag   << 1;
-        const int   phaseY = phaseAlignFlag   << 1;
-        HEVCSPS *bl_sps = (HEVCSPS*) s->sps_list[s->decoder_id-1]->data;
-        HEVCWindow scaled_ref_layer_window;
-        if(bl_sps) {
-            heightBL = bl_sps->height - bl_sps->output_window.bottom_offset - bl_sps->output_window.top_offset;
-            widthBL  = bl_sps->width  - bl_sps->output_window.left_offset - bl_sps->output_window.right_offset;
-        } else {
-            av_log(s->avctx, AV_LOG_ERROR, "SPS Informations related to the inter layer refrence frame are missing -- \n");
-            ret = AVERROR(ENOMEM);
-            goto fail;
-        }
-        if(!heightBL || !widthBL) {
-            av_log(s->avctx, AV_LOG_ERROR, "Informations related to the inter layer refrence frame are missing heightBL: %d widthBL: %d \n", heightBL, widthBL);
-            ret = AVERROR(ENOMEM);
-            goto fail;
-        }
-        scaled_ref_layer_window = s->sps->scaled_ref_layer_window[((HEVCVPS*)s->vps_list[s->sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[s->nuh_layer_id][0]]; // m_phaseAlignFlag;
-
-        heightEL = s->sps->height - scaled_ref_layer_window.bottom_offset   - scaled_ref_layer_window.top_offset;
-        widthEL  = s->sps->width  - scaled_ref_layer_window.left_offset     - scaled_ref_layer_window.right_offset;
-
-        s->sh.ScalingFactor[s->nuh_layer_id][0]   = av_clip_c(((widthEL  << 8) + (widthBL  >> 1)) / widthBL,  -4096, 4095 );
-        s->sh.ScalingFactor[s->nuh_layer_id][1]   = av_clip_c(((heightEL << 8) + (heightBL >> 1)) / heightBL, -4096, 4095 );
-        s->up_filter_inf.scaleXLum = ( ( widthBL << 16 )  + ( widthEL >> 1 ) ) / widthEL ;
-        s->up_filter_inf.scaleYLum = ( ( heightBL << 16 ) + ( heightEL >> 1 ) ) / heightEL;
-
-        s->up_filter_inf.addXLum   = (( phaseX * s->up_filter_inf.scaleXLum + 2 ) >> 2 )+ ( 1 << 11 );
-        s->up_filter_inf.addYLum   = (( phaseY * s->up_filter_inf.scaleYLum + 2 ) >> 2 )+ ( 1 << 11 );
-
-        widthBL  >>= 1;
-        heightBL >>= 1;
-
-        s->up_filter_inf.addXCr   = ( ((phaseXC+phaseAlignFlag) * s->up_filter_inf.scaleXLum + 2) >> 2) + ( 1 << 11 );
-        s->up_filter_inf.addYCr   = ( ((phaseYC+phaseAlignFlag) * s->up_filter_inf.scaleYLum + 2) >> 2) + ( 1 << 11 );
-        s->up_filter_inf.scaleXCr     = s->up_filter_inf.scaleXLum;
-        s->up_filter_inf.scaleYCr     = s->up_filter_inf.scaleYLum;
-
-        if(s->up_filter_inf.scaleXLum == 65536 && s->up_filter_inf.scaleYLum == 65536)
-            s->up_filter_inf.idx = SNR;
-        else
-            if(s->up_filter_inf.scaleXLum == 32768 && s->up_filter_inf.scaleYLum == 32768)
-                s->up_filter_inf.idx = X2;
-            else
-                if(s->up_filter_inf.scaleXLum == 43691 && s->up_filter_inf.scaleYLum == 43691)
-                    s->up_filter_inf.idx = X1_5;
-                else {
-                    s->up_filter_inf.idx = DEFAULT;
-                    av_log(s->avctx, AV_LOG_INFO, "DEFAULT mode: SSE optimizations are not implemented for spatial scalability with a ratio different from x2 and x1.5 widthBL %d heightBL %d \n", widthBL<<1, heightBL<<1);
-                }
-    }
     return 0;
 fail:
     pic_arrays_free(s);
@@ -487,15 +427,118 @@ fail:
     return ret;
 }
 
-static int is_sps_exist(HEVCContext *s, const HEVCSPS* last_sps)
+static int getBitDepth(HEVCContext *s, enum ChannelType channel, int layerId)
 {
-    int i;
+  const HEVCVPS *vps = s->vps;
+  const HEVCSPS *sps = (HEVCSPS*)s->sps_list[layerId]->data;
+  int retVal;
 
-    for( i = 0; i < MAX_SPS_COUNT; i++)
-        if(s->sps_list[i])
-            if (last_sps == (HEVCSPS*)s->sps_list[i]->data)
-                return 1;
-    return 0;
+  if ( !layerId || sps->v1_compatible) {
+    if( !layerId && vps->vps_nonHEVCBaseLayerFlag)
+      retVal = vps->Hevc_VPS_Ext.rep_format[layerId].bit_depth_vps[channel];
+    else
+      retVal = sps->bit_depth[channel];
+  }
+  else {
+    retVal = sps->update_rep_format_flag ? sps->update_rep_format_index : vps->Hevc_VPS_Ext.vps_rep_format_idx[vps->Hevc_VPS_Ext.layer_id_in_vps[layerId]];
+    retVal = vps->Hevc_VPS_Ext.rep_format[retVal].bit_depth_vps[channel];
+  }
+  return retVal;
+}
+
+int set_el_parameter(HEVCContext *s) {
+    int ret = 0, i;
+    int phaseHorChroma = 0, phaseVerChroma;
+
+    int heightBL, widthBL, heightEL, widthEL;
+//    const int phaseXC = 0;
+//    const int phaseYC = 1;
+//    const int phaseAlignFlag = 0; // TO DO ((HEVCVPS*)s->vps_list[s->sps->vps_id]->data)->phase_align_flag;
+    const int phaseHorLuma = 0;
+    const int phaseVerLuma = 0, refLayer = 0;
+
+    HEVCSPS *bl_sps = (HEVCSPS*) s->sps_list[s->decoder_id-1]->data;
+    HEVCWindow scaled_ref_layer_window;
+    if(bl_sps) {
+        HEVCWindow base_layer_window = s->pps->ref_window[((HEVCVPS*)s->vps_list[s->sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];
+        heightBL = bl_sps->height - base_layer_window.bottom_offset - base_layer_window.top_offset;
+        widthBL  = bl_sps->width  - base_layer_window.left_offset   - base_layer_window.right_offset;
+    } else {
+        av_log(s->avctx, AV_LOG_ERROR, "SPS Informations related to the inter layer refrence frame are missing -- \n");
+        ret = AVERROR(ENOMEM);
+        goto fail;
+    }
+    if(!heightBL || !widthBL) {
+        av_log(s->avctx, AV_LOG_ERROR, "Informations related to the inter layer refrence frame are missing heightBL: %d widthBL: %d \n", heightBL, widthBL);
+        ret = AVERROR(ENOMEM);
+        goto fail;
+    }
+    scaled_ref_layer_window = s->sps->scaled_ref_layer_window[((HEVCVPS*)s->vps_list[s->sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[s->nuh_layer_id][0]]; // m_phaseAlignFlag;
+
+    heightEL = s->sps->height - scaled_ref_layer_window.bottom_offset   - scaled_ref_layer_window.top_offset;
+    widthEL  = s->sps->width  - scaled_ref_layer_window.left_offset     - scaled_ref_layer_window.right_offset;
+    phaseVerChroma = (4 * heightEL + (heightBL >> 1)) / heightBL - 4;
+#if !ACTIVE_PU_UPSAMPLING
+    if(s->pps->colour_mapping_enabled_flag) { // allocate frame with BL parameters
+      av_frame_unref(s->Ref_color_mapped_frame);
+      s->Ref_color_mapped_frame->coded_width  = s->Ref_color_mapped_frame->width  = widthBL;
+      s->Ref_color_mapped_frame->coded_height = s->Ref_color_mapped_frame->height = heightBL;
+      ret = ff_get_buffer(s->avctx, s->Ref_color_mapped_frame, AV_GET_BUFFER_FLAG_REF);
+      if(ret < 0)
+        av_log(s->avctx, AV_LOG_ERROR, "Error in CGS allocation \n");
+    }
+#endif
+#if 0
+    s->sh.ScalingFactor[s->nuh_layer_id][0]   = av_clip_c(((widthEL  << 8) + (widthBL  >> 1)) / widthBL,  -4096, 4095 );
+    s->sh.ScalingFactor[s->nuh_layer_id][1]   = av_clip_c(((heightEL << 8) + (heightBL >> 1)) / heightBL, -4096, 4095 );
+#else
+    s->sh.ScalingFactor[s->nuh_layer_id][0]   = ((widthBL  << 16) + (widthEL  >> 1)) / widthEL;
+    s->sh.ScalingFactor[s->nuh_layer_id][1]   = ((heightBL << 16) + (heightEL >> 1)) / heightEL;
+
+    s->sh.MvScalingFactor[s->nuh_layer_id][0] = av_clip_c(((widthEL  << 8) + (widthBL  >> 1)) / widthBL,  -4096, 4095 );;
+    s->sh.MvScalingFactor[s->nuh_layer_id][1] = av_clip_c(((heightEL << 8) + (heightBL >> 1)) / heightBL, -4096, 4095 );;
+#endif
+
+    s->up_filter_inf.scaleXLum = s->sh.ScalingFactor[s->nuh_layer_id][0];
+    s->up_filter_inf.scaleYLum = s->sh.ScalingFactor[s->nuh_layer_id][1];
+
+    s->up_filter_inf.addXLum   = (( phaseHorLuma * s->up_filter_inf.scaleXLum + 8 ) >> 4 ) - ( 1 << 11 );
+    s->up_filter_inf.addYLum   = (( phaseVerLuma * s->up_filter_inf.scaleYLum + 8 ) >> 4 ) - ( 1 << 11 );
+
+    widthBL  >>= 1;
+    heightBL >>= 1;
+    s->up_filter_inf.addXCr   = ((phaseHorChroma * s->up_filter_inf.scaleXLum + 8) >> 4) - ( 1 << 11 );
+    s->up_filter_inf.addYCr   = ((phaseVerChroma * s->up_filter_inf.scaleYLum + 8) >> 4) - ( 1 << 11 );
+
+    s->up_filter_inf.scaleXCr = s->up_filter_inf.scaleXLum;
+    s->up_filter_inf.scaleYCr = s->up_filter_inf.scaleYLum;
+    for(i = 0; i <= s->nuh_layer_id; i++) {
+      s->sh.Bit_Depth[i][CHANNEL_TYPE_LUMA  ] = getBitDepth(s, CHANNEL_TYPE_LUMA, i);
+      s->sh.Bit_Depth[i][CHANNEL_TYPE_CHROMA] = getBitDepth(s, CHANNEL_TYPE_CHROMA, i);
+    }
+    for(i = 0; i < MAX_NUM_CHANNEL_TYPE; i++) {
+      s->up_filter_inf.shift[i]    = s->sh.Bit_Depth[s->nuh_layer_id][i] - s->sh.Bit_Depth[refLayer][i];
+      s->up_filter_inf.shift_up[i] = s->sh.Bit_Depth[refLayer][i] - 8;
+      if(s->pps->colour_mapping_enabled_flag) {
+        s->up_filter_inf.shift[i]    = s->sh.Bit_Depth[s->nuh_layer_id][i] - s->pps->m_nCGSOutputBitDepth[i];
+        s->up_filter_inf.shift_up[i] = s->pps->m_nCGSOutputBitDepth[i] - 8;
+      }
+    }
+
+    if(s->up_filter_inf.scaleXLum == 65536 && s->up_filter_inf.scaleYLum == 65536)
+        s->up_filter_inf.idx = SNR;
+    else
+        if(s->up_filter_inf.scaleXLum == 32768 && s->up_filter_inf.scaleYLum == 32768)
+            s->up_filter_inf.idx = X2;
+        else
+            if(s->up_filter_inf.scaleXLum == 43691 && s->up_filter_inf.scaleYLum == 43691)
+                s->up_filter_inf.idx = X1_5;
+            else {
+                s->up_filter_inf.idx = DEFAULT;
+                av_log(s->avctx, AV_LOG_INFO, "DEFAULT mode: SSE optimizations are not implemented for spatial scalability with a ratio different from x2 and x1.5 widthBL %d heightBL %d \n", widthBL<<1, heightBL<<1);
+            }
+    fail:
+    return ret;
 }
 
 static int hls_slice_header(HEVCContext *s)
@@ -503,7 +546,7 @@ static int hls_slice_header(HEVCContext *s)
     GetBitContext *gb = &s->HEVClc->gb;
     SliceHeader   *sh   = &s->sh;
 
-    int i, j, ret;
+    int i, j, ret, change_pps = 0,numRef;
     int NumILRRefIdx;
 
     // Coded parameters
@@ -531,6 +574,10 @@ static int hls_slice_header(HEVCContext *s)
         av_log(s->avctx, AV_LOG_ERROR, "PPS changed between slices.\n");
         return AVERROR_INVALIDDATA;
     }
+
+    if(s->pps != (HEVCPPS*)s->pps_list[sh->pps_id]->data)
+        change_pps = 1;
+
     s->pps = (HEVCPPS*)s->pps_list[sh->pps_id]->data;
     if (s->nal_unit_type == NAL_CRA_NUT && s->last_eos == 1)
         sh->no_output_of_prior_pics_flag = 1;
@@ -544,6 +591,7 @@ static int hls_slice_header(HEVCContext *s)
                 last_sps->temporal_layer[last_sps->max_sub_layers - 1].max_dec_pic_buffering)
                 sh->no_output_of_prior_pics_flag = 0;
         }
+
         ff_hevc_clear_refs(s);
         ret = set_sps(s, s->sps);
         if (ret < 0)
@@ -553,8 +601,10 @@ static int hls_slice_header(HEVCContext *s)
         s->max_ra     = INT_MAX;
     }
 
-    s->avctx->profile = s->sps->ptl.profile_idc;
-    s->avctx->level   = s->sps->ptl.level_idc;
+    if(change_pps && s->decoder_id)
+        set_el_parameter(s);
+    s->avctx->profile = s->sps->ptl.Ptl_general.profile_idc;
+    s->avctx->level   = s->sps->ptl.Ptl_general.level_idc;
 
     sh->dependent_slice_segment_flag = 0;
     if (!sh->first_slice_in_pic_flag) {
@@ -589,8 +639,7 @@ static int hls_slice_header(HEVCContext *s)
         {
             int iBits = 0;
             if(s->pps->num_extra_slice_header_bits > iBits) {
-                uint8_t discardable_flag = get_bits1(gb);
-                print_cabac("discardable_flag  ", discardable_flag);
+                get_bits1(gb); //discardable_flag
                 iBits++;
             }
             if(s->pps->num_extra_slice_header_bits > iBits) {
@@ -729,10 +778,9 @@ static int hls_slice_header(HEVCContext *s)
             }
         } else {
             if(s->vps->Hevc_VPS_Ext.all_ref_layers_active_flag  && s->nuh_layer_id) {
+                int   refLayerPicIdc[16];
                 s->sh.inter_layer_pred_enabled_flag = 1;
-            
-                int numRef = 0;
-                int   refLayerPicIdc  [16];
+                numRef = 0;
                 for(i = 0;  i < NumILRRefIdx; i++ ) {
                     if((s->vps->Hevc_VPS_Ext.max_tid_il_ref_pics_plus1[s->vps->Hevc_VPS_Ext.layer_id_in_vps[i]][s->nuh_layer_id] > s->temporal_id || s->temporal_id==0) && (s->vps->Hevc_VPS_Ext.sub_layers_vps_max_minus1[s->vps->Hevc_VPS_Ext.layer_id_in_vps[i]] >= s->temporal_id))
                             refLayerPicIdc[numRef++] = i;
@@ -768,7 +816,7 @@ static int hls_slice_header(HEVCContext *s)
         }
 
         sh->nb_refs[L0] = sh->nb_refs[L1] = 0;
-        if (sh->slice_type == P_SLICE || sh->slice_type == B_SLICE) {
+        if (sh->slice_type != I_SLICE) {
             int nb_refs, num_ref_idx_active_override_flag;
 
             sh->nb_refs[L0] = s->pps->num_ref_idx_l0_default_active;
@@ -859,7 +907,7 @@ static int hls_slice_header(HEVCContext *s)
             sh->slice_cr_qp_offset = 0;
         }
 
-        if (s->pps->chroma_qp_offset_list_enabled_flag)
+        if (s->pps->chroma_qp_adjustment_enabled_flag)
             sh->cu_chroma_qp_offset_enabled_flag = get_bits1(gb);
         else
             sh->cu_chroma_qp_offset_enabled_flag = 0;
@@ -992,6 +1040,8 @@ static int hls_slice_header(HEVCContext *s)
     s->slice_initialized = 1;
     s->HEVClc->tu.cu_qp_offset_cb = 0;
     s->HEVClc->tu.cu_qp_offset_cr = 0;
+
+    s->no_rasl_output_flag = IS_IDR(s) || IS_BLA(s) || (s->nal_unit_type == NAL_CRA_NUT && s->last_eos);
     return 0;
 }
 
@@ -1030,8 +1080,8 @@ static void hls_sao_param(HEVCContext *s, int rx, int ry)
     }
 
     for (c_idx = 0; c_idx < (s->sps->chroma_format_idc ? 3 : 1); c_idx++) {
-        int log2_sao_offset_scale = c_idx == 0 ? s->pps->log2_sao_offset_scale_luma :
-                                                 s->pps->log2_sao_offset_scale_chroma;
+        int sao_offset_scale = c_idx == 0 ? s->pps->sao_luma_bit_shift:
+                                                 s->pps->sao_chroma_bit_shift;
 
         if (!s->sh.slice_sample_adaptive_offset_flag[c_idx]) {
             sao->type_idx[c_idx] = SAO_NOT_APPLIED;
@@ -1075,7 +1125,7 @@ static void hls_sao_param(HEVCContext *s, int rx, int ry)
             } else if (sao->offset_sign[c_idx][i]) {
                 sao->offset_val[c_idx][i + 1] = -sao->offset_val[c_idx][i + 1];
             }
-            sao->offset_val[c_idx][i + 1] <<= log2_sao_offset_scale;
+            sao->offset_val[c_idx][i + 1] <<= sao_offset_scale;
         }
     }
 }
@@ -1149,13 +1199,13 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
             int cu_chroma_qp_offset_flag = ff_hevc_cu_chroma_qp_offset_flag(s);
             if (cu_chroma_qp_offset_flag) {
                 int cu_chroma_qp_offset_idx  = 0;
-                if (s->pps->chroma_qp_offset_list_len_minus1 > 0) {
+                if (s->pps->chroma_qp_adjustment_table_size_minus1 > 0) {
                     cu_chroma_qp_offset_idx = ff_hevc_cu_chroma_qp_offset_idx(s);
                     av_log(s->avctx, AV_LOG_ERROR,
                         "cu_chroma_qp_offset_idx not yet tested.\n");
                 }
-                lc->tu.cu_qp_offset_cb = s->pps->cb_qp_offset_list[cu_chroma_qp_offset_idx];
-                lc->tu.cu_qp_offset_cr = s->pps->cr_qp_offset_list[cu_chroma_qp_offset_idx];
+                lc->tu.cu_qp_offset_cb = s->pps->cb_qp_adjustnemt[cu_chroma_qp_offset_idx];
+                lc->tu.cu_qp_offset_cr = s->pps->cr_qp_adjustnemt[cu_chroma_qp_offset_idx];
             } else {
                 lc->tu.cu_qp_offset_cb = 0;
                 lc->tu.cu_qp_offset_cr = 0;
@@ -1213,7 +1263,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                         int size = 1 << log2_trafo_size_c;
 
                         uint8_t *dst = &s->frame->data[1][(y0 >> vshift) * stride +
-                                                              ((x0 >> hshift) << s->sps->pixel_shift)];
+                                                              ((x0 >> hshift) << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA])];
                         for (i = 0; i < (size * size); i++) {
                             coeffs[i] = ((lc->tu.res_scale_val * coeffs_y[i]) >> 3);
                         }
@@ -1242,7 +1292,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                         int size = 1 << log2_trafo_size_c;
 
                         uint8_t *dst = &s->frame->data[2][(y0 >> vshift) * stride +
-                                                          ((x0 >> hshift) << s->sps->pixel_shift)];
+                                                          ((x0 >> hshift) << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA])];
                         for (i = 0; i < (size * size); i++) {
                             coeffs[i] = ((lc->tu.res_scale_val * coeffs_y[i]) >> 3);
                         }
@@ -1455,11 +1505,11 @@ static int hls_pcm_sample(HEVCContext *s, int x0, int y0, int log2_cb_size)
     GetBitContext gb;
     int cb_size   = 1 << log2_cb_size;
     int stride0   = s->frame->linesize[0];
-    uint8_t *dst0 = &s->frame->data[0][y0 * stride0 + (x0 << s->sps->pixel_shift)];
+    uint8_t *dst0 = &s->frame->data[0][y0 * stride0 + (x0 << s->sps->pixel_shift[CHANNEL_TYPE_LUMA])];
     int   stride1 = s->frame->linesize[1];
-    uint8_t *dst1 = &s->frame->data[1][(y0 >> s->sps->vshift[1]) * stride1 + ((x0 >> s->sps->hshift[1]) << s->sps->pixel_shift)];
+    uint8_t *dst1 = &s->frame->data[1][(y0 >> s->sps->vshift[1]) * stride1 + ((x0 >> s->sps->hshift[1]) << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA])];
     int   stride2 = s->frame->linesize[2];
-    uint8_t *dst2 = &s->frame->data[2][(y0 >> s->sps->vshift[2]) * stride2 + ((x0 >> s->sps->hshift[2]) << s->sps->pixel_shift)];
+    uint8_t *dst2 = &s->frame->data[2][(y0 >> s->sps->vshift[2]) * stride2 + ((x0 >> s->sps->hshift[2]) << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA])];
 
     int length         = cb_size * cb_size * s->sps->pcm.bit_depth +
                          (((cb_size >> s->sps->hshift[1]) * (cb_size >> s->sps->vshift[1])) +
@@ -1523,14 +1573,14 @@ static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
 
     x_off += mv->x >> 2;
     y_off += mv->y >> 2;
-    src   += y_off * srcstride + (x_off << s->sps->pixel_shift);
+    src   += y_off * srcstride + (x_off << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
 
     if (x_off < QPEL_EXTRA_BEFORE || y_off < QPEL_EXTRA_AFTER ||
         x_off >= pic_width - block_w - QPEL_EXTRA_AFTER ||
         y_off >= pic_height - block_h - QPEL_EXTRA_AFTER) {
-        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset     = QPEL_EXTRA_BEFORE * srcstride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
-        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
+        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA];
+        int offset     = QPEL_EXTRA_BEFORE * srcstride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
+        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src - offset,
                                  edge_emu_stride, srcstride,
@@ -1589,15 +1639,15 @@ static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
     int y_off1           = y_off + (mv1->y >> 2);
     int idx              = ff_hevc_pel_weight[block_w];
 
-    uint8_t *src0  = ref0->data[0] + y_off0 * src0stride + (int)((unsigned)x_off0 << s->sps->pixel_shift);
-    uint8_t *src1  = ref1->data[0] + y_off1 * src1stride + (int)((unsigned)x_off1 << s->sps->pixel_shift);
+    uint8_t *src0  = ref0->data[0] + y_off0 * src0stride + (int)((unsigned)x_off0 << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
+    uint8_t *src1  = ref1->data[0] + y_off1 * src1stride + (int)((unsigned)x_off1 << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
 
     if (x_off0 < QPEL_EXTRA_BEFORE || y_off0 < QPEL_EXTRA_AFTER ||
         x_off0 >= pic_width - block_w - QPEL_EXTRA_AFTER ||
         y_off0 >= pic_height - block_h - QPEL_EXTRA_AFTER) {
-        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset     = QPEL_EXTRA_BEFORE * src0stride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
-        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
+        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA];
+        int offset     = QPEL_EXTRA_BEFORE * src0stride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
+        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src0 - offset,
                                  edge_emu_stride, src0stride,
@@ -1612,9 +1662,9 @@ static void luma_mc_uni(HEVCContext *s, uint8_t *dst, ptrdiff_t dststride,
     if (x_off1 < QPEL_EXTRA_BEFORE || y_off1 < QPEL_EXTRA_AFTER ||
         x_off1 >= pic_width - block_w - QPEL_EXTRA_AFTER ||
         y_off1 >= pic_height - block_h - QPEL_EXTRA_AFTER) {
-        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset     = QPEL_EXTRA_BEFORE * src1stride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
-        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift);
+        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA];
+        int offset     = QPEL_EXTRA_BEFORE * src1stride       + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
+        int buf_offset = QPEL_EXTRA_BEFORE * edge_emu_stride + (QPEL_EXTRA_BEFORE << s->sps->pixel_shift[CHANNEL_TYPE_LUMA]);
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer2, src1 - offset,
                                  edge_emu_stride, src1stride,
@@ -1679,15 +1729,15 @@ static void chroma_mc_uni(HEVCContext *s, uint8_t *dst0,
 
     x_off += mv->x >> (2 + hshift);
     y_off += mv->y >> (2 + vshift);
-    src0  += y_off * srcstride + (x_off << s->sps->pixel_shift);
+    src0  += y_off * srcstride + (x_off << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]);
 
     if (x_off < EPEL_EXTRA_BEFORE || y_off < EPEL_EXTRA_AFTER ||
         x_off >= pic_width - block_w - EPEL_EXTRA_AFTER ||
         y_off >= pic_height - block_h - EPEL_EXTRA_AFTER) {
-        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset0 = EPEL_EXTRA_BEFORE * (srcstride + (1 << s->sps->pixel_shift));
+        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA];
+        int offset0 = EPEL_EXTRA_BEFORE * (srcstride + (1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]));
         int buf_offset0 = EPEL_EXTRA_BEFORE *
-                          (edge_emu_stride + (1 << s->sps->pixel_shift));
+                          (edge_emu_stride + (1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]));
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src0 - offset0,
                                  edge_emu_stride, srcstride,
                                  block_w + EPEL_EXTRA, block_h + EPEL_EXTRA,
@@ -1757,16 +1807,16 @@ static void chroma_mc_bi(HEVCContext *s, uint8_t *dst0, ptrdiff_t dststride, AVF
     int x_off1 = x_off + (mv1->x >> (2 + hshift));
     int y_off1 = y_off + (mv1->y >> (2 + vshift));
     int idx = ff_hevc_pel_weight[block_w];
-    src1  += y_off0 * src1stride + (int)((unsigned)x_off0 << s->sps->pixel_shift);
-    src2  += y_off1 * src2stride + (int)((unsigned)x_off1 << s->sps->pixel_shift);
+    src1  += y_off0 * src1stride + (int)((unsigned)x_off0 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]);
+    src2  += y_off1 * src2stride + (int)((unsigned)x_off1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]);
 
     if (x_off0 < EPEL_EXTRA_BEFORE || y_off0 < EPEL_EXTRA_AFTER ||
         x_off0 >= pic_width - block_w - EPEL_EXTRA_AFTER ||
         y_off0 >= pic_height - block_h - EPEL_EXTRA_AFTER) {
-        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset1 = EPEL_EXTRA_BEFORE * (src1stride + (1 << s->sps->pixel_shift));
+        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA];
+        int offset1 = EPEL_EXTRA_BEFORE * (src1stride + (1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]));
         int buf_offset1 = EPEL_EXTRA_BEFORE *
-                          (edge_emu_stride + (1 << s->sps->pixel_shift));
+                          (edge_emu_stride + (1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]));
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer, src1 - offset1,
                                  edge_emu_stride, src1stride,
@@ -1782,10 +1832,10 @@ static void chroma_mc_bi(HEVCContext *s, uint8_t *dst0, ptrdiff_t dststride, AVF
     if (x_off1 < EPEL_EXTRA_BEFORE || y_off1 < EPEL_EXTRA_AFTER ||
         x_off1 >= pic_width - block_w - EPEL_EXTRA_AFTER ||
         y_off1 >= pic_height - block_h - EPEL_EXTRA_AFTER) {
-        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift;
-        int offset1 = EPEL_EXTRA_BEFORE * (src2stride + (1 << s->sps->pixel_shift));
+        const int edge_emu_stride = EDGE_EMU_BUFFER_STRIDE << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA];
+        int offset1 = EPEL_EXTRA_BEFORE * (src2stride + (1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]));
         int buf_offset1 = EPEL_EXTRA_BEFORE *
-                          (edge_emu_stride + (1 << s->sps->pixel_shift));
+                          (edge_emu_stride + (1 << s->sps->pixel_shift[CHANNEL_TYPE_CHROMA]));
 
         s->vdsp.emulated_edge_mc(lc->edge_emu_buffer2, src2 - offset1,
                                  edge_emu_stride, src2stride,
@@ -1840,7 +1890,7 @@ static void hls_prediction_unit(HEVCContext *s, int x0, int y0,
 {
 #define POS(c_idx, x, y)                                                              \
     &s->frame->data[c_idx][((y) >> s->sps->vshift[c_idx]) * s->frame->linesize[c_idx] + \
-                           (((x) >> s->sps->hshift[c_idx]) << s->sps->pixel_shift)]
+                           (((x) >> s->sps->hshift[c_idx]) << s->sps->pixel_shift[c_idx ? CHANNEL_TYPE_CHROMA:CHANNEL_TYPE_LUMA])]
     HEVCLocalContext *lc = s->HEVClc;
     int merge_idx = 0;
     struct MvField current_mv = {{{ 0 }}};
@@ -2402,7 +2452,7 @@ static int hls_coding_quadtree(HEVCContext *s, int x0, int y0,
     }
 
 	if (s->sh.cu_chroma_qp_offset_enabled_flag &&
-        log2_cb_size >= s->sps->log2_ctb_size - s->pps->diff_cu_chroma_qp_offset_depth) {
+        log2_cb_size >= s->sps->log2_ctb_size - s->pps->diff_cu_chroma_qp_adjustment_depth) {
         lc->tu.is_cu_chroma_qp_offset_coded = 0;
 	}
     if (split_cu_flag) {
@@ -2922,7 +2972,6 @@ static int hevc_frame_start(HEVCContext *s)
     int pic_size_in_ctb  = ((s->sps->width  >> s->sps->log2_min_cb_size) + 1) *
                            ((s->sps->height >> s->sps->log2_min_cb_size) + 1);
     int ret = 0;
-    AVFrame *cur_frame;
     av_log(s->avctx, AV_LOG_DEBUG, "frame start %d\n", s->decoder_id);
 
 
@@ -2959,7 +3008,12 @@ static int hevc_frame_start(HEVCContext *s)
         if (ret < 0)
             goto fail;
 #if !ACTIVE_PU_UPSAMPLING || ACTIVE_BOTH_FRAME_AND_PU
-        s->hevcdsp.upsample_base_layer_frame(s->EL_frame, s->BL_frame->frame, s->buffer_frame, &s->sps->scaled_ref_layer_window[s->vps->ref_layer_id[s->nuh_layer_id][0]], &s->up_filter_inf, 1);
+
+        if(s->pps->colour_mapping_enabled_flag) {
+            s->hevcdsp.colorMapping((void*)&s->pps->pc3DAsymLUT, s->BL_frame->frame, s->Ref_color_mapped_frame);
+            s->hevcdsp.upsample_base_layer_frame(s->EL_frame, s->Ref_color_mapped_frame, s->buffer_frame, &s->sps->scaled_ref_layer_window[s->vps->Hevc_VPS_Ext.ref_layer_id[s->nuh_layer_id][0]], &s->up_filter_inf, 1);
+        } else
+            s->hevcdsp.upsample_base_layer_frame(s->EL_frame, s->BL_frame->frame, s->buffer_frame, &s->sps->scaled_ref_layer_window[s->vps->Hevc_VPS_Ext.ref_layer_id[s->nuh_layer_id][0]], &s->up_filter_inf, 1);
 #endif
     }
     ret = ff_hevc_set_new_ref(s, &s->frame, s->poc);
@@ -3027,7 +3081,7 @@ static int decode_nal_unit(HEVCContext *s, const uint8_t *nal, int length)
     if ((s->temporal_id > s->temporal_layer_id) || (ret > s->quality_layer_id))
         return 0;
     s->nuh_layer_id = ret;
-    av_log(s->avctx, AV_LOG_ERROR, "s->nal_unit_type %d\n", s->nal_unit_type);
+//    av_log(s->avctx, AV_LOG_ERROR, "s->nal_unit_type %d\n", s->nal_unit_type);
     switch (s->nal_unit_type) {
     case NAL_VPS:
         ret = ff_hevc_decode_nal_vps(s);
@@ -3597,12 +3651,15 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
     for(i=0; i < s->nals_allocated; i++) {
         av_freep(&s->skipped_bytes_pos_nal[i]);
     }
+
     av_freep(&s->skipped_bytes_pos_size_nal);
     av_freep(&s->skipped_bytes_nal);
     av_freep(&s->skipped_bytes_pos_nal);
-
     av_freep(&s->cabac_state);
-
+#if !ACTIVE_PU_UPSAMPLING
+    av_frame_unref(s->Ref_color_mapped_frame);
+    av_frame_free(&s->Ref_color_mapped_frame);
+#endif
 #ifdef USE_SAO_SMALL_BUFFER
     for (i = 0; i < s->threads_number; i++) {
         av_freep(&s->HEVClcList[i]->sao_pixel_buffer);
@@ -3625,14 +3682,15 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
         av_frame_free(&s->Add_ref[i].frame);
     }
 
-
-
     for (i = 0; i < FF_ARRAY_ELEMS(s->vps_list); i++)
         av_buffer_unref(&s->vps_list[i]);
     for (i = 0; i < FF_ARRAY_ELEMS(s->sps_list); i++)
         av_buffer_unref(&s->sps_list[i]);
-    for (i = 0; i < FF_ARRAY_ELEMS(s->pps_list); i++)
+    for (i = 0; i < FF_ARRAY_ELEMS(s->pps_list); i++){
+        if((HEVCPPS*)s->pps_list[i])
+          Free3DArray((HEVCPPS*)s->pps_list[i]->data);
         av_buffer_unref(&s->pps_list[i]);
+    }
 
     av_freep(&s->sh.entry_point_offset);
     av_freep(&s->sh.offset);
@@ -3675,7 +3733,9 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
     s->cabac_state = av_malloc(HEVC_CONTEXTS);
     if (!s->cabac_state)
         goto fail;
-
+#if !ACTIVE_PU_UPSAMPLING
+    s->Ref_color_mapped_frame  = av_frame_alloc();
+#endif
 #ifndef USE_SAO_SMALL_BUFFER
     s->tmp_frame = av_frame_alloc();
     if (!s->tmp_frame)
@@ -3789,7 +3849,8 @@ static int hevc_update_thread_context(AVCodecContext *dst,
     s->seq_output           = s0->seq_output;
     s->pocTid0              = s0->pocTid0;
     s->max_ra               = s0->max_ra;
-    s->eos        = s0->eos;
+    s->eos                  = s0->eos;
+    s->no_rasl_output_flag = s0->no_rasl_output_flag;
     s->is_nalff             = s0->is_nalff;
     s->nal_length_size      = s0->nal_length_size;
     s->threads_number       = s0->threads_number;
@@ -3892,6 +3953,7 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
         return ret;
 
     s->picture_struct = 0;
+    s->eos = 1;
 
     if (avctx->extradata_size > 0 && avctx->extradata) {
         ret = hevc_decode_extradata(s);
@@ -3922,6 +3984,7 @@ static void hevc_decode_flush(AVCodecContext *avctx)
     HEVCContext *s = avctx->priv_data;
     ff_hevc_flush_dpb(s);
     s->max_ra = INT_MAX;
+    s->eos = 1;
 }
 
 #define OFFSET(x) offsetof(HEVCContext, x)
