@@ -683,6 +683,7 @@ int ff_hevc_frame_rps(HEVCContext *s)
     const LongTermRPS  *long_rps  = &s->sh.long_term_rps;
     RefPicList               *rps = s->rps;
     int i, ret;
+     const HEVCVPS *vps = s->vps;
 
     if (!short_rps) {
         rps[0].nb_refs = rps[1].nb_refs = 0;
@@ -778,7 +779,7 @@ int ff_hevc_frame_rps(HEVCContext *s)
             if( (s->temporal_id <= maxTidIlRefPicsPlus1-1) || (maxTidIlRefPicsPlus1==0 && ilpPic[i]->getSlice(0)->getRapPicFlag() ) )
                 numInterLayerRPSPics++;
         }
-
+*/
     if (s->nuh_layer_id) {
         for (i = 0; i < s->sh.active_num_ILR_ref_idx; i ++) {
             if ((vps->Hevc_VPS_Ext.view_id_val[s->nuh_layer_id] <= vps->Hevc_VPS_Ext.view_id_val[0]) &&
