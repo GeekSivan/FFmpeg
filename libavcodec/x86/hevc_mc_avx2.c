@@ -1717,7 +1717,7 @@ void ff_hevc_put_hevc_bi_w_qpel_h ## H ## _ ## D ## _avx2_ (                    
 
 #define PUT_HEVC_QPEL_V_VAR8_12()     PUT_HEVC_QPEL_V_VAR8_10()
 #define PUT_HEVC_QPEL_V_VAR16_12()     PUT_HEVC_QPEL_V_VAR16_10()
-#define PUT_HEVC_QPEL_V_VAR16_14()     PUT_HEVC_QPEL_V_VAR8_10()
+#define PUT_HEVC_QPEL_V_VAR8_14()     PUT_HEVC_QPEL_V_VAR8_10()
 #define PUT_HEVC_QPEL_V_VAR16_14()     PUT_HEVC_QPEL_V_VAR16_10()
 
 #define PUT_HEVC_QPEL_V(V, D)                                                  \
@@ -1914,7 +1914,7 @@ void ff_hevc_put_hevc_uni_w_qpel_v ## V ## _14_ ## D ## _avx2_ (                
 }
 
 #define PUT_HEVC_BI_W_QPEL_V14(V, D)                                           \
-void ff_hevc_put_hevc_bi_w_qpel_v ## V ## _14_ ## D ## _avx2_ (                  \
+void ff_hevc_put_hevc_bi_w_qpel_v ## V ## _14_ ## D ## _avx2 (                  \
                                         uint8_t *_dst, ptrdiff_t _dststride,   \
                                         uint8_t *_src, ptrdiff_t _srcstride,   \
                                         int16_t *src2, ptrdiff_t src2stride,   \
@@ -1952,10 +1952,10 @@ void ff_hevc_put_hevc_qpel_hv ## H ## _ ## D ## _avx2_ (                        
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
-    ff_hevc_put_hevc_qpel_v16 ## _14_avx2_(                                   \
+    ff_hevc_put_hevc_qpel_v16 ## _14_avx2_ (                                   \
         dst, dststride, (uint8_t *) tmp, MAX_PB_SIZE <<1 , height, mx, my, width);\
 }
 
@@ -1970,10 +1970,10 @@ DECLARE_ALIGNED(32, int16_t, tmp_array[(MAX_PB_SIZE + QPEL_EXTRA) * MAX_PB_SIZE]
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
-    ff_hevc_put_hevc_bi_qpel_v16 ## _14_ ## D ## _avx2_(                      \
+    ff_hevc_put_hevc_bi_qpel_v16 ## _14_ ## D ## _avx2_ (                      \
         dst, dststride, (uint8_t *) tmp, MAX_PB_SIZE <<1 , src2, src2stride, height, mx, my, width);\
 }
 
@@ -1987,7 +1987,7 @@ DECLARE_ALIGNED(32, int16_t, tmp_array[(MAX_PB_SIZE + QPEL_EXTRA) * MAX_PB_SIZE]
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
     ff_hevc_put_hevc_uni_qpel_v16 ## _14_ ## D ## _avx2_(                     \
@@ -2005,7 +2005,7 @@ void ff_hevc_put_hevc_uni_w_qpel_hv ## H ## _ ## D ## _avx2_ (                  
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
     ff_hevc_put_hevc_uni_w_qpel_v16 ## _14_ ## D ## _avx2_(                   \
@@ -2027,7 +2027,7 @@ void ff_hevc_put_hevc_bi_w_qpel_hv ## H ## _ ## D ## _avx2_ (                   
     ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
-    ff_hevc_put_hevc_bi_w_qpel_v16 ## _14_ ## D ## _avx2_(                    \
+    ff_hevc_put_hevc_bi_w_qpel_v16 ## _14_ ## D ## _avx2(                    \
         dst, dststride, (uint8_t *) tmp, MAX_PB_SIZE <<1 , src2, src2stride, height, denom, wx0, wx1, ox0, ox1, mx, my, width);\
 }
 
@@ -2101,42 +2101,42 @@ GEN_FUNC(QPEL_HV,  16, 10)
 GEN_FUNC(QPEL_HV,  16, 12)
 
 #define mc_red_func(name, bitd, step, W)                                                                    \
-void ff_hevc_put_hevc_##name##W##_##bitd##_avx2_(                                                             \
+void ff_hevc_put_hevc_##name##W##_##bitd##_avx2(                                                             \
                                 int16_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height, intptr_t mx, intptr_t my, int width) {                          \
-    ff_hevc_put_hevc_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, mx, my, width);  \
+    ff_hevc_put_hevc_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, height, mx, my, width);  \
 }                                                                                                           \
-void ff_hevc_put_hevc_bi_##name##W##_##bitd##_avx2_(                                                          \
+void ff_hevc_put_hevc_bi_##name##W##_##bitd##_avx2(                                                          \
                                 uint8_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int16_t *src2, ptrdiff_t src2stride,                                        \
                                 int height,                                                      \
                                 intptr_t mx, intptr_t my, int width) {                                                 \
-    ff_hevc_put_hevc_bi_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, src2, src2stride, height, mx, my, width);\
+    ff_hevc_put_hevc_bi_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, src2, src2stride, height, mx, my, width);\
 }                                                                                                           \
-void ff_hevc_put_hevc_uni_##name##W##_##bitd##_avx2_(                                                         \
+void ff_hevc_put_hevc_uni_##name##W##_##bitd##_avx2(                                                         \
                                 uint8_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height,                                                                \
                                 intptr_t mx, intptr_t my, int width) {                                      \
-    ff_hevc_put_hevc_uni_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, mx, my, width);\
+    ff_hevc_put_hevc_uni_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, height, mx, my, width);\
 }                                                                                                           \
-void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_avx2_(                                                       \
+void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_avx2 (                                                       \
                                 uint8_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height,  int denom, int wx,                                             \
                                 int ox, intptr_t mx, intptr_t my, int width) {                              \
     ff_hevc_put_hevc_uni_w_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, denom, wx, ox, mx, my, width);\
 }                                                                                                           \
-void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_avx2_(                     \
+void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_avx2 (                     \
                                 uint8_t *dst, ptrdiff_t dststride,   \
                                 uint8_t *_src, ptrdiff_t _srcstride,   \
                                 int16_t *src2, ptrdiff_t src2stride,   \
                                 int height, int denom, int wx0,       \
                                 int wx1, int ox0, int ox1,          \
                                 intptr_t mx, intptr_t my, int width) { \
-    ff_hevc_put_hevc_bi_w_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, src2, src2stride, height, denom, wx0, wx1, ox0, ox1, mx, my, width);\
+    ff_hevc_put_hevc_bi_w_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, src2, src2stride, height, denom, wx0, wx1, ox0, ox1, mx, my, width);\
 }
 
 
