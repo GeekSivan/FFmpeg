@@ -1231,27 +1231,7 @@ void ff_hevc_put_hevc_bi_w_epel_hv ## H ## _ ## D ## _avx2_ (                   
     x3 = _mm256_maddubs_epi16(x3,c2);                                             \
     x5 = _mm256_maddubs_epi16(x5,c3);                                             \
     x7 = _mm256_maddubs_epi16(x7,c4);                                             \
-    x2 =PEL_PROTOTYPE2(pel_pixels32, 8, avx2_);
-    PEL_PROTOTYPE2(qpel_h32,  8, avx2_);
-    PEL_PROTOTYPE2(qpel_v32,  8, avx2_);
-    PEL_PROTOTYPE2(qpel_hv32, 8, avx2_);
-
-
-    PEL_PROTOTYPE2(pel_pixels16, 10, avx2_);
-    PEL_PROTOTYPE2(qpel_h16, 10, avx2_);
-    PEL_PROTOTYPE2(qpel_v16, 10, avx2_);
-    PEL_PROTOTYPE2(qpel_hv16, 10, avx2_);
-    PEL_PROTOTYPE2(epel_h16, 10, avx2_);
-    PEL_PROTOTYPE2(epel_v16, 10, avx2_);
-    PEL_PROTOTYPE2(epel_hv16, 10, avx2_);
-
-    PEL_PROTOTYPE2(pel_pixels16, 12, avx2_);
-    PEL_PROTOTYPE2(epel_h16, 12, avx2_);
-    PEL_PROTOTYPE2(epel_v16, 12, avx2_);
-    PEL_PROTOTYPE2(epel_hv16, 12, avx2_);
-    PEL_PROTOTYPE2(qpel_hv16, 12, avx2_);
-    PEL_PROTOTYPE2(qpel_v16, 12, avx2_);
-    PEL_PROTOTYPE2(qpel_h16, 12, avx2_); _mm256_maddubs_epi16(x2,c1);                                             \
+    x2 = _mm256_maddubs_epi16(x2,c1);                                             \
     x4 = _mm256_maddubs_epi16(x4,c2);                                             \
     x6 = _mm256_maddubs_epi16(x6,c3);                                             \
     x8 = _mm256_maddubs_epi16(x8,c4);                                             \

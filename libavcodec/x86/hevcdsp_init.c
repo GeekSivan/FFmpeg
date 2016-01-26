@@ -46,6 +46,7 @@ void ff_hevc_ ## DIR ## _loop_filter_luma_ ## DEPTH ## _ ## OPT(uint8_t *pix, pt
 LFC_FUNCS(uint8_t,   8, sse2)
 LFC_FUNCS(uint8_t,  10, sse2)
 LFC_FUNCS(uint8_t,  12, sse2)
+// no sse3 opt for LFC_FUNCS ?
 LFC_FUNCS(uint8_t,   8, avx)
 LFC_FUNCS(uint8_t,  10, avx)
 LFC_FUNCS(uint8_t,  12, avx)
@@ -268,7 +269,7 @@ mc_rep_funcs(qpel_hv, 10, 16, 32, avx2);
 mc_rep_funcs(qpel_hv, 10, 16, 48, avx2);
 mc_rep_funcs(qpel_hv, 10, 32, 64, avx2);
 #endif //AVX2
-
+//TODO have a look to avx2 declaration created
 mc_rep_funcs(pel_pixels, 8, 16, 64, sse4);
 mc_rep_funcs(pel_pixels, 8, 16, 48, sse4);
 mc_rep_funcs(pel_pixels, 8, 16, 32, sse4);
@@ -638,7 +639,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->idct_dc[1] = ff_hevc_idct8x8_dc_8_sse2;
             c->idct_dc[2] = ff_hevc_idct16x16_dc_8_sse2;
             c->idct_dc[3] = ff_hevc_idct32x32_dc_8_sse2;
-
+//TODO why is there sse4 function while SSE2 define
 #if HAVE_SSE2
             // only 4X4 needs update for Rext                   c->transform_skip    = ff_hevc_transform_skip_8_sse;
             c->idct_4x4_luma = ff_hevc_transform_4x4_luma_8_sse4;
