@@ -101,8 +101,7 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
 {
     int log2_min_cb_size = sps->log2_min_cb_size;
     int width            = sps->width;
-    int height           = sps->height;s->horizontal_bs = av_mallocz((s->bs_width+(4*(1 << sps->hshift[1]))) * s->bs_height);
-    s->vertical_bs   = av_mallocz(s->bs_width * (s->bs_height+4*(1 << sps->vshift[1])));
+    int height           = sps->height;
     int pic_size_in_ctb  = ((width  >> log2_min_cb_size) + 1) *
                            ((height >> log2_min_cb_size) + 1);
     int ctb_count        = sps->ctb_width * sps->ctb_height;
