@@ -2020,7 +2020,7 @@ xop_deps="avx"
 fma3_deps="avx"
 fma4_deps="avx"
 avx2_deps="avx"
-avx3_deps="avx2"
+
 mmx_external_deps="yasm"
 mmx_inline_deps="inline_asm"
 mmx_suggest="mmx_external mmx_inline"

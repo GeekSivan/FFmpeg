@@ -55,8 +55,7 @@ void ff_hevc_put_hevc_uni_w_ ## name ## _ ## D ## _ ## opt (uint8_t *_dst, ptrdi
 void ff_hevc_put_hevc_bi_w_ ## name ## _ ## D ## _ ## opt (uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, int denom, int wx0, int wx1, int ox0, int ox1, intptr_t mx, intptr_t my, int width)
 
 
-
-#ifdef PEL_PROTOTYPE2
+#if 0
 PEL_PROTOTYPE2(pel_pixels32, 8, avx2_);
 PEL_PROTOTYPE2(qpel_h32,  8, avx2_);
 PEL_PROTOTYPE2(qpel_v32,  8, avx2_);
@@ -79,6 +78,7 @@ PEL_PROTOTYPE2(qpel_hv16, 12, avx2_);
 PEL_PROTOTYPE2(qpel_v16, 12, avx2_);
 PEL_PROTOTYPE2(qpel_h16, 12, avx2_);
 #endif
+
 
 
 #define WEIGHTING_PROTOTYPE2(width, bitd, opt) \
@@ -186,7 +186,7 @@ void ff_hevc_transform_add32_10_avx2(uint8_t *dst, int16_t *coeffs, ptrdiff_t st
 EPEL_PROTOTYPES(pel_pixels ,  8, sse4);
 EPEL_PROTOTYPES(pel_pixels , 10, sse4);
 EPEL_PROTOTYPES(pel_pixels , 12, sse4);
-
+#if 0
 void ff_hevc_put_hevc_pel_pixels16_8_avx2(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width);
 void ff_hevc_put_hevc_pel_pixels24_8_avx2(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width);
 void ff_hevc_put_hevc_pel_pixels32_8_avx2(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width);
@@ -219,7 +219,7 @@ void ff_hevc_put_hevc_bi_pel_pixels24_10_avx2(uint8_t *_dst, ptrdiff_t _dststrid
 void ff_hevc_put_hevc_bi_pel_pixels32_10_avx2(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width);
 void ff_hevc_put_hevc_bi_pel_pixels48_10_avx2(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width);
 void ff_hevc_put_hevc_bi_pel_pixels64_10_avx2(uint8_t *_dst, ptrdiff_t _dststride, uint8_t *_src, ptrdiff_t _srcstride, int16_t *src2, ptrdiff_t src2stride, int height, intptr_t mx, intptr_t my, int width);
-
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // EPEL
 ///////////////////////////////////////////////////////////////////////////////

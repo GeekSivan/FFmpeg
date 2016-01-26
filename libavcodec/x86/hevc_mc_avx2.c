@@ -383,7 +383,7 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 
 ////////////////////////////////////////////////////////////////////////////////
 // ff_hevc_put_hevc_mc_pixelsX_X_avx2
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////identifier//////////////////////////////////////////////
 #define MC_LOAD_PIXEL()                                                        \
     x1 = _mm256_loadu_si256((__m256i *) &src[x])
 
@@ -1231,7 +1231,27 @@ void ff_hevc_put_hevc_bi_w_epel_hv ## H ## _ ## D ## _avx2_ (                   
     x3 = _mm256_maddubs_epi16(x3,c2);                                             \
     x5 = _mm256_maddubs_epi16(x5,c3);                                             \
     x7 = _mm256_maddubs_epi16(x7,c4);                                             \
-    x2 = _mm256_maddubs_epi16(x2,c1);                                             \
+    x2 =PEL_PROTOTYPE2(pel_pixels32, 8, avx2_);
+    PEL_PROTOTYPE2(qpel_h32,  8, avx2_);
+    PEL_PROTOTYPE2(qpel_v32,  8, avx2_);
+    PEL_PROTOTYPE2(qpel_hv32, 8, avx2_);
+
+
+    PEL_PROTOTYPE2(pel_pixels16, 10, avx2_);
+    PEL_PROTOTYPE2(qpel_h16, 10, avx2_);
+    PEL_PROTOTYPE2(qpel_v16, 10, avx2_);
+    PEL_PROTOTYPE2(qpel_hv16, 10, avx2_);
+    PEL_PROTOTYPE2(epel_h16, 10, avx2_);
+    PEL_PROTOTYPE2(epel_v16, 10, avx2_);
+    PEL_PROTOTYPE2(epel_hv16, 10, avx2_);
+
+    PEL_PROTOTYPE2(pel_pixels16, 12, avx2_);
+    PEL_PROTOTYPE2(epel_h16, 12, avx2_);
+    PEL_PROTOTYPE2(epel_v16, 12, avx2_);
+    PEL_PROTOTYPE2(epel_hv16, 12, avx2_);
+    PEL_PROTOTYPE2(qpel_hv16, 12, avx2_);
+    PEL_PROTOTYPE2(qpel_v16, 12, avx2_);
+    PEL_PROTOTYPE2(qpel_h16, 12, avx2_); _mm256_maddubs_epi16(x2,c1);                                             \
     x4 = _mm256_maddubs_epi16(x4,c2);                                             \
     x6 = _mm256_maddubs_epi16(x6,c3);                                             \
     x8 = _mm256_maddubs_epi16(x8,c4);                                             \
@@ -2059,46 +2079,82 @@ static PUT_HEVC_BI_W_ ## FUNC ##14(H,12)
 
 // ff_hevc_put_hevc_mc_pixelsX_X_avx2
 #if HAVE_AVX2
-GEN_FUNC(PEL_PIXELS, 32, 8)
-GEN_FUNC(PEL_PIXELS,  16, 10)
-GEN_FUNC(PEL_PIXELS,  16, 12)
+//GEN_FUNC(PEL_PIXELS, 32, 8)
+//GEN_FUNC(PEL_PIXELS,  16, 10)
+//GEN_FUNC(PEL_PIXELS,  16, 12)
 
 // ff_hevc_put_hevc_epel_hX_X_avx2
-GEN_FUNC(EPEL_H,  16, 10)
-GEN_FUNC(EPEL_H,  16, 12)
+//GEN_FUNC(EPEL_H,  16, 10)
+//GEN_FUNC(EPEL_H,  16, 12)
 
 // ff_hevc_put_hevc_epel_vX_X_avx2
-GEN_FUNC(EPEL_V,  16, 10)
-GEN_FUNC(EPEL_V,  16, 12)
+//GEN_FUNC(EPEL_V,  16, 10)
+//GEN_FUNC(EPEL_V,  16, 12)
 
 // ff_hevc_put_hevc_epel_hvX_X_avx2
 //GEN_FUNC(EPEL_HV,  8,  8)
-GEN_FUNC(EPEL_HV,  16, 10)
+//GEN_FUNC(EPEL_HV,  16, 10)
 
-GEN_FUNC(EPEL_HV,  16, 12)
+//GEN_FUNC(EPEL_HV,  16, 12)
 
 
 // ff_hevc_put_hevc_qpel_hX_X_X_avx2
 //GEN_FUNC(QPEL_H,  4,  8)
 //GEN_FUNC(QPEL_H,  8,  8)
 //GEN_FUNC(QPEL_H, 16,  8)
-GEN_FUNC(QPEL_H, 32,  8)
-GEN_FUNC(QPEL_H_10,  16, 10)
-GEN_FUNC(QPEL_H_10,  16, 12)
+//GEN_FUNC(QPEL_H, 32,  8)
+//GEN_FUNC(QPEL_H_10,  16, 10)
+//GEN_FUNC(QPEL_H_10,  16, 12)
 
 // ff_hevc_put_hevc_qpel_vX_X_X_avx2
-GEN_FUNC(QPEL_V, 32,  8)
+//GEN_FUNC(QPEL_V, 32,  8)
 
-GEN_FUNC(QPEL_V,  16, 10)
+//GEN_FUNC(QPEL_V,  16, 10)
 
-GEN_FUNC(QPEL_V,  16, 12)
+//GEN_FUNC(QPEL_V,  16, 12)
 
-GEN_FUNC_STATIC(QPEL_V, 16, 14)
+//GEN_FUNC_STATIC(QPEL_V, 16, 14)
 
 // ff_hevc_put_hevc_qpel_hvX_X_avx2
-GEN_FUNC(QPEL_HV,  32, 8)
-GEN_FUNC(QPEL_HV,  16, 10)
-GEN_FUNC(QPEL_HV,  16, 12)
+//GEN_FUNC(QPEL_HV,  32EL_PROTOTYPE2(qpel_h16, 12, avx2_);, 8)
+//GEN_FUNC(QPEL_HV,  16, 10)
+//GEN_FUNC(QPEL_HV,  16, 12)
+//PEL_PROTOTYPE2(pel_pixels32, 8, avx2_);
+    GEN_FUNC(PEL_PIXELS, 32, 8)
+//PEL_PROTOTYPE2(qpel_h32,  8, avx2_);
+    GEN_FUNC(QPEL_H, 32, 8)
+//PEL_PROTOTYPE2(qpel_v32,  8, avx2_);
+    GEN_FUNC(QPEL_V, 32, 8)
+//PEL_PROTOTYPE2(qpel_hv32, 8, avx2_);
+    GEN_FUNC(QPEL_HV, 32, 8)
+//PEL_PROTOTYPE2(pel_pixels16, 10, avx2_);
+    GEN_FUNC(PEL_PIXELS, 16, 10)
+//PEL_PROTOTYPE2(qpel_h16, 10, avx2_);
+    GEN_FUNC(QPEL_H, 16, 10)
+//PEL_PROTOTYPE2(qpel_v16, 10, avx2_);
+    GEN_FUNC(QPEL_V, 16, 10)
+//PEL_PROTOTYPE2(qpel_hv16, 10, avx2_);
+    GEN_FUNC(QPEL_HV, 16, 10)
+//PEL_PROTOTYPE2(epel_h16, 10, avx2_);
+    GEN_FUNC(EPEL_H, 16, 10)
+//PEL_PROTOTYPE2(epel_v16, 10, avx2_);
+    GEN_FUNC(EPEL_V, 16, 10)
+//PEL_PROTOTYPE2(epel_hv16, 10, avx2_);
+    GEN_FUNC(EPEL_HV, 16, 10)
+//PEL_PROTOTYPE2(pel_pixels16, 12, avx2_);
+    GEN_FUNC(PEL_PIXELS, 16, 12)
+//PEL_PROTOTYPE2(epel_h16, 12, avx2_);
+    GEN_FUNC(EPEL_H, 16, 12)
+//PEL_PROTOTYPE2(epel_v16, 12, avx2_);
+    GEN_FUNC(EPEL_V, 16, 12)
+//PEL_PROTOTYPE2(epel_hv16, 12, avx2_);
+    GEN_FUNC(EPEL_HV, 16, 12)
+//PEL_PROTOTYPE2(qpel_hv16, 12, avx2_);
+    GEN_FUNC(QPEL_HV, 16, 12)
+//PEL_PROTOTYPE2(qpel_v16, 12, avx2_);
+    GEN_FUNC(QPEL_V, 16, 12)
+//PEL_PROTOTYPE2(qpel_h16, 12, avx2_);
+    GEN_FUNC(QPEL_H, 16, 12)
 
 #define mc_red_func(name, bitd, step, W)                                                                    \
 void ff_hevc_put_hevc_##name##W##_##bitd##_avx2(                                                             \
@@ -2127,7 +2183,7 @@ void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_avx2 (                         
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height,  int denom, int wx,                                             \
                                 int ox, intptr_t mx, intptr_t my, int width) {                              \
-    ff_hevc_put_hevc_uni_w_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, denom, wx, ox, mx, my, width);\
+    ff_hevc_put_hevc_uni_w_##name##step##_##bitd##_avxPEL_LINK22_(dst, dststride, _src, _srcstride, height, denom, wx, ox, mx, my, width);\
 }                                                                                                           \
 void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_avx2 (                     \
                                 uint8_t *dst, ptrdiff_t dststride,   \
@@ -2227,7 +2283,7 @@ mc_red_func(epel_h, 8, 8, 24);
 mc_red_func(epel_h, 8, 8, 32);
 mc_red_func(epel_h, 8, 8, 48);
 mc_red_func(epel_h, 8, 8, 64);
-
+PEL_LINK2
 mc_red_func(epel_h,10, 4, 12);
 mc_red_func(epel_h,10, 8, 16);
 mc_red_func(epel_h,10, 8, 24);
