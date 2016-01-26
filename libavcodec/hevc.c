@@ -101,7 +101,8 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
 {
     int log2_min_cb_size = sps->log2_min_cb_size;
     int width            = sps->width;
-    int height           = sps->height;
+    int height           = sps->height;s->horizontal_bs = av_mallocz((s->bs_width+(4*(1 << sps->hshift[1]))) * s->bs_height);
+    s->vertical_bs   = av_mallocz(s->bs_width * (s->bs_height+4*(1 << sps->vshift[1])));
     int pic_size_in_ctb  = ((width  >> log2_min_cb_size) + 1) *
                            ((height >> log2_min_cb_size) + 1);
     int ctb_count        = sps->ctb_width * sps->ctb_height;
@@ -134,8 +135,8 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
     if (!s->qp_y_tab || !s->filter_slice_edges || !s->tab_slice_address)
         goto fail;
 
-    s->horizontal_bs = av_mallocz_array(s->bs_width, s->bs_height);
-    s->vertical_bs   = av_mallocz_array(s->bs_width, s->bs_height);
+    s->horizontal_bs = av_mallocz((s->bs_width+(4*(1 << sps->hshift[1]))) * s->bs_height);
+    s->vertical_bs   = av_mallocz(s->bs_width * (s->bs_height+4*(1 << sps->vshift[1])));
     if (!s->horizontal_bs || !s->vertical_bs)
         goto fail;
 
