@@ -1846,7 +1846,7 @@ int ff_hevc_decode_nal_sps(HEVCContext *s)
     if (get_bits_left(gb) < 0) {
         av_log(s->avctx, AV_LOG_ERROR,
                "Overread SPS by %d bits\n", -get_bits_left(gb));
-        goto err;
+        //goto err;
     }
 
     if (s->avctx->debug & FF_DEBUG_BITSTREAM) {
