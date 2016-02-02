@@ -43,7 +43,7 @@
 #define CLPI_PIXEL_MAX_10 0x03FF
 #define CLPI_PIXEL_MAX_12 0x0FFF
 
-#ifndef OPTI_ASM
+//#ifndef OPTI_ASM
 DECLARE_ALIGNED(32, const int8_t, ff_hevc_epel_filters_avx2[7][2][32]) = {
     { { -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58, -2, 58},
       { 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2, 10, -2} },
@@ -383,7 +383,7 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 
 ////////////////////////////////////////////////////////////////////////////////
 // ff_hevc_put_hevc_mc_pixelsX_X_avx2
-//////////////////////////////////identifier//////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 #define MC_LOAD_PIXEL()                                                        \
     x1 = _mm256_loadu_si256((__m256i *) &src[x])
 
@@ -1914,7 +1914,7 @@ void ff_hevc_put_hevc_uni_w_qpel_v ## V ## _14_ ## D ## _avx2_ (                
 }
 
 #define PUT_HEVC_BI_W_QPEL_V14(V, D)                                           \
-void ff_hevc_put_hevc_bi_w_qpel_v ## V ## _14_ ## D ## _avx2 (                  \
+void ff_hevc_put_hevc_bi_w_qpel_v ## V ## _14_ ## D ## _avx2_ (                  \
                                         uint8_t *_dst, ptrdiff_t _dststride,   \
                                         uint8_t *_src, ptrdiff_t _srcstride,   \
                                         int16_t *src2, ptrdiff_t src2stride,   \
@@ -1952,10 +1952,10 @@ void ff_hevc_put_hevc_qpel_hv ## H ## _ ## D ## _avx2_ (                        
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
-    ff_hevc_put_hevc_qpel_v16 ## _14_avx2_ (                                   \
+    ff_hevc_put_hevc_qpel_v16 ## _14_avx2_(                                   \
         dst, dststride, (uint8_t *) tmp, MAX_PB_SIZE <<1 , height, mx, my, width);\
 }
 
@@ -1970,10 +1970,10 @@ DECLARE_ALIGNED(32, int16_t, tmp_array[(MAX_PB_SIZE + QPEL_EXTRA) * MAX_PB_SIZE]
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
-    ff_hevc_put_hevc_bi_qpel_v16 ## _14_ ## D ## _avx2_ (                      \
+    ff_hevc_put_hevc_bi_qpel_v16 ## _14_ ## D ## _avx2_(                      \
         dst, dststride, (uint8_t *) tmp, MAX_PB_SIZE <<1 , src2, src2stride, height, mx, my, width);\
 }
 
@@ -1987,7 +1987,7 @@ DECLARE_ALIGNED(32, int16_t, tmp_array[(MAX_PB_SIZE + QPEL_EXTRA) * MAX_PB_SIZE]
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
     ff_hevc_put_hevc_uni_qpel_v16 ## _14_ ## D ## _avx2_(                     \
@@ -2005,7 +2005,7 @@ void ff_hevc_put_hevc_uni_w_qpel_hv ## H ## _ ## D ## _avx2_ (                  
     int16_t *tmp = tmp_array;                                                  \
     SRC_INIT_ ## D();                                                          \
     src -= QPEL_EXTRA_BEFORE * srcstride;                                      \
-    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_ (                            \
+    ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
     ff_hevc_put_hevc_uni_w_qpel_v16 ## _14_ ## D ## _avx2_(                   \
@@ -2027,7 +2027,7 @@ void ff_hevc_put_hevc_bi_w_qpel_hv ## H ## _ ## D ## _avx2_ (                   
     ff_hevc_put_hevc_qpel_h ## H ## _ ## D ## _avx2_(                            \
         tmp, MAX_PB_SIZE, (uint8_t *)src, _srcstride, height + QPEL_EXTRA, mx, my, width); \
     tmp    = tmp_array + QPEL_EXTRA_BEFORE * MAX_PB_SIZE;                      \
-    ff_hevc_put_hevc_bi_w_qpel_v16 ## _14_ ## D ## _avx2(                    \
+    ff_hevc_put_hevc_bi_w_qpel_v16 ## _14_ ## D ## _avx2_(                    \
         dst, dststride, (uint8_t *) tmp, MAX_PB_SIZE <<1 , src2, src2stride, height, denom, wx0, wx1, ox0, ox1, mx, my, width);\
 }
 
@@ -2062,117 +2062,81 @@ static PUT_HEVC_BI_W_ ## FUNC ##14(H,12)
 //GEN_FUNC(PEL_PIXELS, 32, 8)
 //GEN_FUNC(PEL_PIXELS,  16, 10)
 //GEN_FUNC(PEL_PIXELS,  16, 12)
-
-// ff_hevc_put_hevc_epel_hX_X_avx2
+//
+//// ff_hevc_put_hevc_epel_hX_X_avx2
 //GEN_FUNC(EPEL_H,  16, 10)
 //GEN_FUNC(EPEL_H,  16, 12)
-
-// ff_hevc_put_hevc_epel_vX_X_avx2
+//
+//// ff_hevc_put_hevc_epel_vX_X_avx2
 //GEN_FUNC(EPEL_V,  16, 10)
 //GEN_FUNC(EPEL_V,  16, 12)
-
-// ff_hevc_put_hevc_epel_hvX_X_avx2
-//GEN_FUNC(EPEL_HV,  8,  8)
+//
+//// ff_hevc_put_hevc_epel_hvX_X_avx2
+////GEN_FUNC(EPEL_HV,  8,  8)
 //GEN_FUNC(EPEL_HV,  16, 10)
-
+//
 //GEN_FUNC(EPEL_HV,  16, 12)
-
-
-// ff_hevc_put_hevc_qpel_hX_X_X_avx2
+//
+//
+//// ff_hevc_put_hevc_qpel_hX_X_X_avx2
 //GEN_FUNC(QPEL_H,  4,  8)
 //GEN_FUNC(QPEL_H,  8,  8)
 //GEN_FUNC(QPEL_H, 16,  8)
 //GEN_FUNC(QPEL_H, 32,  8)
 //GEN_FUNC(QPEL_H_10,  16, 10)
 //GEN_FUNC(QPEL_H_10,  16, 12)
-
+//
 // ff_hevc_put_hevc_qpel_vX_X_X_avx2
 //GEN_FUNC(QPEL_V, 32,  8)
-
+//
 //GEN_FUNC(QPEL_V,  16, 10)
-
+//
 //GEN_FUNC(QPEL_V,  16, 12)
-
+//
 //GEN_FUNC_STATIC(QPEL_V, 16, 14)
-
-// ff_hevc_put_hevc_qpel_hvX_X_avx2
-//GEN_FUNC(QPEL_HV,  32EL_PROTOTYPE2(qpel_h16, 12, avx2_);, 8)
+//
+//// ff_hevc_put_hevc_qpel_hvX_X_avx2
+//GEN_FUNC(QPEL_HV,  32, 8)
 //GEN_FUNC(QPEL_HV,  16, 10)
 //GEN_FUNC(QPEL_HV,  16, 12)
-//PEL_PROTOTYPE2(pel_pixels32, 8, avx2_);
-    GEN_FUNC(PEL_PIXELS, 32, 8)
-//PEL_PROTOTYPE2(qpel_h32,  8, avx2_);
-    GEN_FUNC(QPEL_H, 32, 8)
-//PEL_PROTOTYPE2(qpel_v32,  8, avx2_);
-    GEN_FUNC(QPEL_V, 32, 8)
-//PEL_PROTOTYPE2(qpel_hv32, 8, avx2_);
-    GEN_FUNC(QPEL_HV, 32, 8)
-//PEL_PROTOTYPE2(pel_pixels16, 10, avx2_);
-    GEN_FUNC(PEL_PIXELS, 16, 10)
-//PEL_PROTOTYPE2(qpel_h16, 10, avx2_);
-    GEN_FUNC(QPEL_H, 16, 10)
-//PEL_PROTOTYPE2(qpel_v16, 10, avx2_);
-    GEN_FUNC(QPEL_V, 16, 10)
-//PEL_PROTOTYPE2(qpel_hv16, 10, avx2_);
-    GEN_FUNC(QPEL_HV, 16, 10)
-//PEL_PROTOTYPE2(epel_h16, 10, avx2_);
-    GEN_FUNC(EPEL_H, 16, 10)
-//PEL_PROTOTYPE2(epel_v16, 10, avx2_);
-    GEN_FUNC(EPEL_V, 16, 10)
-//PEL_PROTOTYPE2(epel_hv16, 10, avx2_);
-    GEN_FUNC(EPEL_HV, 16, 10)
-//PEL_PROTOTYPE2(pel_pixels16, 12, avx2_);
-    GEN_FUNC(PEL_PIXELS, 16, 12)
-//PEL_PROTOTYPE2(epel_h16, 12, avx2_);
-    GEN_FUNC(EPEL_H, 16, 12)
-//PEL_PROTOTYPE2(epel_v16, 12, avx2_);
-    GEN_FUNC(EPEL_V, 16, 12)
-//PEL_PROTOTYPE2(epel_hv16, 12, avx2_);
-    GEN_FUNC(EPEL_HV, 16, 12)
-//PEL_PROTOTYPE2(qpel_hv16, 12, avx2_);
-    GEN_FUNC(QPEL_HV, 16, 12)
-//PEL_PROTOTYPE2(qpel_v16, 12, avx2_);
-    GEN_FUNC(QPEL_V, 16, 12)
-//PEL_PROTOTYPE2(qpel_h16, 12, avx2_);
-    GEN_FUNC(QPEL_H, 16, 12)
 
 #define mc_red_func(name, bitd, step, W)                                                                    \
-void ff_hevc_put_hevc_##name##W##_##bitd##_avx2(                                                             \
+void ff_hevc_put_hevc_##name##W##_##bitd##_avx2_(                                                             \
                                 int16_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height, intptr_t mx, intptr_t my, int width) {                          \
-    ff_hevc_put_hevc_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, height, mx, my, width);  \
+    ff_hevc_put_hevc_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, mx, my, width);  \
 }                                                                                                           \
-void ff_hevc_put_hevc_bi_##name##W##_##bitd##_avx2(                                                          \
+void ff_hevc_put_hevc_bi_##name##W##_##bitd##_avx2_(                                                          \
                                 uint8_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int16_t *src2, ptrdiff_t src2stride,                                        \
                                 int height,                                                      \
                                 intptr_t mx, intptr_t my, int width) {                                                 \
-    ff_hevc_put_hevc_bi_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, src2, src2stride, height, mx, my, width);\
+    ff_hevc_put_hevc_bi_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, src2, src2stride, height, mx, my, width);\
 }                                                                                                           \
-void ff_hevc_put_hevc_uni_##name##W##_##bitd##_avx2(                                                         \
+void ff_hevc_put_hevc_uni_##name##W##_##bitd##_avx2_(                                                         \
                                 uint8_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height,                                                                \
                                 intptr_t mx, intptr_t my, int width) {                                      \
-    ff_hevc_put_hevc_uni_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, height, mx, my, width);\
+    ff_hevc_put_hevc_uni_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, mx, my, width);\
 }                                                                                                           \
-void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_avx2 (                                                       \
+void ff_hevc_put_hevc_uni_w_##name##W##_##bitd##_avx2_(                                                       \
                                 uint8_t *dst, ptrdiff_t dststride,                                          \
                                 uint8_t *_src, ptrdiff_t _srcstride,                                        \
                                 int height,  int denom, int wx,                                             \
                                 int ox, intptr_t mx, intptr_t my, int width) {                              \
-    ff_hevc_put_hevc_uni_w_##name##step##_##bitd##_avxPEL_LINK22_(dst, dststride, _src, _srcstride, height, denom, wx, ox, mx, my, width);\
+    ff_hevc_put_hevc_uni_w_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, height, denom, wx, ox, mx, my, width);\
 }                                                                                                           \
-void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_avx2 (                     \
+void ff_hevc_put_hevc_bi_w_##name##W##_##bitd##_avx2_(                     \
                                 uint8_t *dst, ptrdiff_t dststride,   \
                                 uint8_t *_src, ptrdiff_t _srcstride,   \
                                 int16_t *src2, ptrdiff_t src2stride,   \
                                 int height, int denom, int wx0,       \
                                 int wx1, int ox0, int ox1,          \
                                 intptr_t mx, intptr_t my, int width) { \
-    ff_hevc_put_hevc_bi_w_##name##step##_##bitd##_avx2(dst, dststride, _src, _srcstride, src2, src2stride, height, denom, wx0, wx1, ox0, ox1, mx, my, width);\
+    ff_hevc_put_hevc_bi_w_##name##step##_##bitd##_avx2_(dst, dststride, _src, _srcstride, src2, src2stride, height, denom, wx0, wx1, ox0, ox1, mx, my, width);\
 }
 
 
@@ -2263,7 +2227,7 @@ mc_red_func(epel_h, 8, 8, 24);
 mc_red_func(epel_h, 8, 8, 32);
 mc_red_func(epel_h, 8, 8, 48);
 mc_red_func(epel_h, 8, 8, 64);
-PEL_LINK2
+
 mc_red_func(epel_h,10, 4, 12);
 mc_red_func(epel_h,10, 8, 16);
 mc_red_func(epel_h,10, 8, 24);
@@ -2320,7 +2284,7 @@ mc_red_func(epel_hv,12, 8, 32);
 mc_red_func(epel_hv,12, 8, 48);
 mc_red_func(epel_hv,12, 8, 64);
 */
-#endif //OPTI_ASM
+//#endif //OPTI_ASM
 
 #endif // HAVE_AVX2
 
