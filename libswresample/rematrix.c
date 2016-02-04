@@ -128,14 +128,11 @@ av_cold static int auto_matrix(SwrContext *s)
     )
         out_ch_layout = AV_CH_LAYOUT_STEREO;
 
-<<<<<<< HEAD
-=======
     if(    in_ch_layout == AV_CH_LAYOUT_STEREO_DOWNMIX
        && (out_ch_layout & AV_CH_LAYOUT_STEREO_DOWNMIX) == 0
     )
         in_ch_layout = AV_CH_LAYOUT_STEREO;
 
->>>>>>> af21d609a0ddeeddad4fdefecb19fd4e13744f80
     if(!sane_layout(in_ch_layout)){
         av_get_channel_layout_string(buf, sizeof(buf), -1, s->in_ch_layout);
         av_log(s, AV_LOG_ERROR, "Input channel layout '%s' is not supported\n", buf);
