@@ -1,6 +1,6 @@
 /*
  * RealAudio 2.0 (28.8K)
- * Copyright (c) 2003 the ffmpeg project
+ * Copyright (c) 2003 The FFmpeg Project
  *
  * This file is part of FFmpeg.
  *
@@ -37,8 +37,8 @@
 #define RA288_BLOCK_SIZE        5
 #define RA288_BLOCKS_PER_FRAME 32
 
-typedef struct {
-    AVFloatDSPContext fdsp;
+typedef struct RA288Context {
+    AVFloatDSPContext *fdsp;
     DECLARE_ALIGNED(32, float,   sp_lpc)[FFALIGN(36, 16)];   ///< LPC coefficients for speech data (spec: A)
     DECLARE_ALIGNED(32, float, gain_lpc)[FFALIGN(10, 16)];   ///< LPC coefficients for gain        (spec: GB)
 
@@ -59,6 +59,15 @@ typedef struct {
     float gain_rec[11];
 } RA288Context;
 
+static av_cold int ra288_decode_close(AVCodecContext *avctx)
+{
+    RA288Context *ractx = avctx->priv_data;
+
+    av_freep(&ractx->fdsp);
+
+    return 0;
+}
+
 static av_cold int ra288_decode_init(AVCodecContext *avctx)
 {
     RA288Context *ractx = avctx->priv_data;
@@ -72,7 +81,9 @@ static av_cold int ra288_decode_init(AVCodecContext *avctx)
         return AVERROR_PATCHWELCOME;
     }
 
-    avpriv_float_dsp_init(&ractx->fdsp, avctx->flags & CODEC_FLAG_BITEXACT);
+    ractx->fdsp = avpriv_float_dsp_alloc(avctx->flags & AV_CODEC_FLAG_BITEXACT);
+    if (!ractx->fdsp)
+        return AVERROR(ENOMEM);
 
     return 0;
 }
@@ -95,7 +106,7 @@ static void decode(RA288Context *ractx, float gain, int cb_coef)
     memmove(ractx->sp_hist + 70, ractx->sp_hist + 75, 36*sizeof(*block));
 
     /* block 46 of G.728 spec */
-    sum = 32.;
+    sum = 32.0;
     for (i=0; i < 10; i++)
         sum -= gain_block[9-i] * ractx->gain_lpc[i];
 
@@ -111,7 +122,7 @@ static void decode(RA288Context *ractx, float gain, int cb_coef)
 
     sum = avpriv_scalarproduct_float_c(buffer, buffer, 5);
 
-    sum = FFMAX(sum, 5. / (1<<24));
+    sum = FFMAX(sum, 5.0 / (1<<24));
 
     /* shift and store */
     memmove(gain_block, gain_block + 1, 9 * sizeof(*gain_block));
@@ -146,7 +157,7 @@ static void do_hybrid_window(RA288Context *ractx,
 
     av_assert2(order>=0);
 
-    ractx->fdsp.vector_fmul(work, window, hist, FFALIGN(order + n + non_rec, 16));
+    ractx->fdsp->vector_fmul(work, window, hist, FFALIGN(order + n + non_rec, 16));
 
     convolve(buffer1, work + order    , n      , order);
     convolve(buffer2, work + order + n, non_rec, order);
@@ -157,7 +168,7 @@ static void do_hybrid_window(RA288Context *ractx,
     }
 
     /* Multiply by the white noise correcting factor (WNCF). */
-    *out *= 257./256.;
+    *out *= 257.0 / 256.0;
 }
 
 /**
@@ -173,7 +184,7 @@ static void backward_filter(RA288Context *ractx,
     do_hybrid_window(ractx, order, n, non_rec, temp, hist, rec, window);
 
     if (!compute_lpc_coefs(temp, order, lpc, 0, 1, 1))
-        ractx->fdsp.vector_fmul(lpc, lpc, tab, FFALIGN(order, 16));
+        ractx->fdsp->vector_fmul(lpc, lpc, tab, FFALIGN(order, 16));
 
     memmove(hist, hist + n, move_size*sizeof(*hist));
 }
@@ -196,13 +207,15 @@ static int ra288_decode_frame(AVCodecContext * avctx, void *data,
         return AVERROR_INVALIDDATA;
     }
 
+    ret = init_get_bits8(&gb, buf, avctx->block_align);
+    if (ret < 0)
+        return ret;
+
     /* get output buffer */
     frame->nb_samples = RA288_BLOCK_SIZE * RA288_BLOCKS_PER_FRAME;
     if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)
         return ret;
     out = (float *)frame->data[0];
-
-    init_get_bits8(&gb, buf, avctx->block_align);
 
     for (i=0; i < RA288_BLOCKS_PER_FRAME; i++) {
         float gain = amptable[get_bits(&gb, 3)];
@@ -229,11 +242,12 @@ static int ra288_decode_frame(AVCodecContext * avctx, void *data,
 
 AVCodec ff_ra_288_decoder = {
     .name           = "real_288",
+    .long_name      = NULL_IF_CONFIG_SMALL("RealAudio 2.0 (28.8K)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_RA_288,
     .priv_data_size = sizeof(RA288Context),
     .init           = ra288_decode_init,
     .decode         = ra288_decode_frame,
-    .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("RealAudio 2.0 (28.8K)"),
+    .close          = ra288_decode_close,
+    .capabilities   = AV_CODEC_CAP_DR1,
 };

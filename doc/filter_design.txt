@@ -98,7 +98,7 @@ Buffer references ownership and permissions
     The AVFilterLink structure has a few AVFilterBufferRef fields. The
     cur_buf and out_buf were used with the deprecated
     start_frame/draw_slice/end_frame API and should no longer be used.
-    src_buf, cur_buf_copy and partial_buf are used by libavfilter internally
+    src_buf and partial_buf are used by libavfilter internally
     and must not be accessed by filters.
 
   Reference permissions
@@ -166,7 +166,7 @@ Buffer references ownership and permissions
       WRITE permission.
 
     * Filters that read their input to produce a new frame on output (like
-      scale) need the READ permission on input and and must request a buffer
+      scale) need the READ permission on input and must request a buffer
       with the WRITE permission.
 
     * Filters that intend to keep a reference after the filtering process

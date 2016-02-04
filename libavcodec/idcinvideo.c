@@ -1,6 +1,6 @@
 /*
  * id Quake II CIN Video Decoder
- * Copyright (C) 2003 the ffmpeg project
+ * Copyright (c) 2003 The FFmpeg Project
  *
  * This file is part of FFmpeg.
  *
@@ -56,8 +56,7 @@
 #define HUF_TOKENS 256
 #define PALETTE_COUNT 256
 
-typedef struct
-{
+typedef struct hnode {
   int count;
   unsigned char used;
   int children[2];
@@ -243,11 +242,11 @@ static int idcin_decode_frame(AVCodecContext *avctx,
 
 AVCodec ff_idcin_decoder = {
     .name           = "idcinvideo",
+    .long_name      = NULL_IF_CONFIG_SMALL("id Quake II CIN video"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_IDCIN,
     .priv_data_size = sizeof(IdcinContext),
     .init           = idcin_decode_init,
     .decode         = idcin_decode_frame,
-    .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("id Quake II CIN video"),
+    .capabilities   = AV_CODEC_CAP_DR1,
 };

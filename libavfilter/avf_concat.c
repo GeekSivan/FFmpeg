@@ -59,7 +59,7 @@ typedef struct {
 
 static const AVOption concat_options[] = {
     { "n", "specify the number of segments", OFFSET(nb_segments),
-      AV_OPT_TYPE_INT, { .i64 = 2 }, 2, INT_MAX, V|A|F},
+      AV_OPT_TYPE_INT, { .i64 = 2 }, 1, INT_MAX, V|A|F},
     { "v", "specify the number of video streams",
       OFFSET(nb_streams[AVMEDIA_TYPE_VIDEO]),
       AV_OPT_TYPE_INT, { .i64 = 1 }, 0, INT_MAX, V|F },
@@ -68,8 +68,8 @@ static const AVOption concat_options[] = {
       AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, A|F},
     { "unsafe", "enable unsafe mode",
       OFFSET(unsafe),
-      AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, A|A|F},
-    { 0 }
+      AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, V|A|F},
+    { NULL }
 };
 
 AVFILTER_DEFINE_CLASS(concat);
@@ -134,10 +134,13 @@ static int config_output(AVFilterLink *outlink)
     outlink->format              = inlink->format;
     for (seg = 1; seg < cat->nb_segments; seg++) {
         inlink = ctx->inputs[in_no += ctx->nb_outputs];
+        if (!outlink->sample_aspect_ratio.num)
+            outlink->sample_aspect_ratio = inlink->sample_aspect_ratio;
         /* possible enhancement: unsafe mode, do not check */
         if (outlink->w                       != inlink->w                       ||
             outlink->h                       != inlink->h                       ||
-            outlink->sample_aspect_ratio.num != inlink->sample_aspect_ratio.num ||
+            outlink->sample_aspect_ratio.num != inlink->sample_aspect_ratio.num &&
+                                                inlink->sample_aspect_ratio.num ||
             outlink->sample_aspect_ratio.den != inlink->sample_aspect_ratio.den) {
             av_log(ctx, AV_LOG_ERROR, "Input link %s parameters "
                    "(size %dx%d, SAR %d:%d) do not match the corresponding "
@@ -171,7 +174,7 @@ static int push_frame(AVFilterContext *ctx, unsigned in_no, AVFrame *buf)
     if (inlink->sample_rate)
         /* use number of audio samples */
         in->pts += av_rescale_q(buf->nb_samples,
-                                (AVRational){ 1, inlink->sample_rate },
+                                av_make_q(1, inlink->sample_rate),
                                 outlink->time_base);
     else if (in->nb_frames >= 2)
         /* use mean duration */
@@ -406,10 +409,10 @@ static av_cold void uninit(AVFilterContext *ctx)
     }
     for (i = 0; i < ctx->nb_outputs; i++)
         av_freep(&ctx->output_pads[i].name);
-    av_free(cat->in);
+    av_freep(&cat->in);
 }
 
-AVFilter avfilter_avf_concat = {
+AVFilter ff_avf_concat = {
     .name          = "concat",
     .description   = NULL_IF_CONFIG_SMALL("Concatenate audio and video streams."),
     .init          = init,

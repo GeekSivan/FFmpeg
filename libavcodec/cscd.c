@@ -30,7 +30,7 @@
 #endif
 #include "libavutil/lzo.h"
 
-typedef struct {
+typedef struct CamStudioContext {
     AVFrame *pic;
     int linelen, height, bpp;
     unsigned int decomp_size;
@@ -159,12 +159,12 @@ static av_cold int decode_end(AVCodecContext *avctx) {
 
 AVCodec ff_cscd_decoder = {
     .name           = "camstudio",
+    .long_name      = NULL_IF_CONFIG_SMALL("CamStudio"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_CSCD,
     .priv_data_size = sizeof(CamStudioContext),
     .init           = decode_init,
     .close          = decode_end,
     .decode         = decode_frame,
-    .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("CamStudio"),
+    .capabilities   = AV_CODEC_CAP_DR1,
 };

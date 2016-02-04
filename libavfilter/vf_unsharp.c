@@ -163,9 +163,10 @@ static int query_formats(AVFilterContext *ctx)
         AV_PIX_FMT_YUVJ444P, AV_PIX_FMT_YUVJ440P, AV_PIX_FMT_NONE
     };
 
-    ff_set_common_formats(ctx, ff_make_format_list(pix_fmts));
-
-    return 0;
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
 }
 
 static int init_filter_param(AVFilterContext *ctx, UnsharpFilterParam *fp, const char *effect_type, int width)
@@ -184,7 +185,8 @@ static int init_filter_param(AVFilterContext *ctx, UnsharpFilterParam *fp, const
            effect, effect_type, fp->msize_x, fp->msize_y, fp->amount / 65535.0);
 
     for (z = 0; z < 2 * fp->steps_y; z++)
-        if (!(fp->sc[z] = av_malloc(sizeof(*(fp->sc[z])) * (width + 2 * fp->steps_x))))
+        if (!(fp->sc[z] = av_malloc_array(width + 2 * fp->steps_x,
+                                          sizeof(*(fp->sc[z])))))
             return AVERROR(ENOMEM);
 
     return 0;
@@ -214,7 +216,7 @@ static void free_filter_param(UnsharpFilterParam *fp)
     int z;
 
     for (z = 0; z < 2 * fp->steps_y; z++)
-        av_free(fp->sc[z]);
+        av_freep(&fp->sc[z]);
 }
 
 static av_cold void uninit(AVFilterContext *ctx)
@@ -275,7 +277,7 @@ static const AVOption unsharp_options[] = {
     { "chroma_amount",  "set chroma effect strength",        OFFSET(camount),  AV_OPT_TYPE_FLOAT, { .dbl = 0 },       -2,        5, FLAGS },
     { "ca",             "set chroma effect strength",        OFFSET(camount),  AV_OPT_TYPE_FLOAT, { .dbl = 0 },       -2,        5, FLAGS },
     { "opencl",         "use OpenCL filtering capabilities", OFFSET(opencl), AV_OPT_TYPE_INT, { .i64 = 0 },        0,        1, FLAGS },
-    { NULL },
+    { NULL }
 };
 
 AVFILTER_DEFINE_CLASS(unsharp);
@@ -298,18 +300,15 @@ static const AVFilterPad avfilter_vf_unsharp_outputs[] = {
     { NULL }
 };
 
-AVFilter avfilter_vf_unsharp = {
-    .name      = "unsharp",
-    .description = NULL_IF_CONFIG_SMALL("Sharpen or blur the input video."),
-
-    .priv_size = sizeof(UnsharpContext),
-    .priv_class = &unsharp_class,
-
-    .init = init,
-    .uninit = uninit,
+AVFilter ff_vf_unsharp = {
+    .name          = "unsharp",
+    .description   = NULL_IF_CONFIG_SMALL("Sharpen or blur the input video."),
+    .priv_size     = sizeof(UnsharpContext),
+    .priv_class    = &unsharp_class,
+    .init          = init,
+    .uninit        = uninit,
     .query_formats = query_formats,
-
-    .inputs    = avfilter_vf_unsharp_inputs,
-    .outputs   = avfilter_vf_unsharp_outputs,
-    .flags     = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
+    .inputs        = avfilter_vf_unsharp_inputs,
+    .outputs       = avfilter_vf_unsharp_outputs,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };

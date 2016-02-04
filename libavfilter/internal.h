@@ -24,12 +24,16 @@
  * internal API functions
  */
 
+#include "libavutil/internal.h"
 #include "avfilter.h"
 #include "avfiltergraph.h"
 #include "formats.h"
 #include "thread.h"
+#include "version.h"
 #include "video.h"
+#include "libavcodec/avcodec.h"
 
+#if FF_API_AVFILTERBUFFER
 #define POOL_SIZE 32
 typedef struct AVFilterPool {
     AVFilterBufferRef *pic[POOL_SIZE];
@@ -37,6 +41,7 @@ typedef struct AVFilterPool {
     int refcount;
     int draining;
 } AVFilterPool;
+#endif
 
 typedef struct AVFilterCommand {
     double time;                ///< time expressed in seconds
@@ -139,37 +144,33 @@ struct AVFilterPad {
      * input pads only.
      */
     int needs_fifo;
+
+    /**
+     * The filter expects writable frames from its input link,
+     * duplicating data buffers if needed.
+     *
+     * input pads only.
+     */
+    int needs_writable;
 };
 #endif
 
 struct AVFilterGraphInternal {
     void *thread;
-    int (*thread_execute)(AVFilterContext *ctx, action_func *func, void *arg,
-                          int *ret, int nb_jobs);
+    avfilter_execute_func *thread_execute;
 };
 
 struct AVFilterInternal {
-    int (*execute)(AVFilterContext *ctx, action_func *func, void *arg,
-                   int *ret, int nb_jobs);
+    avfilter_execute_func *execute;
 };
 
+#if FF_API_AVFILTERBUFFER
 /** default handler for freeing audio/video buffer when there are no references left */
 void ff_avfilter_default_free_buffer(AVFilterBuffer *buf);
+#endif
 
 /** Tell is a format is contained in the provided list terminated by -1. */
 int ff_fmt_is_in(int fmt, const int *fmts);
-
-/**
- * Return a copy of a list of integers terminated by -1, or NULL in
- * case of copy failure.
- */
-int *ff_copy_int_list(const int * const list);
-
-/**
- * Return a copy of a list of 64-bit integers, or NULL in case of
- * copy failure.
- */
-int64_t *ff_copy_int64_list(const int64_t * const list);
 
 /* Functions to parse audio format arguments */
 
@@ -179,7 +180,7 @@ int64_t *ff_copy_int64_list(const int64_t * const list);
  * @param ret pixel format pointer to where the value should be written
  * @param arg string to parse
  * @param log_ctx log context
- * @return 0 in case of success, a negative AVERROR code on error
+ * @return >= 0 in case of success, a negative AVERROR code on error
  */
 int ff_parse_pixel_format(enum AVPixelFormat *ret, const char *arg, void *log_ctx);
 
@@ -189,7 +190,7 @@ int ff_parse_pixel_format(enum AVPixelFormat *ret, const char *arg, void *log_ct
  * @param ret unsigned integer pointer to where the value should be written
  * @param arg string to parse
  * @param log_ctx log context
- * @return 0 in case of success, a negative AVERROR code on error
+ * @return >= 0 in case of success, a negative AVERROR code on error
  */
 int ff_parse_sample_rate(int *ret, const char *arg, void *log_ctx);
 
@@ -199,7 +200,7 @@ int ff_parse_sample_rate(int *ret, const char *arg, void *log_ctx);
  * @param ret unsigned AVRational pointer to where the value should be written
  * @param arg string to parse
  * @param log_ctx log context
- * @return 0 in case of success, a negative AVERROR code on error
+ * @return >= 0 in case of success, a negative AVERROR code on error
  */
 int ff_parse_time_base(AVRational *ret, const char *arg, void *log_ctx);
 
@@ -209,7 +210,7 @@ int ff_parse_time_base(AVRational *ret, const char *arg, void *log_ctx);
  * @param ret integer pointer to where the value should be written
  * @param arg string to parse
  * @param log_ctx log context
- * @return 0 in case of success, a negative AVERROR code on error
+ * @return >= 0 in case of success, a negative AVERROR code on error
  */
 int ff_parse_sample_format(int *ret, const char *arg, void *log_ctx);
 
@@ -217,11 +218,14 @@ int ff_parse_sample_format(int *ret, const char *arg, void *log_ctx);
  * Parse a channel layout or a corresponding integer representation.
  *
  * @param ret 64bit integer pointer to where the value should be written.
+ * @param nret integer pointer to the number of channels;
+ *             if not NULL, then unknown channel layouts are accepted
  * @param arg string to parse
  * @param log_ctx log context
- * @return 0 in case of success, a negative AVERROR code on error
+ * @return >= 0 in case of success, a negative AVERROR code on error
  */
-int ff_parse_channel_layout(int64_t *ret, const char *arg, void *log_ctx);
+int ff_parse_channel_layout(int64_t *ret, int *nret, const char *arg,
+                            void *log_ctx);
 
 void ff_update_link_current_pts(AVFilterLink *link, int64_t pts);
 
@@ -257,31 +261,38 @@ void ff_tlog_link(void *ctx, AVFilterLink *link, int end);
  * @param pads Pointer to the pointer to the beginning of the list of pads
  * @param links Pointer to the pointer to the beginning of the list of links
  * @param newpad The new pad to add. A copy is made when adding.
+ * @return >= 0 in case of success, a negative AVERROR code on error
  */
-void ff_insert_pad(unsigned idx, unsigned *count, size_t padidx_off,
+int ff_insert_pad(unsigned idx, unsigned *count, size_t padidx_off,
                    AVFilterPad **pads, AVFilterLink ***links,
                    AVFilterPad *newpad);
 
 /** Insert a new input pad for the filter. */
-static inline void ff_insert_inpad(AVFilterContext *f, unsigned index,
+static inline int ff_insert_inpad(AVFilterContext *f, unsigned index,
                                    AVFilterPad *p)
 {
-    ff_insert_pad(index, &f->nb_inputs, offsetof(AVFilterLink, dstpad),
+    int ret = ff_insert_pad(index, &f->nb_inputs, offsetof(AVFilterLink, dstpad),
                   &f->input_pads, &f->inputs, p);
 #if FF_API_FOO_COUNT
+FF_DISABLE_DEPRECATION_WARNINGS
     f->input_count = f->nb_inputs;
+FF_ENABLE_DEPRECATION_WARNINGS
 #endif
+    return ret;
 }
 
 /** Insert a new output pad for the filter. */
-static inline void ff_insert_outpad(AVFilterContext *f, unsigned index,
+static inline int ff_insert_outpad(AVFilterContext *f, unsigned index,
                                     AVFilterPad *p)
 {
-    ff_insert_pad(index, &f->nb_outputs, offsetof(AVFilterLink, srcpad),
+    int ret = ff_insert_pad(index, &f->nb_outputs, offsetof(AVFilterLink, srcpad),
                   &f->output_pads, &f->outputs, p);
 #if FF_API_FOO_COUNT
+FF_DISABLE_DEPRECATION_WARNINGS
     f->output_count = f->nb_outputs;
+FF_ENABLE_DEPRECATION_WARNINGS
 #endif
+    return ret;
 }
 
 /**
@@ -296,8 +307,27 @@ int ff_poll_frame(AVFilterLink *link);
 /**
  * Request an input frame from the filter at the other end of the link.
  *
+ * The input filter may pass the request on to its inputs, fulfill the
+ * request from an internal buffer or any other means specific to its function.
+ *
+ * When the end of a stream is reached AVERROR_EOF is returned and no further
+ * frames are returned after that.
+ *
+ * When a filter is unable to output a frame for example due to its sources
+ * being unable to do so or because it depends on external means pushing data
+ * into it then AVERROR(EAGAIN) is returned.
+ * It is important that a AVERROR(EAGAIN) return is returned all the way to the
+ * caller (generally eventually a user application) as this step may (but does
+ * not have to be) necessary to provide the input with the next frame.
+ *
+ * If a request is successful then the filter_frame() function will be called
+ * at least once before ff_request_frame() returns
+ *
  * @param link the input link
  * @return     zero on success
+ *             AVERROR_EOF on end of file
+ *             AVERROR(EAGAIN) if the previous filter cannot output a frame
+ *             currently and can neither guarantee that EOF has been reached.
  */
 int ff_request_frame(AVFilterLink *link);
 
@@ -310,9 +340,6 @@ int ff_request_frame(AVFilterLink *link);
         .category   = AV_CLASS_CATEGORY_FILTER, \
     }
 
-AVFilterBufferRef *ff_copy_buffer_ref(AVFilterLink *outlink,
-                                      AVFilterBufferRef *ref);
-
 /**
  * Find the index of a link.
  *
@@ -321,9 +348,6 @@ AVFilterBufferRef *ff_copy_buffer_ref(AVFilterLink *outlink,
 #define FF_INLINK_IDX(link)  ((int)((link)->dstpad - (link)->dst->input_pads))
 #define FF_OUTLINK_IDX(link) ((int)((link)->srcpad - (link)->src->output_pads))
 
-int ff_buffersink_read_compat(AVFilterContext *ctx, AVFilterBufferRef **buf);
-int ff_buffersink_read_samples_compat(AVFilterContext *ctx, AVFilterBufferRef **pbuf,
-                                      int nb_samples);
 /**
  * Send a frame of data to the next filter.
  *
@@ -365,5 +389,21 @@ AVFilterContext *ff_filter_alloc(const AVFilter *filter, const char *inst_name);
  * Remove a filter from a graph;
  */
 void ff_filter_graph_remove_filter(AVFilterGraph *graph, AVFilterContext *filter);
+
+/**
+ * Normalize the qscale factor
+ * FIXME the H264 qscale is a log based scale, mpeg1/2 is not, the code below
+ *       cannot be optimal
+ */
+static inline int ff_norm_qscale(int qscale, int type)
+{
+    switch (type) {
+    case FF_QSCALE_TYPE_MPEG1: return qscale;
+    case FF_QSCALE_TYPE_MPEG2: return qscale >> 1;
+    case FF_QSCALE_TYPE_H264:  return qscale >> 2;
+    case FF_QSCALE_TYPE_VP56:  return (63 - qscale + 2) >> 2;
+    }
+    return qscale;
+}
 
 #endif /* AVFILTER_INTERNAL_H */

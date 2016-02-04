@@ -26,6 +26,7 @@
 /* #define DEBUG */
 
 #include "libavutil/file.h"
+#include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/lfg.h"
 #include "libavutil/opt.h"
@@ -93,7 +94,7 @@ static const AVOption life_options[] = {
     { "life_color",  "set life color",  OFFSET( life_color), AV_OPT_TYPE_COLOR, {.str="white"}, CHAR_MIN, CHAR_MAX, FLAGS },
     { "death_color", "set death color", OFFSET(death_color), AV_OPT_TYPE_COLOR, {.str="black"}, CHAR_MIN, CHAR_MAX, FLAGS },
     { "mold_color",  "set mold color",  OFFSET( mold_color), AV_OPT_TYPE_COLOR, {.str="black"}, CHAR_MIN, CHAR_MAX, FLAGS },
-    { NULL },
+    { NULL }
 };
 
 AVFILTER_DEFINE_CLASS(life);
@@ -194,10 +195,10 @@ static int init_pattern_from_file(AVFilterContext *ctx)
         life->h = h;
     }
 
-    if (!(life->buf[0] = av_mallocz(sizeof(char) * life->h * life->w)) ||
-        !(life->buf[1] = av_mallocz(sizeof(char) * life->h * life->w))) {
-        av_free(life->buf[0]);
-        av_free(life->buf[1]);
+    if (!(life->buf[0] = av_calloc(life->h * life->w, sizeof(*life->buf[0]))) ||
+        !(life->buf[1] = av_calloc(life->h * life->w, sizeof(*life->buf[1])))) {
+        av_freep(&life->buf[0]);
+        av_freep(&life->buf[1]);
         return AVERROR(ENOMEM);
     }
 
@@ -217,7 +218,7 @@ static int init_pattern_from_file(AVFilterContext *ctx)
     return 0;
 }
 
-static int init(AVFilterContext *ctx)
+static av_cold int init(AVFilterContext *ctx)
 {
     LifeContext *life = ctx->priv;
     int ret;
@@ -236,10 +237,10 @@ static int init(AVFilterContext *ctx)
         /* fill the grid randomly */
         int i;
 
-        if (!(life->buf[0] = av_mallocz(sizeof(char) * life->h * life->w)) ||
-            !(life->buf[1] = av_mallocz(sizeof(char) * life->h * life->w))) {
-            av_free(life->buf[0]);
-            av_free(life->buf[1]);
+        if (!(life->buf[0] = av_calloc(life->h * life->w, sizeof(*life->buf[0]))) ||
+            !(life->buf[1] = av_calloc(life->h * life->w, sizeof(*life->buf[1])))) {
+            av_freep(&life->buf[0]);
+            av_freep(&life->buf[1]);
             return AVERROR(ENOMEM);
         }
         if (life->random_seed == -1)
@@ -334,7 +335,7 @@ static void evolve(AVFilterContext *ctx)
             if (alive)     *newbuf = ALIVE_CELL; // new cell is alive
             else if (cell) *newbuf = cell - 1;   // new cell is dead and in the process of mold
             else           *newbuf = 0;          // new cell is definitely dead
-            av_dlog(ctx, "i:%d j:%d live_neighbors:%d cell:%d -> cell:%d\n", i, j, n, cell, *newbuf);
+            ff_dlog(ctx, "i:%d j:%d live_neighbors:%d cell:%d -> cell:%d\n", i, j, n, cell, *newbuf);
             newbuf++;
         }
     }
@@ -415,6 +416,8 @@ static int query_formats(AVFilterContext *ctx)
 {
     LifeContext *life = ctx->priv;
     enum AVPixelFormat pix_fmts[] = { AV_PIX_FMT_NONE, AV_PIX_FMT_NONE };
+    AVFilterFormats *fmts_list;
+
     if (life->mold || memcmp(life-> life_color, "\xff\xff\xff", 3)
                    || memcmp(life->death_color, "\x00\x00\x00", 3)) {
         pix_fmts[0] = AV_PIX_FMT_RGB24;
@@ -423,7 +426,11 @@ static int query_formats(AVFilterContext *ctx)
         pix_fmts[0] = AV_PIX_FMT_MONOBLACK;
         life->draw = fill_picture_monoblack;
     }
-    ff_set_common_formats(ctx, ff_make_format_list(pix_fmts));
+
+    fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    ff_set_common_formats(ctx, fmts_list);
     return 0;
 }
 
@@ -437,14 +444,14 @@ static const AVFilterPad life_outputs[] = {
     { NULL}
 };
 
-AVFilter avfilter_vsrc_life = {
-    .name        = "life",
-    .description = NULL_IF_CONFIG_SMALL("Create life."),
-    .priv_size = sizeof(LifeContext),
-    .init      = init,
-    .uninit    = uninit,
+AVFilter ff_vsrc_life = {
+    .name          = "life",
+    .description   = NULL_IF_CONFIG_SMALL("Create life."),
+    .priv_size     = sizeof(LifeContext),
+    .priv_class    = &life_class,
+    .init          = init,
+    .uninit        = uninit,
     .query_formats = query_formats,
     .inputs        = NULL,
     .outputs       = life_outputs,
-    .priv_class    = &life_class,
 };

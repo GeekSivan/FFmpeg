@@ -129,12 +129,12 @@ static int libcelt_dec_decode(AVCodecContext *c, void *data,
 
 AVCodec ff_libcelt_decoder = {
     .name           = "libcelt",
+    .long_name      = NULL_IF_CONFIG_SMALL("Xiph CELT decoder using libcelt"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_CELT,
     .priv_data_size = sizeof(struct libcelt_context),
     .init           = libcelt_dec_init,
     .close          = libcelt_dec_close,
     .decode         = libcelt_dec_decode,
-    .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Xiph CELT decoder using libcelt"),
+    .capabilities   = AV_CODEC_CAP_DR1,
 };

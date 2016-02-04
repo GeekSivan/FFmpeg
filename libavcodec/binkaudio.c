@@ -34,18 +34,16 @@
 #include "get_bits.h"
 #include "dct.h"
 #include "rdft.h"
-#include "fmtconvert.h"
 #include "internal.h"
+#include "wma_freqs.h"
 #include "libavutil/intfloat.h"
-
-extern const uint16_t ff_wma_critical_freqs[25];
 
 static float quant_table[96];
 
 #define MAX_CHANNELS 2
 #define BINK_BLOCK_MAX_SIZE (MAX_CHANNELS << 11)
 
-typedef struct {
+typedef struct BinkAudioContext {
     GetBitContext gb;
     int version_b;          ///< Bink version 'b'
     int first;
@@ -304,12 +302,14 @@ static int decode_frame(AVCodecContext *avctx, void *data,
             av_log(avctx, AV_LOG_ERROR, "Packet is too small\n");
             return AVERROR_INVALIDDATA;
         }
-        buf = av_realloc(s->packet_buffer, avpkt->size + FF_INPUT_BUFFER_PADDING_SIZE);
+        buf = av_realloc(s->packet_buffer, avpkt->size + AV_INPUT_BUFFER_PADDING_SIZE);
         if (!buf)
             return AVERROR(ENOMEM);
+        memset(buf + avpkt->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
         s->packet_buffer = buf;
         memcpy(s->packet_buffer, avpkt->data, avpkt->size);
-        init_get_bits(gb, s->packet_buffer, avpkt->size * 8);
+        if ((ret = init_get_bits8(gb, s->packet_buffer, avpkt->size)) < 0)
+            return ret;
         consumed = avpkt->size;
 
         /* skip reported size */
@@ -336,24 +336,24 @@ static int decode_frame(AVCodecContext *avctx, void *data,
 
 AVCodec ff_binkaudio_rdft_decoder = {
     .name           = "binkaudio_rdft",
+    .long_name      = NULL_IF_CONFIG_SMALL("Bink Audio (RDFT)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_BINKAUDIO_RDFT,
     .priv_data_size = sizeof(BinkAudioContext),
     .init           = decode_init,
     .close          = decode_end,
     .decode         = decode_frame,
-    .capabilities   = CODEC_CAP_DELAY | CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Bink Audio (RDFT)")
+    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_DR1,
 };
 
 AVCodec ff_binkaudio_dct_decoder = {
     .name           = "binkaudio_dct",
+    .long_name      = NULL_IF_CONFIG_SMALL("Bink Audio (DCT)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_BINKAUDIO_DCT,
     .priv_data_size = sizeof(BinkAudioContext),
     .init           = decode_init,
     .close          = decode_end,
     .decode         = decode_frame,
-    .capabilities   = CODEC_CAP_DELAY | CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Bink Audio (DCT)")
+    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_DR1,
 };

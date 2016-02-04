@@ -24,16 +24,16 @@
 
 typedef struct {
     int nb_planes;
-    double ts_unit;
+    AVFrame *second;
 } SeparateFieldsContext;
 
 static int config_props_output(AVFilterLink *outlink)
 {
     AVFilterContext *ctx = outlink->src;
-    SeparateFieldsContext *sf = ctx->priv;
+    SeparateFieldsContext *s = ctx->priv;
     AVFilterLink *inlink = ctx->inputs[0];
 
-    sf->nb_planes = av_pix_fmt_count_planes(inlink->format);
+    s->nb_planes = av_pix_fmt_count_planes(inlink->format);
 
     if (inlink->h & 1) {
         av_log(ctx, AV_LOG_ERROR, "height must be even\n");
@@ -46,49 +46,83 @@ static int config_props_output(AVFilterLink *outlink)
     outlink->frame_rate.den = inlink->frame_rate.den;
     outlink->w = inlink->w;
     outlink->h = inlink->h / 2;
-    sf->ts_unit = av_q2d(av_inv_q(av_mul_q(outlink->frame_rate, outlink->time_base)));
 
     return 0;
+}
+
+static void extract_field(AVFrame *frame, int nb_planes, int type)
+{
+    int i;
+
+    for (i = 0; i < nb_planes; i++) {
+        if (type)
+            frame->data[i] = frame->data[i] + frame->linesize[i];
+        frame->linesize[i] *= 2;
+    }
 }
 
 static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
 {
     AVFilterContext *ctx = inlink->dst;
-    SeparateFieldsContext *sf = ctx->priv;
+    SeparateFieldsContext *s = ctx->priv;
     AVFilterLink *outlink = ctx->outputs[0];
-    AVFrame *second;
-    int i, ret;
+    int ret;
 
     inpicref->height = outlink->h;
     inpicref->interlaced_frame = 0;
 
-    second = av_frame_clone(inpicref);
-    if (!second)
-        return AVERROR(ENOMEM);
+    if (!s->second) {
+        goto clone;
+    } else {
+        AVFrame *second = s->second;
 
-    for (i = 0; i < sf->nb_planes; i++) {
-        if (!inpicref->top_field_first)
-            inpicref->data[i] = inpicref->data[i] + inpicref->linesize[i];
+        extract_field(second, s->nb_planes, second->top_field_first);
+
+        if (second->pts != AV_NOPTS_VALUE &&
+            inpicref->pts != AV_NOPTS_VALUE)
+            second->pts += inpicref->pts;
         else
-            second->data[i] = second->data[i] + second->linesize[i];
-        inpicref->linesize[i] *= 2;
-        second->linesize[i]   *= 2;
+            second->pts = AV_NOPTS_VALUE;
+
+        ret = ff_filter_frame(outlink, second);
+        if (ret < 0)
+            return ret;
+clone:
+        s->second = av_frame_clone(inpicref);
+        if (!s->second)
+            return AVERROR(ENOMEM);
     }
 
-    inpicref->pts = outlink->frame_count * sf->ts_unit;
-    ret = ff_filter_frame(outlink, inpicref);
-    if (ret < 0)
-        return ret;
+    extract_field(inpicref, s->nb_planes, !inpicref->top_field_first);
 
-    second->pts = outlink->frame_count * sf->ts_unit;
-    return ff_filter_frame(outlink, second);
+    if (inpicref->pts != AV_NOPTS_VALUE)
+        inpicref->pts *= 2;
+
+    return ff_filter_frame(outlink, inpicref);
+}
+
+static int request_frame(AVFilterLink *outlink)
+{
+    AVFilterContext *ctx = outlink->src;
+    SeparateFieldsContext *s = ctx->priv;
+    int ret;
+
+    ret = ff_request_frame(ctx->inputs[0]);
+    if (ret == AVERROR_EOF && s->second) {
+        s->second->pts *= 2;
+        extract_field(s->second, s->nb_planes, s->second->top_field_first);
+        ret = ff_filter_frame(outlink, s->second);
+        s->second = 0;
+    }
+
+    return ret;
 }
 
 static const AVFilterPad separatefields_inputs[] = {
     {
-        .name             = "default",
-        .type             = AVMEDIA_TYPE_VIDEO,
-        .filter_frame     = filter_frame,
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_VIDEO,
+        .filter_frame = filter_frame,
     },
     { NULL }
 };
@@ -98,14 +132,15 @@ static const AVFilterPad separatefields_outputs[] = {
         .name          = "default",
         .type          = AVMEDIA_TYPE_VIDEO,
         .config_props  = config_props_output,
+        .request_frame = request_frame,
     },
     { NULL }
 };
 
-AVFilter avfilter_vf_separatefields = {
-    .name          = "separatefields",
-    .description   = NULL_IF_CONFIG_SMALL("Split input video frames into fields."),
-    .priv_size     = sizeof(SeparateFieldsContext),
-    .inputs        = separatefields_inputs,
-    .outputs       = separatefields_outputs,
+AVFilter ff_vf_separatefields = {
+    .name        = "separatefields",
+    .description = NULL_IF_CONFIG_SMALL("Split input video frames into fields."),
+    .priv_size   = sizeof(SeparateFieldsContext),
+    .inputs      = separatefields_inputs,
+    .outputs     = separatefields_outputs,
 };

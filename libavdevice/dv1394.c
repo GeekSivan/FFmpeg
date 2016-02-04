@@ -27,6 +27,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#include "libavutil/internal.h"
 #include "libavutil/log.h"
 #include "libavutil/opt.h"
 #include "avdevice.h"
@@ -88,7 +89,7 @@ static int dv1394_read_header(AVFormatContext * context)
         goto failed;
 
     /* Open and initialize DV1394 device */
-    dv->fd = open(context->filename, O_RDONLY);
+    dv->fd = avpriv_open(context->filename, O_RDONLY);
     if (dv->fd < 0) {
         av_log(context, AV_LOG_ERROR, "Failed to open DV interface: %s\n", strerror(errno));
         goto failed;
@@ -159,7 +160,7 @@ restart_poll:
             av_log(context, AV_LOG_ERROR, "Failed to get status: %s\n", strerror(errno));
             return AVERROR(EIO);
         }
-        av_dlog(context, "DV1394: status\n"
+        av_log(context, AV_LOG_TRACE, "DV1394: status\n"
                 "\tactive_frame\t%d\n"
                 "\tfirst_clear_frame\t%d\n"
                 "\tn_clear_frames\t%d\n"
@@ -180,7 +181,7 @@ restart_poll:
         }
     }
 
-    av_dlog(context, "index %d, avail %d, done %d\n", dv->index, dv->avail,
+    av_log(context, AV_LOG_TRACE, "index %d, avail %d, done %d\n", dv->index, dv->avail,
             dv->done);
 
     size = avpriv_dv_produce_packet(dv->dv_demux, pkt,
@@ -205,7 +206,7 @@ static int dv1394_close(AVFormatContext * context)
         av_log(context, AV_LOG_ERROR, "Failed to munmap DV1394 ring buffer: %s\n", strerror(errno));
 
     close(dv->fd);
-    av_free(dv->dv_demux);
+    av_freep(&dv->dv_demux);
 
     return 0;
 }
@@ -223,6 +224,7 @@ static const AVClass dv1394_class = {
     .item_name  = av_default_item_name,
     .option     = options,
     .version    = LIBAVUTIL_VERSION_INT,
+    .category   = AV_CLASS_CATEGORY_DEVICE_VIDEO_INPUT,
 };
 
 AVInputFormat ff_dv1394_demuxer = {

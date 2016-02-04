@@ -21,11 +21,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/intreadwrite.h"
+/**
+ * @file
+ * @brief XTEA 32-bit implementation
+ * @author Samuel Pitoiset
+ * @ingroup lavu_xtea
+ */
 
 #include "avutil.h"
 #include "common.h"
+#include "intreadwrite.h"
+#include "mem.h"
 #include "xtea.h"
+
+AVXTEA *av_xtea_alloc(void)
+{
+    return av_mallocz(sizeof(struct AVXTEA));
+}
 
 void av_xtea_init(AVXTEA *ctx, const uint8_t key[16])
 {
@@ -244,7 +256,7 @@ int main(void)
     AVXTEA ctx;
     uint8_t buf[8], iv[8];
     int i;
-    const uint8_t src[32] = "HelloWorldHelloWorldHelloWorld";
+    static const uint8_t src[32] = "HelloWorldHelloWorldHelloWorld";
     uint8_t ct[32];
     uint8_t pl[32];
 

@@ -52,11 +52,10 @@ enum test_type {
 
 typedef struct MPTestContext {
     const AVClass *class;
-    unsigned int frame_nb;
     AVRational frame_rate;
     int64_t pts, max_pts, duration;
     int hsub, vsub;
-    enum test_type test;
+    int test;           ///< test_type
 } MPTestContext;
 
 #define OFFSET(x) offsetof(MPTestContext, x)
@@ -80,7 +79,7 @@ static const AVOption mptestsrc_options[]= {
         { "ring1",       "", 0, AV_OPT_TYPE_CONST, {.i64=TEST_RING1},       INT_MIN, INT_MAX, FLAGS, "test" },
         { "ring2",       "", 0, AV_OPT_TYPE_CONST, {.i64=TEST_RING2},       INT_MIN, INT_MAX, FLAGS, "test" },
         { "all",         "", 0, AV_OPT_TYPE_CONST, {.i64=TEST_ALL},         INT_MIN, INT_MAX, FLAGS, "test" },
-    { NULL },
+    { NULL }
 };
 
 AVFILTER_DEFINE_CLASS(mptestsrc);
@@ -122,7 +121,7 @@ static void idct(uint8_t *dst, int dst_linesize, int src[64])
             for (k = 0; k < 8; k++)
                 sum += c[k*8+i]*tmp[8*k+j];
 
-            dst[dst_linesize*i + j] = av_clip((int)floor(sum+0.5), 0, 255);
+            dst[dst_linesize*i + j] = av_clip_uint8((int)floor(sum+0.5));
         }
     }
 }
@@ -260,7 +259,6 @@ static av_cold int init(AVFilterContext *ctx)
 
     test->max_pts = test->duration >= 0 ?
         av_rescale_q(test->duration, AV_TIME_BASE_Q, av_inv_q(test->frame_rate)) : -1;
-    test->frame_nb = 0;
     test->pts = 0;
 
     av_log(ctx, AV_LOG_VERBOSE, "rate:%d/%d duration:%f\n",
@@ -293,8 +291,10 @@ static int query_formats(AVFilterContext *ctx)
         AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE
     };
 
-    ff_set_common_formats(ctx, ff_make_format_list(pix_fmts));
-    return 0;
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
 }
 
 static int request_frame(AVFilterLink *outlink)
@@ -303,7 +303,7 @@ static int request_frame(AVFilterLink *outlink)
     AVFrame *picref;
     int w = WIDTH, h = HEIGHT,
         cw = FF_CEIL_RSHIFT(w, test->hsub), ch = FF_CEIL_RSHIFT(h, test->vsub);
-    unsigned int frame = test->frame_nb;
+    unsigned int frame = outlink->frame_count;
     enum test_type tt = test->test;
     int i;
 
@@ -338,7 +338,6 @@ static int request_frame(AVFilterLink *outlink)
     case TEST_RING2:      ring2_test(picref->data[0], picref->linesize[0], frame%30); break;
     }
 
-    test->frame_nb++;
     return ff_filter_frame(outlink, picref);
 }
 
@@ -352,15 +351,13 @@ static const AVFilterPad mptestsrc_outputs[] = {
     { NULL }
 };
 
-AVFilter avfilter_vsrc_mptestsrc = {
-    .name      = "mptestsrc",
-    .description = NULL_IF_CONFIG_SMALL("Generate various test pattern."),
-    .priv_size = sizeof(MPTestContext),
-    .init      = init,
-
-    .query_formats   = query_formats,
-
-    .inputs         = NULL,
-    .outputs        = mptestsrc_outputs,
-    .priv_class     = &mptestsrc_class,
+AVFilter ff_vsrc_mptestsrc = {
+    .name          = "mptestsrc",
+    .description   = NULL_IF_CONFIG_SMALL("Generate various test pattern."),
+    .priv_size     = sizeof(MPTestContext),
+    .priv_class    = &mptestsrc_class,
+    .init          = init,
+    .query_formats = query_formats,
+    .inputs        = NULL,
+    .outputs       = mptestsrc_outputs,
 };

@@ -105,7 +105,7 @@ static const int8_t chroma_adjust[2][8] = {
     { 0, 1, 1,  1,  0, -1, -1, -1 }
 };
 
-const uint8_t chroma_vals[] = {
+static const uint8_t chroma_vals[] = {
      20,  28,  36,  44,  52,  60,  68,  76,
      84,  92, 100, 106, 112, 116, 120, 124,
     128, 132, 136, 140, 144, 150, 156, 164,
@@ -335,7 +335,7 @@ static int escape130_decode_frame(AVCodecContext *avctx, void *data,
         new_cr += new_cr_stride;
     }
 
-    av_dlog(avctx, "Frame data: provided %d bytes, used %d bytes\n",
+    ff_dlog(avctx, "Frame data: provided %d bytes, used %d bytes\n",
             buf_size, get_bits_count(&gb) >> 3);
 
     FFSWAP(uint8_t*, s->old_y, s->new_y);
@@ -349,12 +349,12 @@ static int escape130_decode_frame(AVCodecContext *avctx, void *data,
 
 AVCodec ff_escape130_decoder = {
     .name           = "escape130",
+    .long_name      = NULL_IF_CONFIG_SMALL("Escape 130"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_ESCAPE130,
     .priv_data_size = sizeof(Escape130Context),
     .init           = escape130_decode_init,
     .close          = escape130_decode_close,
     .decode         = escape130_decode_frame,
-    .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Escape 130"),
+    .capabilities   = AV_CODEC_CAP_DR1,
 };

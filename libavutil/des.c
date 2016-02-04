@@ -22,9 +22,8 @@
 #include "avutil.h"
 #include "common.h"
 #include "intreadwrite.h"
+#include "mem.h"
 #include "des.h"
-
-typedef struct AVDES AVDES;
 
 #define T(a, b, c, d, e, f, g, h) 64-a,64-b,64-c,64-d,64-e,64-f,64-g,64-h
 static const uint8_t IP_shuffle[] = {
@@ -286,6 +285,11 @@ static uint64_t des_encdec(uint64_t in, uint64_t K[16], int decrypt) {
     return in;
 }
 
+AVDES *av_des_alloc(void)
+{
+    return av_mallocz(sizeof(struct AVDES));
+}
+
 int av_des_init(AVDES *d, const uint8_t *key, int key_bits, av_unused int decrypt) {
     if (key_bits != 64 && key_bits != 192)
         return -1;
@@ -339,7 +343,9 @@ void av_des_mac(AVDES *d, uint8_t *dst, const uint8_t *src, int count) {
 #ifdef TEST
 #include <stdlib.h>
 #include <stdio.h>
-#include "libavutil/time.h"
+
+#include "time.h"
+
 static uint64_t rand64(void) {
     uint64_t r = rand();
     r = (r << 32) | rand();

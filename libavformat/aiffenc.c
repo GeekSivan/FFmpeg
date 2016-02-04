@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <stdint.h>
+
 #include "libavutil/intfloat.h"
 #include "libavutil/opt.h"
 #include "avformat.h"
@@ -28,7 +30,7 @@
 #include "isom.h"
 #include "id3v2.h"
 
-typedef struct {
+typedef struct AIFFOutputContext {
     const AVClass *class;
     int64_t form;
     int64_t frames;
@@ -64,7 +66,7 @@ static int put_id3v2_tags(AVFormatContext *s, AIFFOutputContext *aiff)
             return ret;
         pict_list = pict_list->next;
     }
-    ff_id3v2_finish(&id3v2, pb);
+    ff_id3v2_finish(&id3v2, pb, s->metadata_header_padding);
 
     end = avio_tell(pb);
     size = end - pos;
@@ -110,7 +112,7 @@ static int aiff_write_header(AVFormatContext *s)
         if (aiff->audio_stream_idx < 0 && st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
             aiff->audio_stream_idx = i;
         } else if (st->codec->codec_type != AVMEDIA_TYPE_VIDEO) {
-            av_log(s, AV_LOG_ERROR, "Only audio streams and pictures are allowed in AIFF.\n");
+            av_log(s, AV_LOG_ERROR, "AIFF allows only one audio stream and a picture.\n");
             return AVERROR(EINVAL);
         }
     }

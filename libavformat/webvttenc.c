@@ -38,15 +38,21 @@ static void webvtt_write_time(AVIOContext *pb, int64_t millisec)
     min -= 60 * hour;
 
     if (hour > 0)
-        avio_printf(pb, "%ld:", hour);
+        avio_printf(pb, "%"PRId64":", hour);
 
-    avio_printf(pb, "%02ld:%02ld.%03ld", min, sec, millisec);
+    avio_printf(pb, "%02"PRId64":%02"PRId64".%03"PRId64"", min, sec, millisec);
 }
 
 static int webvtt_write_header(AVFormatContext *ctx)
 {
     AVStream     *s = ctx->streams[0];
+    AVCodecContext *avctx = ctx->streams[0]->codec;
     AVIOContext *pb = ctx->pb;
+
+    if (ctx->nb_streams != 1 || avctx->codec_id != AV_CODEC_ID_WEBVTT) {
+        av_log(ctx, AV_LOG_ERROR, "Exactly one WebVTT stream is needed.\n");
+        return AVERROR(EINVAL);
+    }
 
     avpriv_set_pts_info(s, 64, 1, 1000);
 
@@ -93,6 +99,7 @@ AVOutputFormat ff_webvtt_muxer = {
     .long_name         = NULL_IF_CONFIG_SMALL("WebVTT subtitle"),
     .extensions        = "vtt",
     .mime_type         = "text/vtt",
+    .flags             = AVFMT_VARIABLE_FPS | AVFMT_TS_NONSTRICT,
     .subtitle_codec    = AV_CODEC_ID_WEBVTT,
     .write_header      = webvtt_write_header,
     .write_packet      = webvtt_write_packet,

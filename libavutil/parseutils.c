@@ -29,6 +29,7 @@
 #include "eval.h"
 #include "log.h"
 #include "random_seed.h"
+#include "time_internal.h"
 #include "parseutils.h"
 
 #ifdef TEST
@@ -61,12 +62,12 @@ int av_parse_ratio(AVRational *q, const char *str, int max,
     return 0;
 }
 
-typedef struct {
+typedef struct VideoSizeAbbr {
     const char *abbr;
     int width, height;
 } VideoSizeAbbr;
 
-typedef struct {
+typedef struct VideoRateAbbr {
     const char *abbr;
     AVRational rate;
 } VideoRateAbbr;
@@ -110,11 +111,21 @@ static const VideoSizeAbbr video_size_abbrs[] = {
     { "hd720",    1280, 720 },
     { "hd1080",   1920,1080 },
     { "2k",       2048,1080 }, /* Digital Cinema System Specification */
+    { "2kdci",    2048,1080 },
     { "2kflat",   1998,1080 },
     { "2kscope",  2048, 858 },
     { "4k",       4096,2160 }, /* Digital Cinema System Specification */
+    { "4kdci",    4096,2160 },
     { "4kflat",   3996,2160 },
     { "4kscope",  4096,1716 },
+    { "nhd",       640,360  },
+    { "hqvga",     240,160  },
+    { "wqvga",     400,240  },
+    { "fwqvga",    432,240  },
+    { "hvga",      480,320  },
+    { "qhd",       960,540  },
+    { "uhd2160",  3840,2160 },
+    { "uhd4320",  7680,4320 },
 };
 
 static const VideoRateAbbr video_rate_abbrs[]= {
@@ -179,7 +190,7 @@ int av_parse_video_rate(AVRational *rate, const char *arg)
     return 0;
 }
 
-typedef struct {
+typedef struct ColorEntry {
     const char *name;            ///< a string representing the name of the color
     uint8_t     rgb_color[3];    ///< RGB values for the color
 } ColorEntry;
@@ -414,6 +425,20 @@ int av_parse_color(uint8_t *rgba_color, const char *color_string, int slen,
     return 0;
 }
 
+const char *av_get_known_color_name(int color_idx, const uint8_t **rgbp)
+{
+    const ColorEntry *color;
+
+    if ((unsigned)color_idx >= FF_ARRAY_ELEMS(color_table))
+        return NULL;
+
+    color = &color_table[color_idx];
+    if (rgbp)
+        *rgbp = color->rgb_color;
+
+    return color->name;
+}
+
 /* get a positive number between n_min and n_max, for a maximum length
    of len_max. Return -1 if error. */
 static int date_get_num(const char **pp,
@@ -444,68 +469,71 @@ char *av_small_strptime(const char *p, const char *fmt, struct tm *dt)
 {
     int c, val;
 
-    for(;;) {
-        /* consume time string until a non whitespace char is found */
-        while (av_isspace(*fmt)) {
-            while (av_isspace(*p))
-                p++;
-            fmt++;
+    while((c = *fmt++)) {
+        if (c != '%') {
+            if (av_isspace(c))
+                for (; *p && av_isspace(*p); p++);
+            else if (*p != c)
+                return NULL;
+            else p++;
+            continue;
         }
+
         c = *fmt++;
-        if (c == '\0') {
-            return (char *)p;
-        } else if (c == '%') {
-            c = *fmt++;
-            switch(c) {
-            case 'H':
-            case 'J':
-                val = date_get_num(&p, 0, c == 'H' ? 23 : INT_MAX, 2);
-                if (val == -1)
-                    return NULL;
-                dt->tm_hour = val;
-                break;
-            case 'M':
-                val = date_get_num(&p, 0, 59, 2);
-                if (val == -1)
-                    return NULL;
-                dt->tm_min = val;
-                break;
-            case 'S':
-                val = date_get_num(&p, 0, 59, 2);
-                if (val == -1)
-                    return NULL;
-                dt->tm_sec = val;
-                break;
-            case 'Y':
-                val = date_get_num(&p, 0, 9999, 4);
-                if (val == -1)
-                    return NULL;
-                dt->tm_year = val - 1900;
-                break;
-            case 'm':
-                val = date_get_num(&p, 1, 12, 2);
-                if (val == -1)
-                    return NULL;
-                dt->tm_mon = val - 1;
-                break;
-            case 'd':
-                val = date_get_num(&p, 1, 31, 2);
-                if (val == -1)
-                    return NULL;
-                dt->tm_mday = val;
-                break;
-            case '%':
-                goto match;
-            default:
+        switch(c) {
+        case 'H':
+        case 'J':
+            val = date_get_num(&p, 0, c == 'H' ? 23 : INT_MAX, 2);
+
+            if (val == -1)
                 return NULL;
-            }
-        } else {
-        match:
-            if (c != *p)
+            dt->tm_hour = val;
+            break;
+        case 'M':
+            val = date_get_num(&p, 0, 59, 2);
+            if (val == -1)
                 return NULL;
-            p++;
+            dt->tm_min = val;
+            break;
+        case 'S':
+            val = date_get_num(&p, 0, 59, 2);
+            if (val == -1)
+                return NULL;
+            dt->tm_sec = val;
+            break;
+        case 'Y':
+            val = date_get_num(&p, 0, 9999, 4);
+            if (val == -1)
+                return NULL;
+            dt->tm_year = val - 1900;
+            break;
+        case 'm':
+            val = date_get_num(&p, 1, 12, 2);
+            if (val == -1)
+                return NULL;
+            dt->tm_mon = val - 1;
+            break;
+        case 'd':
+            val = date_get_num(&p, 1, 31, 2);
+            if (val == -1)
+                return NULL;
+            dt->tm_mday = val;
+            break;
+        case 'T':
+            p = av_small_strptime(p, "%H:%M:%S", dt);
+            if (!p)
+                return NULL;
+            break;
+        case '%':
+            if (*p++ != '%')
+                return NULL;
+            break;
+        default:
+            return NULL;
         }
     }
+
+    return (char*)p;
 }
 
 time_t av_timegm(struct tm *tm)
@@ -532,7 +560,7 @@ int av_parse_time(int64_t *timeval, const char *timestr, int duration)
     const char *p, *q;
     int64_t t;
     time_t now;
-    struct tm dt = { 0 };
+    struct tm dt = { 0 }, tmbuf;
     int today = 0, negative = 0, microseconds = 0;
     int i;
     static const char * const date_fmt[] = {
@@ -593,12 +621,14 @@ int av_parse_time(int64_t *timeval, const char *timestr, int duration)
             dt.tm_hour = 0;
         }
         if (!q) {
+            char *o;
             /* parse timestr as S+ */
-            dt.tm_sec = strtol(p, (void *)&q, 10);
-            if (q == p) /* the parsing didn't succeed */
+            dt.tm_sec = strtol(p, &o, 10);
+            if (o == p) /* the parsing didn't succeed */
                 return AVERROR(EINVAL);
             dt.tm_min = 0;
             dt.tm_hour = 0;
+            q = o;
         }
     }
 
@@ -625,7 +655,7 @@ int av_parse_time(int64_t *timeval, const char *timestr, int duration)
         int is_utc = *q == 'Z' || *q == 'z';
         q += is_utc;
         if (today) { /* fill in today's date */
-            struct tm dt2 = is_utc ? *gmtime(&now) : *localtime(&now);
+            struct tm dt2 = is_utc ? *gmtime_r(&now, &tmbuf) : *localtime_r(&now, &tmbuf);
             dt2.tm_hour = dt.tm_hour;
             dt2.tm_min  = dt.tm_min;
             dt2.tm_sec  = dt.tm_sec;
@@ -824,13 +854,13 @@ int main(void)
         time_t tvi;
         struct tm *tm;
         static char tzstr[] = "TZ=CET-1";
-        const char *time_string[] = {
+        static const char * const time_string[] = {
             "now",
             "12:35:46",
             "2000-12-20 0:02:47.5z",
             "2000-12-20T010247.6",
         };
-        const char *duration_string[] = {
+        static const char * const duration_string[] = {
             "2:34:56.79",
             "-1:23:45.67",
             "42.1729",

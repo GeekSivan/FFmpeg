@@ -63,7 +63,7 @@ static av_cold int aacPlus_encode_init(AVCodecContext *avctx)
 
     aacplus_cfg->bitRate = avctx->bit_rate;
     aacplus_cfg->bandWidth = avctx->cutoff;
-    aacplus_cfg->outputFormat = !(avctx->flags & CODEC_FLAG_GLOBAL_HEADER);
+    aacplus_cfg->outputFormat = !(avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER);
     aacplus_cfg->inputFormat = avctx->sample_fmt == AV_SAMPLE_FMT_FLT ? AACPLUS_INPUT_FLOAT : AACPLUS_INPUT_16BIT;
     if (!aacplusEncSetConfiguration(s->aacplus_handle, aacplus_cfg)) {
         av_log(avctx, AV_LOG_ERROR, "libaacplus doesn't support this output format!\n");
@@ -74,14 +74,18 @@ static av_cold int aacPlus_encode_init(AVCodecContext *avctx)
 
     /* Set decoder specific info */
     avctx->extradata_size = 0;
-    if (avctx->flags & CODEC_FLAG_GLOBAL_HEADER) {
+    if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) {
 
         unsigned char *buffer = NULL;
         unsigned long decoder_specific_info_size;
 
         if (aacplusEncGetDecoderSpecificInfo(s->aacplus_handle, &buffer,
                                            &decoder_specific_info_size) == 1) {
-            avctx->extradata = av_malloc(decoder_specific_info_size + FF_INPUT_BUFFER_PADDING_SIZE);
+            avctx->extradata = av_malloc(decoder_specific_info_size + AV_INPUT_BUFFER_PADDING_SIZE);
+            if (!avctx->extradata) {
+                free(buffer);
+                return AVERROR(ENOMEM);
+            }
             avctx->extradata_size = decoder_specific_info_size;
             memcpy(avctx->extradata, buffer, avctx->extradata_size);
         }
@@ -97,7 +101,7 @@ static int aacPlus_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int32_t *input_buffer = (int32_t *)frame->data[0];
     int ret;
 
-    if ((ret = ff_alloc_packet2(avctx, pkt, s->max_output_bytes)) < 0)
+    if ((ret = ff_alloc_packet2(avctx, pkt, s->max_output_bytes, 0)) < 0)
         return ret;
 
     pkt->size = aacplusEncEncode(s->aacplus_handle, input_buffer,
@@ -124,6 +128,7 @@ static const AVProfile profiles[] = {
 
 AVCodec ff_libaacplus_encoder = {
     .name           = "libaacplus",
+    .long_name      = NULL_IF_CONFIG_SMALL("libaacplus AAC+ (Advanced Audio Codec with SBR+PS)"),
     .type           = AVMEDIA_TYPE_AUDIO,
     .id             = AV_CODEC_ID_AAC,
     .priv_data_size = sizeof(aacPlusAudioContext),
@@ -133,7 +138,6 @@ AVCodec ff_libaacplus_encoder = {
     .sample_fmts    = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,
                                                      AV_SAMPLE_FMT_FLT,
                                                      AV_SAMPLE_FMT_NONE },
-    .long_name      = NULL_IF_CONFIG_SMALL("libaacplus AAC+ (Advanced Audio Codec with SBR+PS)"),
     .profiles       = profiles,
     .channel_layouts = (const uint64_t[]) { AV_CH_LAYOUT_MONO,
                                             AV_CH_LAYOUT_STEREO,

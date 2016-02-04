@@ -50,17 +50,17 @@ static av_cold int libshine_encode_init(AVCodecContext *avctx)
     shine_set_config_mpeg_defaults(&s->config.mpeg);
     if (avctx->bit_rate)
         s->config.mpeg.bitr = avctx->bit_rate / 1000;
-    if (shine_find_bitrate_index(s->config.mpeg.bitr) < 0) {
-        av_log(avctx, AV_LOG_ERROR, "invalid bitrate\n");
-        return AVERROR(EINVAL);
-    }
     s->config.mpeg.mode = avctx->channels == 2 ? STEREO : MONO;
     s->config.wave.samplerate = avctx->sample_rate;
     s->config.wave.channels   = avctx->channels == 2 ? PCM_STEREO : PCM_MONO;
+    if (shine_check_config(s->config.wave.samplerate, s->config.mpeg.bitr) < 0) {
+        av_log(avctx, AV_LOG_ERROR, "invalid configuration\n");
+        return AVERROR(EINVAL);
+    }
     s->shine = shine_initialise(&s->config);
     if (!s->shine)
         return AVERROR(ENOMEM);
-    avctx->frame_size = samp_per_frame;
+    avctx->frame_size = shine_samples_per_pass(s->shine);
     ff_af_queue_init(avctx, &s->afq);
     return 0;
 }
@@ -71,11 +71,11 @@ static int libshine_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
     SHINEContext *s = avctx->priv_data;
     MPADecodeHeader hdr;
     unsigned char *data;
-    long written;
+    int written;
     int ret, len;
 
     if (frame)
-        data = shine_encode_frame(s->shine, frame->data[0], &written);
+        data = shine_encode_buffer(s->shine, (int16_t **)frame->data, &written);
     else
         data = shine_flush(s->shine, &written);
     if (written < 0)
@@ -102,7 +102,7 @@ static int libshine_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
 
     len = hdr.frame_size;
     if (len <= s->buffer_index) {
-        if ((ret = ff_alloc_packet2(avctx, avpkt, len)))
+        if ((ret = ff_alloc_packet2(avctx, avpkt, len, 0)))
             return ret;
         memcpy(avpkt->data, s->buffer, len);
         s->buffer_index -= len;
@@ -132,18 +132,18 @@ static const int libshine_sample_rates[] = {
 
 AVCodec ff_libshine_encoder = {
     .name                  = "libshine",
+    .long_name             = NULL_IF_CONFIG_SMALL("libshine MP3 (MPEG audio layer 3)"),
     .type                  = AVMEDIA_TYPE_AUDIO,
-    .id                    = CODEC_ID_MP3,
+    .id                    = AV_CODEC_ID_MP3,
     .priv_data_size        = sizeof(SHINEContext),
     .init                  = libshine_encode_init,
     .encode2               = libshine_encode_frame,
     .close                 = libshine_encode_close,
-    .capabilities          = CODEC_CAP_DELAY,
+    .capabilities          = AV_CODEC_CAP_DELAY,
     .sample_fmts           = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16P,
                                                             AV_SAMPLE_FMT_NONE },
     .supported_samplerates = libshine_sample_rates,
     .channel_layouts       = (const uint64_t[]) { AV_CH_LAYOUT_MONO,
                                                   AV_CH_LAYOUT_STEREO,
                                                   0 },
-    .long_name             = NULL_IF_CONFIG_SMALL("libshine MP3 (MPEG audio layer 3)"),
 };

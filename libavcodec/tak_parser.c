@@ -33,12 +33,6 @@ typedef struct TAKParseContext {
     int           index;
 } TAKParseContext;
 
-static av_cold int tak_init(AVCodecParserContext *s)
-{
-    ff_tak_init_crc();
-    return 0;
-}
-
 static int tak_parse(AVCodecParserContext *s, AVCodecContext *avctx,
                      const uint8_t **poutbuf, int *poutbuf_size,
                      const uint8_t *buf, int buf_size)
@@ -49,10 +43,12 @@ static int tak_parse(AVCodecParserContext *s, AVCodecContext *avctx,
     GetBitContext gb;
     int consumed = 0;
     int needed   = buf_size ? TAK_MAX_FRAME_HEADER_BYTES : 8;
+    int ret;
 
     if (s->flags & PARSER_FLAG_COMPLETE_FRAMES) {
         TAKStreamInfo ti;
-        init_get_bits(&gb, buf, buf_size);
+        if ((ret = init_get_bits8(&gb, buf, buf_size)) < 0)
+            return ret;
         if (!ff_tak_decode_frame_header(avctx, &gb, &ti, 127))
             s->duration = t->ti.last_frame_samples ? t->ti.last_frame_samples
                                                    : t->ti.frame_samples;
@@ -79,8 +75,9 @@ static int tak_parse(AVCodecParserContext *s, AVCodecContext *avctx,
                 pc->buffer[ t->index + 1 ] == 0xA0) {
                 TAKStreamInfo ti;
 
-                init_get_bits(&gb, pc->buffer + t->index,
-                              8 * (pc->index - t->index));
+                if ((ret = init_get_bits8(&gb, pc->buffer + t->index,
+                                          pc->index - t->index)) < 0)
+                    return ret;
                 if (!ff_tak_decode_frame_header(avctx, &gb,
                         pc->frame_start_found ? &ti : &t->ti, 127) &&
                     !ff_tak_check_crc(pc->buffer + t->index,
@@ -123,7 +120,6 @@ found:
 AVCodecParser ff_tak_parser = {
     .codec_ids      = { AV_CODEC_ID_TAK },
     .priv_data_size = sizeof(TAKParseContext),
-    .parser_init    = tak_init,
     .parser_parse   = tak_parse,
     .parser_close   = ff_parse_close,
 };

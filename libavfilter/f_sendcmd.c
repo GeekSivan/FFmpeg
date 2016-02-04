@@ -39,7 +39,7 @@
 
 static inline char *make_command_flags_str(AVBPrint *pbuf, int flags)
 {
-    const char *flag_strings[] = { "enter", "leave" };
+    static const char * const flag_strings[] = { "enter", "leave" };
     int i, is_first = 1;
 
     av_bprint_init(pbuf, 0, AV_BPRINT_SIZE_AUTOMATIC);
@@ -86,7 +86,7 @@ static const AVOption options[] = {
     { "c",        "set commands", OFFSET(commands_str), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS },
     { "filename", "set commands file",  OFFSET(commands_filename), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS },
     { "f",        "set commands file",  OFFSET(commands_filename), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS },
-    {NULL},
+    { NULL }
 };
 
 #define SPACES " \f\t\n\r"
@@ -318,6 +318,9 @@ static int parse_intervals(Interval **intervals, int *nb_intervals,
     *intervals = NULL;
     *nb_intervals = 0;
 
+    if (!buf)
+        return 0;
+
     while (1) {
         Interval interval;
 
@@ -373,9 +376,9 @@ static av_cold int init(AVFilterContext *ctx)
     SendCmdContext *sendcmd = ctx->priv;
     int ret, i, j;
 
-    if (sendcmd->commands_filename && sendcmd->commands_str) {
+    if ((!!sendcmd->commands_filename + !!sendcmd->commands_str) != 1) {
         av_log(ctx, AV_LOG_ERROR,
-               "Only one of the filename or commands options must be specified\n");
+               "One and only one of the filename or commands options must be specified\n");
         return AVERROR(EINVAL);
     }
 
@@ -402,6 +405,11 @@ static av_cold int init(AVFilterContext *ctx)
     if ((ret = parse_intervals(&sendcmd->intervals, &sendcmd->nb_intervals,
                                sendcmd->commands_str, ctx)) < 0)
         return ret;
+
+    if (sendcmd->nb_intervals == 0) {
+        av_log(ctx, AV_LOG_ERROR, "No commands were specified\n");
+        return AVERROR(EINVAL);
+    }
 
     qsort(sendcmd->intervals, sendcmd->nb_intervals, sizeof(Interval), cmp_intervals);
 
@@ -431,11 +439,11 @@ static av_cold void uninit(AVFilterContext *ctx)
         Interval *interval = &sendcmd->intervals[i];
         for (j = 0; j < interval->nb_commands; j++) {
             Command *cmd = &interval->commands[j];
-            av_free(cmd->target);
-            av_free(cmd->command);
-            av_free(cmd->arg);
+            av_freep(&cmd->target);
+            av_freep(&cmd->command);
+            av_freep(&cmd->arg);
         }
-        av_free(interval->commands);
+        av_freep(&interval->commands);
     }
     av_freep(&sendcmd->intervals);
 }
@@ -512,10 +520,9 @@ AVFILTER_DEFINE_CLASS(sendcmd);
 
 static const AVFilterPad sendcmd_inputs[] = {
     {
-        .name             = "default",
-        .type             = AVMEDIA_TYPE_VIDEO,
-        .get_video_buffer = ff_null_get_video_buffer,
-        .filter_frame     = filter_frame,
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_VIDEO,
+        .filter_frame = filter_frame,
     },
     { NULL }
 };
@@ -528,15 +535,15 @@ static const AVFilterPad sendcmd_outputs[] = {
     { NULL }
 };
 
-AVFilter avfilter_vf_sendcmd = {
-    .name      = "sendcmd",
+AVFilter ff_vf_sendcmd = {
+    .name        = "sendcmd",
     .description = NULL_IF_CONFIG_SMALL("Send commands to filters."),
-    .init   = init,
-    .uninit = uninit,
-    .priv_size = sizeof(SendCmdContext),
-    .inputs    = sendcmd_inputs,
-    .outputs   = sendcmd_outputs,
-    .priv_class = &sendcmd_class,
+    .init        = init,
+    .uninit      = uninit,
+    .priv_size   = sizeof(SendCmdContext),
+    .inputs      = sendcmd_inputs,
+    .outputs     = sendcmd_outputs,
+    .priv_class  = &sendcmd_class,
 };
 
 #endif
@@ -548,10 +555,9 @@ AVFILTER_DEFINE_CLASS(asendcmd);
 
 static const AVFilterPad asendcmd_inputs[] = {
     {
-        .name             = "default",
-        .type             = AVMEDIA_TYPE_AUDIO,
-        .get_audio_buffer = ff_null_get_audio_buffer,
-        .filter_frame     = filter_frame,
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_AUDIO,
+        .filter_frame = filter_frame,
     },
     { NULL }
 };
@@ -564,15 +570,15 @@ static const AVFilterPad asendcmd_outputs[] = {
     { NULL }
 };
 
-AVFilter avfilter_af_asendcmd = {
-    .name      = "asendcmd",
+AVFilter ff_af_asendcmd = {
+    .name        = "asendcmd",
     .description = NULL_IF_CONFIG_SMALL("Send commands to filters."),
-    .init   = init,
-    .uninit = uninit,
-    .priv_size = sizeof(SendCmdContext),
-    .inputs    = asendcmd_inputs,
-    .outputs   = asendcmd_outputs,
-    .priv_class = &asendcmd_class,
+    .init        = init,
+    .uninit      = uninit,
+    .priv_size   = sizeof(SendCmdContext),
+    .inputs      = asendcmd_inputs,
+    .outputs     = asendcmd_outputs,
+    .priv_class  = &asendcmd_class,
 };
 
 #endif

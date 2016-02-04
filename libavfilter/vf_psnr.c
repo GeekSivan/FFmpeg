@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Roger Pau Monné <roger.pau@entel.upc.edu>
+ * Copyright (c) 2011 Roger Pau MonnÃ© <roger.pau@entel.upc.edu>
  * Copyright (c) 2011 Stefano Sabatini
  * Copyright (c) 2013 Paul B Mahol
  *
@@ -25,6 +25,7 @@
  * Caculate the PSNR between two input videos.
  */
 
+#include "libavutil/avstring.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
@@ -32,12 +33,13 @@
 #include "drawutils.h"
 #include "formats.h"
 #include "internal.h"
+#include "psnr.h"
 #include "video.h"
 
 typedef struct PSNRContext {
     const AVClass *class;
     FFDualInputContext dinput;
-    double mse, min_mse, max_mse;
+    double mse, min_mse, max_mse, mse_comp[4];
     uint64_t nb_frames;
     FILE *stats_file;
     char *stats_file_str;
@@ -45,7 +47,11 @@ typedef struct PSNRContext {
     int is_rgb;
     uint8_t rgba_map[4];
     char comps[4];
-    const AVPixFmtDescriptor *desc;
+    int nb_components;
+    int planewidth[4];
+    int planeheight[4];
+    double planeweight[4];
+    PSNRDSPContext dsp;
 } PSNRContext;
 
 #define OFFSET(x) offsetof(PSNRContext, x)
@@ -54,12 +60,12 @@ typedef struct PSNRContext {
 static const AVOption psnr_options[] = {
     {"stats_file", "Set file where to store per-frame difference information", OFFSET(stats_file_str), AV_OPT_TYPE_STRING, {.str=NULL}, 0, 0, FLAGS },
     {"f",          "Set file where to store per-frame difference information", OFFSET(stats_file_str), AV_OPT_TYPE_STRING, {.str=NULL}, 0, 0, FLAGS },
-    { NULL },
+    { NULL }
 };
 
 AVFILTER_DEFINE_CLASS(psnr);
 
-static inline int pow2(int base)
+static inline unsigned pow2(unsigned base)
 {
     return base*base;
 }
@@ -69,32 +75,52 @@ static inline double get_psnr(double mse, uint64_t nb_frames, int max)
     return 10.0 * log(pow2(max) / (mse / nb_frames)) / log(10.0);
 }
 
-static inline
-void compute_images_mse(const uint8_t *main_data[4], const int main_linesizes[4],
-                        const uint8_t *ref_data[4], const int ref_linesizes[4],
-                        int w, int h, const AVPixFmtDescriptor *desc,
-                        double mse[4])
+static uint64_t sse_line_8bit(const uint8_t *main_line,  const uint8_t *ref_line, int outw)
 {
-    int i, c, j;
+    int j;
+    unsigned m2 = 0;
 
-    for (c = 0; c < desc->nb_components; c++) {
-        int hsub = c == 1 || c == 2 ? desc->log2_chroma_w : 0;
-        int vsub = c == 1 || c == 2 ? desc->log2_chroma_h : 0;
-        const int outw = FF_CEIL_RSHIFT(w, hsub);
-        const int outh = FF_CEIL_RSHIFT(h, vsub);
+    for (j = 0; j < outw; j++)
+        m2 += pow2(main_line[j] - ref_line[j]);
+
+    return m2;
+}
+
+static uint64_t sse_line_16bit(const uint8_t *_main_line, const uint8_t *_ref_line, int outw)
+{
+    int j;
+    uint64_t m2 = 0;
+    const uint16_t *main_line = (const uint16_t *) _main_line;
+    const uint16_t *ref_line = (const uint16_t *) _ref_line;
+
+    for (j = 0; j < outw; j++)
+        m2 += pow2(main_line[j] - ref_line[j]);
+
+    return m2;
+}
+
+static inline
+void compute_images_mse(PSNRContext *s,
+                        const uint8_t *main_data[4], const int main_linesizes[4],
+                        const uint8_t *ref_data[4], const int ref_linesizes[4],
+                        int w, int h, double mse[4])
+{
+    int i, c;
+
+    for (c = 0; c < s->nb_components; c++) {
+        const int outw = s->planewidth[c];
+        const int outh = s->planeheight[c];
         const uint8_t *main_line = main_data[c];
         const uint8_t *ref_line = ref_data[c];
         const int ref_linesize = ref_linesizes[c];
         const int main_linesize = main_linesizes[c];
-        int m = 0;
-
+        uint64_t m = 0;
         for (i = 0; i < outh; i++) {
-            for (j = 0; j < outw; j++)
-                m += pow2(main_line[j] - ref_line[j]);
+            m += s->dsp.sse_line(main_line, ref_line, outw);
             ref_line += ref_linesize;
             main_line += main_linesize;
         }
-        mse[c] = m / (outw * outh);
+        mse[c] = m / (double)(outw * outh);
     }
 }
 
@@ -119,35 +145,37 @@ static AVFrame *do_psnr(AVFilterContext *ctx, AVFrame *main,
     int j, c;
     AVDictionary **metadata = avpriv_frame_get_metadatap(main);
 
-    compute_images_mse((const uint8_t **)main->data, main->linesize,
-                       (const uint8_t **)ref->data, ref->linesize,
-                       main->width, main->height, s->desc, comp_mse);
+    compute_images_mse(s, (const uint8_t **)main->data, main->linesize,
+                          (const uint8_t **)ref->data, ref->linesize,
+                          main->width, main->height, comp_mse);
 
-    for (j = 0; j < s->desc->nb_components; j++)
-        mse += comp_mse[j];
-    mse /= s->desc->nb_components;
+    for (j = 0; j < s->nb_components; j++)
+        mse += comp_mse[j] * s->planeweight[j];
 
     s->min_mse = FFMIN(s->min_mse, mse);
     s->max_mse = FFMAX(s->max_mse, mse);
 
     s->mse += mse;
+    for (j = 0; j < s->nb_components; j++)
+        s->mse_comp[j] += comp_mse[j];
     s->nb_frames++;
 
-    for (j = 0; j < s->desc->nb_components; j++) {
+    for (j = 0; j < s->nb_components; j++) {
         c = s->is_rgb ? s->rgba_map[j] : j;
         set_meta(metadata, "lavfi.psnr.mse.", s->comps[j], comp_mse[c]);
-        set_meta(metadata, "lavfi.psnr.mse_avg", 0, mse);
         set_meta(metadata, "lavfi.psnr.psnr.", s->comps[j], get_psnr(comp_mse[c], 1, s->max[c]));
-        set_meta(metadata, "lavfi.psnr.psnr_avg", 0, get_psnr(mse, 1, s->average_max));
     }
+    set_meta(metadata, "lavfi.psnr.mse_avg", 0, mse);
+    set_meta(metadata, "lavfi.psnr.psnr_avg", 0, get_psnr(mse, 1, s->average_max));
 
     if (s->stats_file) {
         fprintf(s->stats_file, "n:%"PRId64" mse_avg:%0.2f ", s->nb_frames, mse);
-        for (j = 0; j < s->desc->nb_components; j++) {
+        for (j = 0; j < s->nb_components; j++) {
             c = s->is_rgb ? s->rgba_map[j] : j;
             fprintf(s->stats_file, "mse_%c:%0.2f ", s->comps[j], comp_mse[c]);
         }
-        for (j = 0; j < s->desc->nb_components; j++) {
+        fprintf(s->stats_file, "psnr_avg:%0.2f ", get_psnr(mse, 1, s->average_max));
+        for (j = 0; j < s->nb_components; j++) {
             c = s->is_rgb ? s->rgba_map[j] : j;
             fprintf(s->stats_file, "psnr_%c:%0.2f ", s->comps[j],
                     get_psnr(comp_mse[c], 1, s->max[c]));
@@ -183,31 +211,39 @@ static av_cold int init(AVFilterContext *ctx)
 
 static int query_formats(AVFilterContext *ctx)
 {
-    static const enum PixelFormat pix_fmts[] = {
-        AV_PIX_FMT_GRAY8,
-        AV_PIX_FMT_GBRP, AV_PIX_FMT_GBRAP,
-        AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV440P, AV_PIX_FMT_YUV422P,
-        AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV411P, AV_PIX_FMT_YUV410P,
-        AV_PIX_FMT_YUVJ444P, AV_PIX_FMT_YUVJ440P, AV_PIX_FMT_YUVJ422P,
-        AV_PIX_FMT_YUVJ420P, AV_PIX_FMT_YUVJ411P,
-        AV_PIX_FMT_YUVA444P, AV_PIX_FMT_YUVA422P, AV_PIX_FMT_YUVA420P,
+    static const enum AVPixelFormat pix_fmts[] = {
+        AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY16,
+#define PF_NOALPHA(suf) AV_PIX_FMT_YUV420##suf,  AV_PIX_FMT_YUV422##suf,  AV_PIX_FMT_YUV444##suf
+#define PF_ALPHA(suf)   AV_PIX_FMT_YUVA420##suf, AV_PIX_FMT_YUVA422##suf, AV_PIX_FMT_YUVA444##suf
+#define PF(suf)         PF_NOALPHA(suf), PF_ALPHA(suf)
+        PF(P), PF(P9), PF(P10), PF_NOALPHA(P12), PF_NOALPHA(P14), PF(P16),
+        AV_PIX_FMT_YUV440P, AV_PIX_FMT_YUV411P, AV_PIX_FMT_YUV410P,
+        AV_PIX_FMT_YUVJ411P, AV_PIX_FMT_YUVJ420P, AV_PIX_FMT_YUVJ422P,
+        AV_PIX_FMT_YUVJ440P, AV_PIX_FMT_YUVJ444P,
+        AV_PIX_FMT_GBRP, AV_PIX_FMT_GBRP9, AV_PIX_FMT_GBRP10,
+        AV_PIX_FMT_GBRP12, AV_PIX_FMT_GBRP14, AV_PIX_FMT_GBRP16,
+        AV_PIX_FMT_GBRAP, AV_PIX_FMT_GBRAP16,
         AV_PIX_FMT_NONE
     };
 
-    ff_set_common_formats(ctx, ff_make_format_list(pix_fmts));
-    return 0;
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
 }
 
 static int config_input_ref(AVFilterLink *inlink)
 {
+    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(inlink->format);
     AVFilterContext *ctx  = inlink->dst;
     PSNRContext *s = ctx->priv;
+    unsigned sum;
     int j;
 
-    s->desc = av_pix_fmt_desc_get(inlink->format);
+    s->nb_components = desc->nb_components;
     if (ctx->inputs[0]->w != ctx->inputs[1]->w ||
         ctx->inputs[0]->h != ctx->inputs[1]->h) {
-        av_log(ctx, AV_LOG_ERROR, "Width and heigth of input videos must be same.\n");
+        av_log(ctx, AV_LOG_ERROR, "Width and height of input videos must be same.\n");
         return AVERROR(EINVAL);
     }
     if (ctx->inputs[0]->format != ctx->inputs[1]->format) {
@@ -215,23 +251,10 @@ static int config_input_ref(AVFilterLink *inlink)
         return AVERROR(EINVAL);
     }
 
-    switch (inlink->format) {
-    case AV_PIX_FMT_YUV410P:
-    case AV_PIX_FMT_YUV411P:
-    case AV_PIX_FMT_YUV420P:
-    case AV_PIX_FMT_YUV422P:
-    case AV_PIX_FMT_YUV440P:
-    case AV_PIX_FMT_YUV444P:
-    case AV_PIX_FMT_YUVA420P:
-    case AV_PIX_FMT_YUVA422P:
-    case AV_PIX_FMT_YUVA444P:
-        s->max[0] = 235;
-        s->max[3] = 255;
-        s->max[1] = s->max[2] = 240;
-        break;
-    default:
-        s->max[0] = s->max[1] = s->max[2] = s->max[3] = 255;
-    }
+    s->max[0] = (1 << (desc->comp[0].depth_minus1 + 1)) - 1;
+    s->max[1] = (1 << (desc->comp[1].depth_minus1 + 1)) - 1;
+    s->max[2] = (1 << (desc->comp[2].depth_minus1 + 1)) - 1;
+    s->max[3] = (1 << (desc->comp[3].depth_minus1 + 1)) - 1;
 
     s->is_rgb = ff_fill_rgba_map(s->rgba_map, inlink->format) >= 0;
     s->comps[0] = s->is_rgb ? 'r' : 'y' ;
@@ -239,9 +262,21 @@ static int config_input_ref(AVFilterLink *inlink)
     s->comps[2] = s->is_rgb ? 'b' : 'v' ;
     s->comps[3] = 'a';
 
-    for (j = 0; j < s->desc->nb_components; j++)
-        s->average_max += s->max[j];
-    s->average_max /= s->desc->nb_components;
+    s->planeheight[1] = s->planeheight[2] = FF_CEIL_RSHIFT(inlink->h, desc->log2_chroma_h);
+    s->planeheight[0] = s->planeheight[3] = inlink->h;
+    s->planewidth[1]  = s->planewidth[2]  = FF_CEIL_RSHIFT(inlink->w, desc->log2_chroma_w);
+    s->planewidth[0]  = s->planewidth[3]  = inlink->w;
+    sum = 0;
+    for (j = 0; j < s->nb_components; j++)
+        sum += s->planeheight[j] * s->planewidth[j];
+    for (j = 0; j < s->nb_components; j++) {
+        s->planeweight[j] = (double) s->planeheight[j] * s->planewidth[j] / sum;
+        s->average_max += s->max[j] * s->planeweight[j];
+    }
+
+    s->dsp.sse_line = desc->comp[0].depth_minus1 > 7 ? sse_line_16bit : sse_line_8bit;
+    if (ARCH_X86)
+        ff_psnr_init_x86(&s->dsp, desc->comp[0].depth_minus1 + 1);
 
     return 0;
 }
@@ -249,27 +284,25 @@ static int config_input_ref(AVFilterLink *inlink)
 static int config_output(AVFilterLink *outlink)
 {
     AVFilterContext *ctx = outlink->src;
+    PSNRContext *s = ctx->priv;
     AVFilterLink *mainlink = ctx->inputs[0];
+    int ret;
 
     outlink->w = mainlink->w;
     outlink->h = mainlink->h;
     outlink->time_base = mainlink->time_base;
     outlink->sample_aspect_ratio = mainlink->sample_aspect_ratio;
     outlink->frame_rate = mainlink->frame_rate;
+    if ((ret = ff_dualinput_init(ctx, &s->dinput)) < 0)
+        return ret;
 
     return 0;
 }
 
-static int filter_frame_main(AVFilterLink *inlink, AVFrame *inpicref)
+static int filter_frame(AVFilterLink *inlink, AVFrame *inpicref)
 {
     PSNRContext *s = inlink->dst->priv;
-    return ff_dualinput_filter_frame_main(&s->dinput, inlink, inpicref);
-}
-
-static int filter_frame_ref(AVFilterLink *inlink, AVFrame *inpicref)
-{
-    PSNRContext *s = inlink->dst->priv;
-    return ff_dualinput_filter_frame_second(&s->dinput, inlink, inpicref);
+    return ff_dualinput_filter_frame(&s->dinput, inlink, inpicref);
 }
 
 static int request_frame(AVFilterLink *outlink)
@@ -283,7 +316,17 @@ static av_cold void uninit(AVFilterContext *ctx)
     PSNRContext *s = ctx->priv;
 
     if (s->nb_frames > 0) {
-        av_log(ctx, AV_LOG_INFO, "PSNR average:%0.2f min:%0.2f max:%0.2f\n",
+        int j;
+        char buf[256];
+
+        buf[0] = 0;
+        for (j = 0; j < s->nb_components; j++) {
+            int c = s->is_rgb ? s->rgba_map[j] : j;
+            av_strlcatf(buf, sizeof(buf), " %c:%0.2f", s->comps[j],
+                        get_psnr(s->mse_comp[c], s->nb_frames, s->max[c]));
+        }
+        av_log(ctx, AV_LOG_INFO, "PSNR%s average:%0.2f min:%0.2f max:%0.2f\n",
+               buf,
                get_psnr(s->mse, s->nb_frames, s->average_max),
                get_psnr(s->max_mse, 1, s->average_max),
                get_psnr(s->min_mse, 1, s->average_max));
@@ -297,14 +340,14 @@ static av_cold void uninit(AVFilterContext *ctx)
 
 static const AVFilterPad psnr_inputs[] = {
     {
-        .name             = "main",
-        .type             = AVMEDIA_TYPE_VIDEO,
-        .filter_frame     = filter_frame_main,
+        .name         = "main",
+        .type         = AVMEDIA_TYPE_VIDEO,
+        .filter_frame = filter_frame,
     },{
-        .name             = "reference",
-        .type             = AVMEDIA_TYPE_VIDEO,
-        .filter_frame     = filter_frame_ref,
-        .config_props     = config_input_ref,
+        .name         = "reference",
+        .type         = AVMEDIA_TYPE_VIDEO,
+        .filter_frame = filter_frame,
+        .config_props = config_input_ref,
     },
     { NULL }
 };
@@ -319,14 +362,14 @@ static const AVFilterPad psnr_outputs[] = {
     { NULL }
 };
 
-AVFilter avfilter_vf_psnr = {
-    .name           = "psnr",
-    .description    = NULL_IF_CONFIG_SMALL("Calculate the PSNR between two video streams."),
-    .init           = init,
-    .uninit         = uninit,
-    .query_formats  = query_formats,
-    .priv_size      = sizeof(PSNRContext),
-    .priv_class     = &psnr_class,
-    .inputs         = psnr_inputs,
-    .outputs        = psnr_outputs,
+AVFilter ff_vf_psnr = {
+    .name          = "psnr",
+    .description   = NULL_IF_CONFIG_SMALL("Calculate the PSNR between two video streams."),
+    .init          = init,
+    .uninit        = uninit,
+    .query_formats = query_formats,
+    .priv_size     = sizeof(PSNRContext),
+    .priv_class    = &psnr_class,
+    .inputs        = psnr_inputs,
+    .outputs       = psnr_outputs,
 };

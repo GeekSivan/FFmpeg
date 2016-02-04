@@ -63,7 +63,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     s->unpack_frame            = v210_planar_unpack_c;
 
     if (HAVE_MMX)
-        v210_x86_init(s);
+        ff_v210_x86_init(s);
 
     return 0;
 }
@@ -101,7 +101,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     if (aligned_input != s->aligned_input) {
         s->aligned_input = aligned_input;
         if (HAVE_MMX)
-            v210_x86_init(s);
+            ff_v210_x86_init(s);
     }
 
     if ((ret = ff_get_buffer(avctx, pic, 0)) < 0)
@@ -146,6 +146,13 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
         v += pic->linesize[2] / 2 - avctx->width / 2;
     }
 
+    if (avctx->field_order > AV_FIELD_PROGRESSIVE) {
+        /* we have interlaced material flagged in container */
+        pic->interlaced_frame = 1;
+        if (avctx->field_order == AV_FIELD_TT || avctx->field_order == AV_FIELD_TB)
+            pic->top_field_first = 1;
+    }
+
     *got_frame      = 1;
 
     return avpkt->size;
@@ -153,7 +160,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
 
 #define V210DEC_FLAGS AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM
 static const AVOption v210dec_options[] = {
-    {"custom_stride", "Custom V210 stride", offsetof(V210DecContext, custom_stride), FF_OPT_TYPE_INT,
+    {"custom_stride", "Custom V210 stride", offsetof(V210DecContext, custom_stride), AV_OPT_TYPE_INT,
      {.i64 = 0}, INT_MIN, INT_MAX, V210DEC_FLAGS},
     {NULL}
 };
@@ -167,12 +174,12 @@ static const AVClass v210dec_class = {
 
 AVCodec ff_v210_decoder = {
     .name           = "v210",
+    .long_name      = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_V210,
     .priv_data_size = sizeof(V210DecContext),
     .init           = decode_init,
     .decode         = decode_frame,
-    .capabilities   = CODEC_CAP_DR1,
-    .long_name      = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
+    .capabilities   = AV_CODEC_CAP_DR1,
     .priv_class     = &v210dec_class,
 };

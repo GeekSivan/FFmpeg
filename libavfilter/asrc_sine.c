@@ -71,7 +71,7 @@ static const AVOption sine_options[] = {
     OPT_DUR("duration",          duration,               0, 0, INT64_MAX, "set the audio duration"),
     OPT_DUR("d",                 duration,               0, 0, INT64_MAX, "set the audio duration"),
     OPT_INT("samples_per_frame", samples_per_frame,   1024, 0, INT_MAX,   "set the number of samples per frame"),
-    {NULL},
+    {NULL}
 };
 
 AVFILTER_DEFINE_CLASS(sine);
@@ -153,11 +153,28 @@ static av_cold int query_formats(AVFilterContext *ctx)
     int sample_rates[] = { sine->sample_rate, -1 };
     static const enum AVSampleFormat sample_fmts[] = { AV_SAMPLE_FMT_S16,
                                                        AV_SAMPLE_FMT_NONE };
+    AVFilterFormats *formats;
+    AVFilterChannelLayouts *layouts;
+    int ret;
 
-    ff_set_common_formats (ctx, ff_make_format_list(sample_fmts));
-    ff_set_common_channel_layouts(ctx, avfilter_make_format64_list(chlayouts));
-    ff_set_common_samplerates(ctx, ff_make_format_list(sample_rates));
-    return 0;
+    formats = ff_make_format_list(sample_fmts);
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ret = ff_set_common_formats (ctx, formats);
+    if (ret < 0)
+        return ret;
+
+    layouts = avfilter_make_format64_list(chlayouts);
+    if (!layouts)
+        return AVERROR(ENOMEM);
+    ret = ff_set_common_channel_layouts(ctx, layouts);
+    if (ret < 0)
+        return ret;
+
+    formats = ff_make_format_list(sample_rates);
+    if (!formats)
+        return AVERROR(ENOMEM);
+    return ff_set_common_samplerates(ctx, formats);
 }
 
 static av_cold int config_props(AVFilterLink *outlink)
@@ -210,7 +227,7 @@ static const AVFilterPad sine_outputs[] = {
     { NULL }
 };
 
-AVFilter avfilter_asrc_sine = {
+AVFilter ff_asrc_sine = {
     .name          = "sine",
     .description   = NULL_IF_CONFIG_SMALL("Generate sine wave audio signal."),
     .query_formats = query_formats,

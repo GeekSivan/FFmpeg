@@ -25,7 +25,7 @@
  * Microsoft XMV demuxer
  */
 
-#include <stdint.h>
+#include <inttypes.h>
 
 #include "libavutil/intreadwrite.h"
 
@@ -48,6 +48,8 @@
 #define XMV_AUDIO_ADPCM51 (XMV_AUDIO_ADPCM51_FRONTLEFTRIGHT | \
                            XMV_AUDIO_ADPCM51_FRONTCENTERLOW | \
                            XMV_AUDIO_ADPCM51_REARLEFTRIGHT)
+
+#define XMV_BLOCK_ALIGN_SIZE 36
 
 /** A video packet with an XMV file. */
 typedef struct XMVVideoPacket {
@@ -153,7 +155,7 @@ static int xmv_read_header(AVFormatContext *s)
 
     file_version = avio_rl32(pb);
     if ((file_version != 4) && (file_version != 2))
-        avpriv_request_sample(s, "Uncommon version %d", file_version);
+        avpriv_request_sample(s, "Uncommon version %"PRIu32"", file_version);
 
 
     /* Video track */
@@ -180,7 +182,7 @@ static int xmv_read_header(AVFormatContext *s)
 
     avio_skip(pb, 2); /* Unknown (padding?) */
 
-    xmv->audio = av_malloc(xmv->audio_track_count * sizeof(XMVAudioPacket));
+    xmv->audio = av_malloc_array(xmv->audio_track_count, sizeof(XMVAudioPacket));
     if (!xmv->audio) {
         ret = AVERROR(ENOMEM);
         goto fail;
@@ -199,7 +201,7 @@ static int xmv_read_header(AVFormatContext *s)
         packet->bit_rate      = packet->bits_per_sample *
                                 packet->sample_rate *
                                 packet->channels;
-        packet->block_align   = 36 * packet->channels;
+        packet->block_align   = XMV_BLOCK_ALIGN_SIZE * packet->channels;
         packet->block_samples = 64;
         packet->codec_id      = ff_wav_codec_get_id(packet->compression,
                                                     packet->bits_per_sample);
@@ -215,8 +217,9 @@ static int xmv_read_header(AVFormatContext *s)
             av_log(s, AV_LOG_WARNING, "Unsupported 5.1 ADPCM audio stream "
                                       "(0x%04X)\n", packet->flags);
 
-        if (!packet->channels || !packet->sample_rate) {
-            av_log(s, AV_LOG_ERROR, "Invalid parameters for audio track %d.\n",
+        if (!packet->channels || !packet->sample_rate ||
+             packet->channels >= UINT16_MAX / XMV_BLOCK_ALIGN_SIZE) {
+            av_log(s, AV_LOG_ERROR, "Invalid parameters for audio track %"PRIu16".\n",
                    audio_track);
             ret = AVERROR_INVALIDDATA;
             goto fail;
@@ -291,6 +294,7 @@ static int xmv_process_packet_header(AVFormatContext *s)
 {
     XMVDemuxContext *xmv = s->priv_data;
     AVIOContext     *pb  = s->pb;
+    int ret;
 
     uint8_t  data[8];
     uint16_t audio_track;
@@ -378,11 +382,10 @@ static int xmv_process_packet_header(AVFormatContext *s)
                 av_assert0(xmv->video.stream_index < s->nb_streams);
 
                 if (vst->codec->extradata_size < 4) {
-                    av_free(vst->codec->extradata);
+                    av_freep(&vst->codec->extradata);
 
-                    vst->codec->extradata =
-                        av_malloc(4 + FF_INPUT_BUFFER_PADDING_SIZE);
-                    vst->codec->extradata_size = 4;
+                    if ((ret = ff_alloc_extradata(vst->codec, 4)) < 0)
+                        return ret;
                 }
 
                 memcpy(vst->codec->extradata, xmv->video.extradata, 4);
@@ -546,16 +549,17 @@ static int xmv_read_packet(AVFormatContext *s,
         /* Fetch a video frame */
 
         result = xmv_fetch_video_packet(s, pkt);
-        if (result)
-            return result;
-
     } else {
         /* Fetch an audio frame */
 
         result = xmv_fetch_audio_packet(s, pkt, xmv->current_stream - 1);
-        if (result)
-            return result;
     }
+    if (result) {
+        xmv->current_stream = 0;
+        xmv->video.current_frame = xmv->video.frame_count;
+        return result;
+    }
+
 
     /* Increase our counters */
     if (++xmv->current_stream >= xmv->stream_count) {
