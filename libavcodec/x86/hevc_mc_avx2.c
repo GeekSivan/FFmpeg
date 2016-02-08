@@ -156,8 +156,8 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 ////////////////////////////////////////////////////////////////////////////////
 // PEL_STORE
 ////////////////////////////////////////////////////////////////////////////////
-#define PEL_STORE_2(tab)                                                       \
-    *((uint32_t *) &tab[x]) = _mm_cvtsi128_si32(x1)
+//#define PEL_STORE_2(tab)                                                       \
+//    *((uint32_t *) &tab[x]) = _mm_cvtsi128_si32(x1)
 
 #define PEL_STORE_4(tab)                                                       \
     _mm_store_si128((__m128i *) &tab[x], _mm256_extracti128_si256(x1, 0))
@@ -178,22 +178,22 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 ////////////////////////////////////////////////////////////////////////////////
 //MUL_ADD_H_2
 ////////////////////////////////////////////////////////////////////////////////
-#define MUL_ADD_H_2(mul, add, dst, src)                                        \
-    src ## 1 = mul(src ## 1, r0);                                              \
-    src ## 2 = mul(src ## 2, r0);                                              \
-    dst      = add(src ## 1, src ## 2);                                        \
-    dst      = add(dst, c0)
+//#define MUL_ADD_H_2(mul, add, dst, src)                                        \
+//    src ## 1 = mul(src ## 1, r0);                                              \
+//    src ## 2 = mul(src ## 2, r0);                                              \
+//    dst      = add(src ## 1, src ## 2);                                        \
+//    dst      = add(dst, c0)
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
-#define WEIGHTED_LOAD2_1()                                                     \
-    r5 = _mm_loadl_epi64((__m128i *) &src2[x    ])
+//#define WEIGHTED_LOAD2_1()                                                     \
+//    r5 = _mm_loadl_epi64((__m128i *) &src2[x    ])
 
-#define WEIGHTED_LOAD4_1()                                                     \
-    WEIGHTED_LOAD2_1()
+//#define WEIGHTED_LOAD4_1()                                                     \
+//    WEIGHTED_LOAD2_1()
 
-#define WEIGHTED_LOAD6_1()                                                     \
-    r5 = _mm_load_si128((__m128i *) &src2[x    ])
+//#define WEIGHTED_LOAD6_1()                                                     \
+//    r5 = _mm_load_si128((__m128i *) &src2[x    ])
 
 #define WEIGHTED_LOAD16_1()                                                    \
     r5 = _mm256_load_si256((__m256i *) &src2[x    ])
@@ -235,18 +235,18 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
     x1 = _mm256_permute4x64_epi64(x1, 0xD8);                                   \
     PEL_STORE_16(dst)
 
-#define WEIGHTED_STORE2_8()                                                    \
-    x1 = _mm_packus_epi16(x1, x1);                                             \
-    *((short *) (dst + x)) = _mm_extract_epi16(x1, 0)
+//#define WEIGHTED_STORE2_8()                                                    \
+//    x1 = _mm_packus_epi16(x1, x1);                                             \
+//    *((short *) (dst + x)) = _mm_extract_epi16(x1, 0)
 
-#define WEIGHTED_STORE4_8()                                                    \
-    x1 = _mm_packus_epi16(x1, x1);                                             \
-    PEL_STORE_2(dst)
+//#define WEIGHTED_STORE4_8()                                                    \
+//    x1 = _mm_packus_epi16(x1, x1);                                             \
+//    PEL_STORE_2(dst)
 
-#define WEIGHTED_STORE6_8()                                                    \
-    x1 = _mm_packus_epi16(x1, x1);                                             \
-    PEL_STORE_2(dst);                                                          \
-    *((short *) (dst + x + 4)) = _mm_extract_epi16(x1, 2)
+//#define WEIGHTED_STORE6_8()                                                    \
+//    x1 = _mm_packus_epi16(x1, x1);                                             \
+//    PEL_STORE_2(dst);                                                          \
+//    *((short *) (dst + x + 4)) = _mm_extract_epi16(x1, 2)
 
 #define WEIGHTED_STORE16_8()                                                   \
     x1 = _mm256_packus_epi16(x1, x1);                                          \
@@ -256,20 +256,20 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
     x1 = _mm256_packus_epi16(x1, x2);                                          \
     PEL_STORE_16(dst)*/ //already exist
 
-#define WEIGHTED_STORE2(D)                                                     \
-    x1 = _mm_max_epi16(x1, _mm_setzero_si128());                               \
-    x1 = _mm_min_epi16(x1, _mm_set1_epi16(CLPI_PIXEL_MAX_## D));               \
-    PEL_STORE_2(dst)
+//#define WEIGHTED_STORE2(D)                                                     \
+//    x1 = _mm_max_epi16(x1, _mm_setzero_si128());                               \
+//    x1 = _mm_min_epi16(x1, _mm_set1_epi16(CLPI_PIXEL_MAX_## D));               \
+//    PEL_STORE_2(dst)
 
-#define WEIGHTED_STORE4(D)                                                     \
-    x1 = _mm_max_epi16(x1, _mm_setzero_si128());                               \
-    x1 = _mm_min_epi16(x1, _mm_set1_epi16(CLPI_PIXEL_MAX_## D));               \
-    PEL_STORE_4(dst)
+//#define WEIGHTED_STORE4(D)                                                     \
+//    x1 = _mm_max_epi16(x1, _mm_setzero_si128());                               \
+//    x1 = _mm_min_epi16(x1, _mm_set1_epi16(CLPI_PIXEL_MAX_## D));               \
+//    PEL_STORE_4(dst)
 
-#define WEIGHTED_STORE6(D)                                                     \
-    x1 = _mm_max_epi16(x1, _mm_setzero_si128());                               \
-    x1 = _mm_min_epi16(x1, _mm_set1_epi16(CLPI_PIXEL_MAX_## D));               \
-    PEL_STORE_6(dst)
+//#define WEIGHTED_STORE6(D)                                                     \
+//    x1 = _mm_max_epi16(x1, _mm_setzero_si128());                               \
+//    x1 = _mm_min_epi16(x1, _mm_set1_epi16(CLPI_PIXEL_MAX_## D));               \
+//    PEL_STORE_6(dst)
 
 #define WEIGHTED_STORE16(D)                                                    \
     x1 = _mm256_max_epi16(x1, _mm256_setzero_si256());                         \
@@ -283,18 +283,18 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
     x2 = _mm256_min_epi16(x2, _mm256_set1_epi16(CLPI_PIXEL_MAX_## D));         \
     PEL_STORE_32(dst)
 
-#define WEIGHTED_STORE4_10()      WEIGHTED_STORE4(10)
-#define WEIGHTED_STORE6_10()      WEIGHTED_STORE6(10)
+//#define WEIGHTED_STORE4_10()      WEIGHTED_STORE4(10)
+//#define WEIGHTED_STORE6_10()      WEIGHTED_STORE6(10)
 #define WEIGHTED_STORE16_10()     WEIGHTED_STORE16(10)
 #define WEIGHTED_STORE14_16_10()  WEIGHTED_STORE16(10)
 
-#define WEIGHTED_STORE4_12()      WEIGHTED_STORE4(12)
-#define WEIGHTED_STORE6_12()      WEIGHTED_STORE6(12)
+//#define WEIGHTED_STORE4_12()      WEIGHTED_STORE4(12)
+//#define WEIGHTED_STORE6_12()      WEIGHTED_STORE6(12)
 #define WEIGHTED_STORE16_12()     WEIGHTED_STORE16(12)
 #define WEIGHTED_STORE14_16_12()  WEIGHTED_STORE16(12)
 
-#define WEIGHTED_STORE4_14()      WEIGHTED_STORE4_10()
-#define WEIGHTED_STORE6_14()      WEIGHTED_STORE6_10()
+//#define WEIGHTED_STORE4_14()      WEIGHTED_STORE4_10()
+//#define WEIGHTED_STORE6_14()      WEIGHTED_STORE6_10()
 #define WEIGHTED_STORE16_14()     WEIGHTED_STORE16_10()
 #define WEIGHTED_STORE14_16_14()  WEIGHTED_STORE16_16()
 
@@ -335,8 +335,8 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 #define UNI_UNWEIGHTED_COMPUTE2(H)                                             \
     x1 = _mm256_mulhrs_epi16(x1, offset)
 
-#define UNI_UNWEIGHTED_COMPUTE4(H)      UNI_UNWEIGHTED_COMPUTE2(H)
-#define UNI_UNWEIGHTED_COMPUTE6(H)      UNI_UNWEIGHTED_COMPUTE2(H)
+//#define UNI_UNWEIGHTED_COMPUTE4(H)      UNI_UNWEIGHTED_COMPUTE2(H)
+//#define UNI_UNWEIGHTED_COMPUTE6(H)      UNI_UNWEIGHTED_COMPUTE2(H)
 #define UNI_UNWEIGHTED_COMPUTE16(H)     UNI_UNWEIGHTED_COMPUTE2(H)
 
 #define UNI_UNWEIGHTED_COMPUTE32(H)                                            \
@@ -348,8 +348,8 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
     x1 = _mm256_adds_epi16(x1, r5);                                            \
     x1 = _mm256_mulhrs_epi16(x1, offset)
 
-#define BI_UNWEIGHTED_COMPUTE4(H)     BI_UNWEIGHTED_COMPUTE2(H)
-#define BI_UNWEIGHTED_COMPUTE6(H)     BI_UNWEIGHTED_COMPUTE2(H)
+//#define BI_UNWEIGHTED_COMPUTE4(H)     BI_UNWEIGHTED_COMPUTE2(H)
+//#define BI_UNWEIGHTED_COMPUTE6(H)     BI_UNWEIGHTED_COMPUTE2(H)
 #define BI_UNWEIGHTED_COMPUTE16(H)    BI_UNWEIGHTED_COMPUTE2(H)
 
 #define BI_UNWEIGHTED_COMPUTE32(H)                                             \
@@ -371,8 +371,8 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
         x1 = _mm256_packs_epi32(x1, x3);                                       \
     }
 
-#define UNI_WEIGHTED_COMPUTE4(H)       UNI_WEIGHTED_COMPUTE2(H)
-#define UNI_WEIGHTED_COMPUTE6(H)       UNI_WEIGHTED_COMPUTE2(H)
+//#define UNI_WEIGHTED_COMPUTE4(H)       UNI_WEIGHTED_COMPUTE2(H)
+//#define UNI_WEIGHTED_COMPUTE6(H)       UNI_WEIGHTED_COMPUTE2(H)
 #define UNI_WEIGHTED_COMPUTE16(H)      UNI_WEIGHTED_COMPUTE2(H)
 
 #define UNI_WEIGHTED_COMPUTE32(H)                                              \
@@ -408,8 +408,8 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
         x1 = _mm256_srai_epi32(_mm256_add_epi32(x1, offset), shift2);          \
         x1 = _mm256_packs_epi32(x1, x4);                                       \
     }
-#define BI_WEIGHTED_COMPUTE4(H)      BI_WEIGHTED_COMPUTE2(H)
-#define BI_WEIGHTED_COMPUTE6(H)      BI_WEIGHTED_COMPUTE2(H)
+//#define BI_WEIGHTED_COMPUTE4(H)      BI_WEIGHTED_COMPUTE2(H)
+//#define BI_WEIGHTED_COMPUTE6(H)      BI_WEIGHTED_COMPUTE2(H)
 #define BI_WEIGHTED_COMPUTE16(H)     BI_WEIGHTED_COMPUTE2(H)
 
 #define BI_WEIGHTED_COMPUTE32(H)                                               \
@@ -441,11 +441,11 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
     x1 = _mm256_unpacklo_epi8(x1, c0);                                         \
     x1 = _mm256_slli_epi16(x1, 14 - 8)
 
-#define MC_PIXEL_COMPUTE4_8()                                                  \
-    MC_PIXEL_COMPUTE2_8()
+//#define MC_PIXEL_COMPUTE4_8()                                                  \
+//    MC_PIXEL_COMPUTE2_8()
 
-#define MC_PIXEL_COMPUTE6_8()                                                  \
-    MC_PIXEL_COMPUTE2_8()
+//#define MC_PIXEL_COMPUTE6_8()                                                  \
+//    MC_PIXEL_COMPUTE2_8()
 
 #define MC_PIXEL_COMPUTE16_8()                                                 \
     MC_PIXEL_COMPUTE2_8()
@@ -456,22 +456,22 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
     x2 = _mm256_slli_epi16(x2, 14 - 8)
 
 #define MC_PIXEL_COMPUTE2_10()    x1 = _mm256_slli_epi16(x1, 14 - 10)
-#define MC_PIXEL_COMPUTE4_10()    MC_PIXEL_COMPUTE2_10()
-#define MC_PIXEL_COMPUTE6_10()    MC_PIXEL_COMPUTE2_10()
+//#define MC_PIXEL_COMPUTE4_10()    MC_PIXEL_COMPUTE2_10()
+//#define MC_PIXEL_COMPUTE6_10()    MC_PIXEL_COMPUTE2_10()
 #define MC_PIXEL_COMPUTE16_10()   MC_PIXEL_COMPUTE2_10()
+#define MC_PIXEL_COMPUTE32_10()   MC_PIXEL_COMPUTE16_10()
 
 #define MC_PIXEL_COMPUTE2_12()    x1 = _mm256_slli_epi16(x1, 14 - 12)
-#define MC_PIXEL_COMPUTE4_12()    MC_PIXEL_COMPUTE2_12()
-#define MC_PIXEL_COMPUTE6_12()    MC_PIXEL_COMPUTE2_12()
+//#define MC_PIXEL_COMPUTE4_12()    MC_PIXEL_COMPUTE2_12()
+//#define MC_PIXEL_COMPUTE6_12()    MC_PIXEL_COMPUTE2_12()
 #define MC_PIXEL_COMPUTE16_12()   MC_PIXEL_COMPUTE2_12()
-#define MC_PIXEL_COMPUTE32_10()   MC_PIXEL_COMPUTE16_10()
 
 #define PUT_HEVC_PEL_PIXELS_VAR2_8()                                           \
     __m256i x1;                                                                \
     __m256i c0 = _mm256_setzero_si256()
 
-#define PUT_HEVC_PEL_PIXELS_VAR4_8()  PUT_HEVC_PEL_PIXELS_VAR2_8()
-#define PUT_HEVC_PEL_PIXELS_VAR6_8()  PUT_HEVC_PEL_PIXELS_VAR2_8()
+//#define PUT_HEVC_PEL_PIXELS_VAR4_8()  PUT_HEVC_PEL_PIXELS_VAR2_8()
+//#define PUT_HEVC_PEL_PIXELS_VAR6_8()  PUT_HEVC_PEL_PIXELS_VAR2_8()
 #define PUT_HEVC_PEL_PIXELS_VAR16_8()  PUT_HEVC_PEL_PIXELS_VAR2_8()
 
 #define PUT_HEVC_PEL_PIXELS_VAR32_8()                                          \
@@ -481,16 +481,16 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 #define PUT_HEVC_PEL_PIXELS_VAR2_10()                                          \
     __m256i x1
 
-#define PUT_HEVC_PEL_PIXELS_VAR4_10()    PUT_HEVC_PEL_PIXELS_VAR2_10()
-#define PUT_HEVC_PEL_PIXELS_VAR6_10()    PUT_HEVC_PEL_PIXELS_VAR2_10()
+//#define PUT_HEVC_PEL_PIXELS_VAR4_10()    PUT_HEVC_PEL_PIXELS_VAR2_10()
+//#define PUT_HEVC_PEL_PIXELS_VAR6_10()    PUT_HEVC_PEL_PIXELS_VAR2_10()
 #define PUT_HEVC_PEL_PIXELS_VAR16_10()   PUT_HEVC_PEL_PIXELS_VAR2_10()
-#define PUT_HEVC_PEL_PIXELS_VAR32_10()   PUT_HEVC_PEL_PIXELS_VAR32_8()
+//#define PUT_HEVC_PEL_PIXELS_VAR32_10()   PUT_HEVC_PEL_PIXELS_VAR32_8()
 
-#define PUT_HEVC_PEL_PIXELS_VAR2_12()    PUT_HEVC_PEL_PIXELS_VAR2_10()
-#define PUT_HEVC_PEL_PIXELS_VAR4_12()    PUT_HEVC_PEL_PIXELS_VAR2_10()
-#define PUT_HEVC_PEL_PIXELS_VAR6_12()    PUT_HEVC_PEL_PIXELS_VAR2_10()
+//#define PUT_HEVC_PEL_PIXELS_VAR2_12()    PUT_HEVC_PEL_PIXELS_VAR2_10()
+//#define PUT_HEVC_PEL_PIXELS_VAR4_12()    PUT_HEVC_PEL_PIXELS_VAR2_10()
+//#define PUT_HEVC_PEL_PIXELS_VAR6_12()    PUT_HEVC_PEL_PIXELS_VAR2_10()
 #define PUT_HEVC_PEL_PIXELS_VAR16_12()   PUT_HEVC_PEL_PIXELS_VAR2_10()
-#define PUT_HEVC_PEL_PIXELS_VAR32_12()   PUT_HEVC_PEL_PIXELS_VAR32_8()
+//#define PUT_HEVC_PEL_PIXELS_VAR32_12()   PUT_HEVC_PEL_PIXELS_VAR32_8()
 
 #define PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5()                                      \
     __m256i r5
@@ -498,13 +498,13 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 #define PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()                                   \
     __m256i r5, r6
 
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_8()    PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR6_8()    PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_8()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_8()    PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR6_8()    PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_8()   PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5()
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_8()   PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_10()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR6_10()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_10()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_10()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR6_10()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_10()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
 
 
 
@@ -512,13 +512,13 @@ DECLARE_ALIGNED(32, const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][2]) = {
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_8()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_10()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_12()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_14()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_14()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5_R6()
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_14()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5()
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_10()  PUT_HEVC_PEL_PIXELS_LOOP_VAR_R5()
 
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_12()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR6_12()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
-#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_12()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_12()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR6_12()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
+//#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR8_12()   PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR4_8()
 #define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_12()  PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_8()
 //#define PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR32_14()  PUT_HEVC_PEL_PIXELS_BI_LOOP_VAR16_8()
 
@@ -646,8 +646,8 @@ void ff_hevc_put_hevc_bi_w_pel_pixels ## H ## _ ## D ## _avx2_ (               \
 #define SRC_INIT_H_12() SRC_INIT_H_10()
 
 #define EPEL_FILTER_8(f1, f2, idx)                                             \
-    f1 = _mm_load_si128((__m128i *) ff_hevc_epel_filters_avx2_[idx][0]);        \
-    f2 = _mm_load_si128((__m128i *) ff_hevc_epel_filters_avx2_[idx][1])
+    f1 = _mm256_set1_epi32(*(int32_t *) ff_hevc_epel_filters_avx2_[idx][0]);        \
+    f2 = _mm256_set1_epi32(*(int32_t *) ff_hevc_epel_filters_avx2_[idx][1])
 
 #define EPEL_FILTER_10(f1, f2, idx)                                            \
     f1 = _mm256_set1_epi32(*((int32_t *) ff_hevc_epel_filters_avx2_10[idx][0]));      \
@@ -2175,8 +2175,7 @@ static PUT_HEVC_BI_W_ ## FUNC ##14(H,12)
 #if HAVE_AVX2
 
 GEN_FUNC(PEL_PIXELS,32,8)
-//GEN_FUNC(PEL_PIXELS,64,8)
-//GEN_FUNC(PEL_PIXELS,32,10)
+
 GEN_FUNC(PEL_PIXELS,16,8)
 GEN_FUNC(PEL_PIXELS,16,10)
 GEN_FUNC(PEL_PIXELS,16,12)
@@ -2184,14 +2183,9 @@ GEN_FUNC(PEL_PIXELS,16,12)
 
 GEN_FUNC(QPEL_H, 32, 8)
 GEN_FUNC(QPEL_V, 32, 8)
-//GEN_FUNC(QPEL_HV,32, 8)
-GEN_FUNC(QPEL_V, 32, 14)
 
-//GEN_FUNC(QPEL_H, 16, 10)
 GEN_FUNC(QPEL_V, 16, 10)
 GEN_FUNC(QPEL_V, 16, 14)
-
-//GEN_FUNC(QPEL_V, 32, 14)
 
 GEN_FUNC_STATIC(QPEL_V, 32, 8)
 GEN_FUNC_STATIC(QPEL_V, 16, 10)
@@ -2199,10 +2193,6 @@ GEN_FUNC_STATIC(QPEL_V, 16, 10)
 
 GEN_FUNC_HV(QPEL_HV,32, 8, 16)
 GEN_FUNC_HV(QPEL_HV,16, 10, 16)
-
-
-GEN_FUNC(EPEL_H, 16, 10)
-GEN_FUNC(EPEL_V, 16, 10)
 
 GEN_FUNC(QPEL_H_10,  16, 10)
 GEN_FUNC(QPEL_H_10,  16, 12)
@@ -2254,7 +2244,11 @@ mc_red_func(pel_pixels, 8, 32, 64);
 mc_red_func(qpel_h, 8, 32, 64);
 mc_red_func(qpel_v, 8, 32, 64);
 mc_red_func(qpel_hv, 8, 32, 64);
-
+/*
+mc_red_func(epel_h, 8, 16, 64);
+mc_red_func(epel_v, 8, 16, 64);
+mc_red_func(epel_hv, 8, 16, 64);
+*/
 mc_red_func(pel_pixels, 10, 16, 32);
 mc_red_func(pel_pixels, 10, 16, 64);
 mc_red_func(pel_pixels, 10, 16, 48);

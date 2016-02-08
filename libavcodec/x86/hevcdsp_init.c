@@ -744,7 +744,16 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 
             PEL_LINK2(c->put_hevc_qpel, 7, 1 , 0 , qpel_v32,  8, avx2_);
             PEL_LINK2(c->put_hevc_qpel, 9, 1 , 0 , qpel_v64,  8, avx2_);
+/*
+            PEL_LINK2(c->put_hevc_epel, 7, 0 , 0 , pel_pixels32,  8, avx2_);
+            PEL_LINK2(c->put_hevc_epel, 9, 0 , 0 , pel_pixels64,  8, avx2_);
 
+            PEL_LINK2(c->put_hevc_epel, 7, 0 , 1 , epel_h32,  8, avx2_);
+            PEL_LINK2(c->put_hevc_epel, 9, 0 , 1 , epel_h64,  8, avx2_);
+
+            PEL_LINK2(c->put_hevc_epel, 7, 1 , 0 , epel_v32,  8, avx2_);
+            PEL_LINK2(c->put_hevc_epel, 9, 1 , 0 , epel_v64,  8, avx2_);
+*/
          /*   PEL_LINK2(c->put_hevc_qpel, 7, 0 , 0 , pel_pixels48,  8, avx2_);
             PEL_LINK2(c->put_hevc_qpel, 9, 0 , 0 , pel_pixels48,  8, avx2_);
             PEL_LINK2(c->put_hevc_qpel, 7, 0 , 1 , qpel_h48,  8, avx2_);
