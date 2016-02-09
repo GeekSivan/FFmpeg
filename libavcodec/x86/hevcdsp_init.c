@@ -27,7 +27,7 @@
 #include "libavcodec/get_bits.h" /* required for hevcdsp.h GetBitContext */
 #include "libavcodec/hevcdsp.h"
 #include "libavcodec/x86/hevcdsp.h"
-#include "libavcodec/hevc_defs.h"
+//#include "libavcodec/hevc_defs.h"
 
 #define LFC_FUNC(DIR, DEPTH, OPT) \
 void ff_hevc_ ## DIR ## _loop_filter_chroma_ ## DEPTH ## _ ## OPT(uint8_t *pix, ptrdiff_t stride, int *tc, uint8_t *no_p, uint8_t *no_q);
@@ -731,6 +731,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                 c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_8_avx;
             }
         }
+#if ARCH_X86_64 && HAVE_AVX2_EXTERNAL
         if (EXTERNAL_AVX2(cpu_flags)) {
             c->idct_dc[2] = ff_hevc_idct16x16_dc_8_avx2;
             c->idct_dc[3] = ff_hevc_idct32x32_dc_8_avx2;
@@ -856,6 +857,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->put_hevc_qpel_bi[9][1][0] = ff_hevc_put_hevc_bi_qpel_v64_8_avx2;
 //#endif*/
         }
+#endif
     } else if (bit_depth == 10) {
         if (EXTERNAL_MMXEXT(cpu_flags)) {
             c->transform_add[0] = ff_hevc_transform_add4_10_mmxext;
@@ -903,6 +905,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->sao_edge_filter    = ff_hevc_sao_edge_filter_10_sse;
 #endif //HAVE_SSSE3
         }
+#if HAVE_AVX_EXTERNAL
         if (EXTERNAL_AVX(cpu_flags)) {
             c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_avx;
             c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_10_avx;
@@ -911,6 +914,8 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                 c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_10_avx;
             }
         }
+#endif
+#if ARCH_X86_64 && HAVE_AVX2_EXTERNAL
         if (EXTERNAL_AVX2(cpu_flags)) {
 
             c->idct_dc[2] = ff_hevc_idct16x16_dc_10_avx2;
@@ -1086,6 +1091,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->put_hevc_qpel_bi[9][1][1] = ff_hevc_put_hevc_bi_qpel_hv64_10_avx2;
 //#endif*/
         }
+#endif
     } else if (bit_depth == 12) {
         if (EXTERNAL_MMXEXT(cpu_flags)) {
             c->idct_dc[0] = ff_hevc_idct4x4_dc_12_mmxext;
@@ -1142,6 +1148,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             QPEL_LINKS(c->put_hevc_qpel, 1, 1, qpel_hv,    12, sse4_);
 #endif
         }
+#if ARCH_X86_64 && HAVE_AVX_EXTERNAL
         if (EXTERNAL_AVX(cpu_flags)) {
             c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_12_avx;
             c->hevc_h_loop_filter_chroma = ff_hevc_h_loop_filter_chroma_12_avx;
@@ -1150,9 +1157,12 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
                 c->hevc_h_loop_filter_luma = ff_hevc_h_loop_filter_luma_12_avx;
             }
         }
+#endif
+#if ARCH_X86_64 && HAVE_AVX2_EXTERNAL
         if (EXTERNAL_AVX2(cpu_flags)) {
             c->idct_dc[2] = ff_hevc_idct16x16_dc_12_avx2;
             c->idct_dc[3] = ff_hevc_idct32x32_dc_12_avx2;
         }
+#endif
     }
 }

@@ -2172,7 +2172,7 @@ static PUT_HEVC_BI_W_ ## FUNC ##14(H,10)                                       \
 static PUT_HEVC_BI_W_ ## FUNC ##14(H,12)
 
 // ff_hevc_put_hevc_mc_pixelsX_X_avx2_
-#if HAVE_AVX2
+#if ARCH_X86_64 && HAVE_AVX2_EXTERNAL 
 
 GEN_FUNC(PEL_PIXELS,32,8)
 
