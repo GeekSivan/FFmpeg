@@ -5270,7 +5270,12 @@ elif enabled gcc; then
     check_cflags -msse2
     check_cflags -msse3
     check_cflags -msse4
-#check_cflags -mavx
+    if enabled avx; then 
+        check_cflags -mavx 
+    fi
+    if  enabled avx2; then 
+        check_cflags -mavx2 
+    fi 
     check_cflags -Werror=format-security
     check_cflags -Werror=implicit-function-declaration
     check_cflags -Werror=missing-prototypes
