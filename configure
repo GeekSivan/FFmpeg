@@ -1680,6 +1680,8 @@ HEADERS_LIST="
 
 INTRINSICS_LIST="
     intrinsics_neon
+    intrinsics_avx
+    intrinsics_avx2
 "
 
 MATH_FUNCS="
@@ -1967,6 +1969,7 @@ CMDLINE_SET="
     toolchain
     valgrind
     yasmexe
+    cc_intrin
 "
 
 CMDLINE_APPEND="
@@ -2020,6 +2023,9 @@ xop_deps="avx"
 fma3_deps="avx"
 fma4_deps="avx"
 avx2_deps="avx"
+intrinsics_avx_deps="avx"
+intrinsics_avx2_deps="avx"
+
 
 mmx_external_deps="yasm"
 mmx_inline_deps="inline_asm"
@@ -2719,7 +2725,7 @@ else
     arch_default=$(uname -m)
 fi
 cpu="generic"
-intrinsics="none"
+intrinsics=
 
 # configurable options
 enable $PROGRAM_LIST
@@ -2769,6 +2775,7 @@ AS_O='-o $@'
 CC_C='-c'
 CC_E='-E -o $@'
 CC_O='-o $@'
+CC_INTRIN='-m $@'
 CXX_C='-c'
 CXX_O='-o $@'
 LD_O='-o $@'
@@ -4665,6 +4672,7 @@ EOF
 fi
 
 check_code cc arm_neon.h "int16x8_t test = vdupq_n_s16(0)" && enable intrinsics_neon
+check_code cc immintrin.h "__m256i ox" && enable intrinsics_avx && enable intrinsics_avx2
 
 check_ldflags -Wl,--as-needed
 check_ldflags -Wl,-z,noexecstack
@@ -5270,10 +5278,10 @@ elif enabled gcc; then
     check_cflags -msse2
     check_cflags -msse3
     check_cflags -msse4
-    if enabled avx; then 
+    if enabled intrinsics_avx; then 
         check_cflags -mavx 
     fi
-    if  enabled avx2; then 
+    if  enabled intrinsics_avx2; then 
         check_cflags -mavx2 
     fi 
     check_cflags -Werror=format-security
@@ -5492,6 +5500,8 @@ if enabled x86; then
     echo "CMOV is fast              ${fast_cmov-no}"
     echo "EBX available             ${ebx_available-no}"
     echo "EBP available             ${ebp_available-no}"
+    echo "AVX intrinsics enabled    ${intrinsics_avx-no}"
+    echo "AVX2 intrinsics enabled   ${intrinsics_avx2-no}"
 fi
 if enabled aarch64; then
     echo "NEON enabled              ${neon-no}"
@@ -5601,6 +5611,7 @@ DEPAS=$as
 DEPASFLAGS=$DEPASFLAGS \$(CPPFLAGS)
 YASM=$yasmexe
 DEPYASM=$yasmexe
+AVX2=$CC -mavx2
 AR=$ar
 ARFLAGS=$arflags
 AR_O=$ar_o
@@ -5617,6 +5628,7 @@ AS_O=$AS_O
 CC_C=$CC_C
 CC_E=$CC_E
 CC_O=$CC_O
+CC_I=$CC_INTRIN
 CXX_C=$CXX_C
 CXX_O=$CXX_O
 LD_O=$LD_O

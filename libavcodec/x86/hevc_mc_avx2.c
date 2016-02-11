@@ -107,7 +107,7 @@ DECLARE_ALIGNED(32,const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][16]) = {
       {  4, -1,  4, -1,  4, -1,  4, -1,  4, -1,  4, -1,  4, -1,  4, -1} }
 };
 
-#if HAVE_AVX_EXTERNAL
+#if HAVE_INTRINSICS_AVX2
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -2173,7 +2173,7 @@ static PUT_HEVC_BI_W_ ## FUNC ##14(H,10)                                       \
 static PUT_HEVC_BI_W_ ## FUNC ##14(H,12)
 
 // ff_hevc_put_hevc_mc_pixelsX_X_avx2_
-#if ARCH_X86_64 && HAVE_AVX2_EXTERNAL 
+ 
 
 GEN_FUNC(PEL_PIXELS,32,8)
 
@@ -2413,6 +2413,6 @@ mc_red_func(qpel_hv,10, 16, 64);
  mc_red_func(epel_hv,12, 8, 64);
  */
 //#endif //OPTI_ASM
-#endif
+
 #endif // HAVE_AVX2
 
