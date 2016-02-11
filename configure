@@ -1969,7 +1969,6 @@ CMDLINE_SET="
     toolchain
     valgrind
     yasmexe
-    cc_intrin
 "
 
 CMDLINE_APPEND="
@@ -2025,7 +2024,6 @@ fma4_deps="avx"
 avx2_deps="avx"
 intrinsics_avx_deps="avx"
 intrinsics_avx2_deps="avx"
-
 
 mmx_external_deps="yasm"
 mmx_inline_deps="inline_asm"
@@ -2725,7 +2723,7 @@ else
     arch_default=$(uname -m)
 fi
 cpu="generic"
-intrinsics=
+intrinsics="none"
 
 # configurable options
 enable $PROGRAM_LIST
@@ -2775,7 +2773,6 @@ AS_O='-o $@'
 CC_C='-c'
 CC_E='-E -o $@'
 CC_O='-o $@'
-CC_INTRIN='-m $@'
 CXX_C='-c'
 CXX_O='-o $@'
 LD_O='-o $@'
@@ -5611,7 +5608,6 @@ DEPAS=$as
 DEPASFLAGS=$DEPASFLAGS \$(CPPFLAGS)
 YASM=$yasmexe
 DEPYASM=$yasmexe
-AVX2=$CC -mavx2
 AR=$ar
 ARFLAGS=$arflags
 AR_O=$ar_o
@@ -5628,7 +5624,6 @@ AS_O=$AS_O
 CC_C=$CC_C
 CC_E=$CC_E
 CC_O=$CC_O
-CC_I=$CC_INTRIN
 CXX_C=$CXX_C
 CXX_O=$CXX_O
 LD_O=$LD_O
