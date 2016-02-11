@@ -31,6 +31,7 @@ struct UpsamplInf;
 struct HEVCWindow;
 
 //#define OPTI_ASM
+#include "config.h"
 
 #define PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt)                                    \
 dst           [idx1][idx2][idx3] = ff_hevc_put_hevc_       ## name ## _ ## D ## _ ## opt; \
@@ -196,6 +197,7 @@ void ff_hevc_transform_32x32_add_8_sse4(uint8_t *dst, int16_t *_coeffs, ptrdiff_
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL_PIXELS EPEL_PIXELS
 ///////////////////////////////////////////////////////////////////////////////
+#if HAVE_INTRINSICS_AVX2
 EPEL_PROTOTYPES(pel_pixels ,  8, avx2_);
 EPEL_PROTOTYPES(pel_pixels , 10, avx2_);
 EPEL_PROTOTYPES(pel_pixels , 12, avx2_);
@@ -207,6 +209,7 @@ EPEL_PROTOTYPES(epel_h, 12, avx2_);
 EPEL_PROTOTYPES(epel_v ,  8, avx2_);
 EPEL_PROTOTYPES(epel_v , 10, avx2_);
 EPEL_PROTOTYPES(epel_v, 12, avx2_);
+#endif
 
 EPEL_PROTOTYPES(pel_pixels ,  8, sse4_);
 EPEL_PROTOTYPES(pel_pixels , 10, sse4_);
@@ -300,6 +303,7 @@ PEL_PROTOTYPE(epel_hv64,10, avx2);
 ///////////////////////////////////////////////////////////////////////////////
 // QPEL
 ///////////////////////////////////////////////////////////////////////////////
+#if HAVE_INTRINSICS_AVX2
 QPEL_PROTOTYPES(qpel_h ,  8, avx2_);
 QPEL_PROTOTYPES(qpel_h , 10, avx2_);
 QPEL_PROTOTYPES(qpel_h , 12, avx2_);
@@ -313,6 +317,10 @@ QPEL_PROTOTYPES(qpel_hv,  8, avx2_);
 QPEL_PROTOTYPES(qpel_hv, 10, avx2_);
 QPEL_PROTOTYPES(qpel_hv, 12, avx2_);
 
+PEL_PROTOTYPE(qpel_v16,14,avx2_);
+PEL_PROTOTYPE(qpel_v32,14,avx2_);
+
+#endif
 QPEL_PROTOTYPES(qpel_h ,  8, sse4_);
 QPEL_PROTOTYPES(qpel_h , 10, sse4_);
 QPEL_PROTOTYPES(qpel_h , 12, sse4_);
@@ -324,9 +332,6 @@ QPEL_PROTOTYPES(qpel_v, 12, sse4_);
 QPEL_PROTOTYPES(qpel_hv,  8, sse4_);
 QPEL_PROTOTYPES(qpel_hv, 10, sse4_);
 QPEL_PROTOTYPES(qpel_hv, 12, sse4_);
-
-PEL_PROTOTYPE(qpel_v16,14,avx2_);
-PEL_PROTOTYPE(qpel_v32,14,avx2_);
 
 /*//#ifdef OPTI_ASM
 PEL_PROTOTYPE(qpel_h16, 8, avx2);
@@ -370,9 +375,11 @@ WEIGHTING_PROTOTYPES(8, sse4_);
 WEIGHTING_PROTOTYPES(10, sse4_);
 WEIGHTING_PROTOTYPES(12, sse4_);
 
+#if HAVE_INTRINSICS_AVX2
 WEIGHTING_PROTOTYPES(8, avx2_);
 WEIGHTING_PROTOTYPES(10, avx2_);
 WEIGHTING_PROTOTYPES(12, avx2_);
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // SAO functions

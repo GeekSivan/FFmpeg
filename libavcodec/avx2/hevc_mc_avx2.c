@@ -36,7 +36,7 @@
 #if HAVE_SSE42
 #include <smmintrin.h>
 #endif
-#if HAVE_AVX2
+#if HAVE_INTRINSICS_AVX2
 #include <immintrin.h>
 #endif
 
@@ -107,7 +107,7 @@ DECLARE_ALIGNED(32,const int16_t, ff_hevc_qpel_filters_avx2_10[3][4][16]) = {
       {  4, -1,  4, -1,  4, -1,  4, -1,  4, -1,  4, -1,  4, -1,  4, -1} }
 };
 
-#if HAVE_AVX_EXTERNAL
+#if HAVE_INTRINSICS_AVX2
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
