@@ -20,7 +20,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 #pragma GCC target("avx2")
-#pragma GCC target("avx")
+//#pragma GCC target("avx")
 
 #include "config.h"
 #include "libavutil/avassert.h"
