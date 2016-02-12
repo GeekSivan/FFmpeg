@@ -4669,7 +4669,9 @@ EOF
 fi
 
 check_code cc arm_neon.h "int16x8_t test = vdupq_n_s16(0)" && enable intrinsics_neon
-check_code cc immintrin.h "__m256i ox" && enable intrinsics_avx && enable intrinsics_avx2
+check_code "cc -mavx2" immintrin.h "__m256i ox = _mm256_abs_epi16(ox) " && enable intrinsics_avx && enable intrinsics_avx2
+
+
 
 check_ldflags -Wl,--as-needed
 check_ldflags -Wl,-z,noexecstack
@@ -5275,12 +5277,12 @@ elif enabled gcc; then
     check_cflags -msse2
     check_cflags -msse3
     check_cflags -msse4
-    if enabled intrinsics_avx; then 
-        check_cflags -mavx 
-    fi
-    if  enabled intrinsics_avx2; then 
-        check_cflags -mavx2 
-    fi 
+#    if enabled intrinsics_avx; then 
+#        check_cflags -mavx 
+#    fi
+#    if  enabled intrinsics_avx2; then 
+#        check_cflags -mavx2 
+#    fi 
     check_cflags -Werror=format-security
     check_cflags -Werror=implicit-function-declaration
     check_cflags -Werror=missing-prototypes

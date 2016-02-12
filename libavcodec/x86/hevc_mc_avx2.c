@@ -19,6 +19,8 @@
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
+#pragma GCC target("avx2")
+#pragma GCC target("avx")
 
 #include "config.h"
 #include "libavutil/avassert.h"
@@ -43,6 +45,7 @@
 #define CLPI_PIXEL_MAX_10 0x03FF
 #define CLPI_PIXEL_MAX_12 0x0FFF
 #define CLPI_PIXEL_MAX_14 0x0FFF
+
 
 //#ifndef OPTI_ASM
 DECLARE_ALIGNED(32, const int8_t, ff_hevc_epel_filters_avx2_[7][2][32]) = {
