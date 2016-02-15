@@ -30,7 +30,6 @@ struct AVFrame;
 struct UpsamplInf;
 struct HEVCWindow;
 
-//#define OPTI_ASM
 #include "config.h"
 
 #define PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt)                                    \
@@ -40,13 +39,8 @@ dst ## _uni   [idx1][idx2][idx3] = ff_hevc_put_hevc_uni_   ## name ## _ ## D ## 
 dst ## _uni_w [idx1][idx2][idx3] = ff_hevc_put_hevc_uni_w_ ## name ## _ ## D ## _ ## opt; \
 dst ## _bi_w  [idx1][idx2][idx3] = ff_hevc_put_hevc_bi_w_  ## name ## _ ## D ## _ ## opt
 
-//#ifdef OPTI_ASM
 #define PEL_LINK(dst, idx1, idx2, idx3, name, D, opt)                       \
 PEL_LINK2(dst, idx1, idx2, idx3, name, D, opt)
-//#else
-//#define PEL_LINK(dst, idx1, idx2, idx3, name, D, opt) \
-//PEL_LINK2(dst, idx1, idx2, idx3, name, D, sse)
-//#endif
 
 #define PEL_PROTOTYPE2(name, D, opt) \
 void ff_hevc_put_hevc_       ## name ## _ ## D ## _##opt(int16_t *dst, ptrdiff_t dststride,uint8_t *_src, ptrdiff_t _srcstride, int height, intptr_t mx, intptr_t my,int width); \
@@ -60,22 +54,11 @@ void ff_hevc_put_hevc_bi_w_  ## name ## _ ## D ## _##opt(uint8_t *_dst, ptrdiff_
 void ff_hevc_put_hevc_uni_w ## width ## _ ## bitd ##_## opt(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int height, int denom,  int _wx, int _ox); \
 void ff_hevc_put_hevc_bi_w  ## width ## _ ## bitd ##_## opt(uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride, int16_t *_src2, ptrdiff_t _src2stride, int height, int denom,  int _wx0,  int _wx1, int _ox0, int _ox1)
 
-//#ifdef OPTI_ASM
 #define WEIGHTING_PROTOTYPE(width, bitd, opt) \
 		WEIGHTING_PROTOTYPE2(width, bitd, opt)
-//#else
-//#define WEIGHTING_PROTOTYPE(width, bitd, opt) \
-//		WEIGHTING_PROTOTYPE2(width, bitd, sse)
-//#endif
 
-//#ifdef OPTI_ASM
 #define PEL_PROTOTYPE(name, D, opt) \
 PEL_PROTOTYPE2(name, D, opt)
-//#else
-//#define PEL_PROTOTYPE(name, D, opt) \
-//PEL_PROTOTYPE2(name, D, sse)
-//#endif
-
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -209,6 +192,8 @@ EPEL_PROTOTYPES(epel_h, 12, avx2_);
 EPEL_PROTOTYPES(epel_v ,  8, avx2_);
 EPEL_PROTOTYPES(epel_v , 10, avx2_);
 EPEL_PROTOTYPES(epel_v, 12, avx2_);
+
+EPEL_PROTOTYPES(epel_hv ,  8, avx2_);
 #endif
 
 EPEL_PROTOTYPES(pel_pixels ,  8, sse4_);
@@ -262,6 +247,9 @@ EPEL_PROTOTYPES(epel_v , 12, sse4_);
 EPEL_PROTOTYPES(epel_hv ,  8, sse4_);
 EPEL_PROTOTYPES(epel_hv , 10, sse4_);
 EPEL_PROTOTYPES(epel_hv , 12, sse4_);
+
+PEL_PROTOTYPE(epel_v16,14,avx2_);
+//PEL_PROTOTYPE(epel_v32,14,avx2_);
 
 /*//#ifdef OPTI_ASM
 PEL_PROTOTYPE(epel_h16, 8, avx2);
