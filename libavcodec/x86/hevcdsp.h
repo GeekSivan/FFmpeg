@@ -364,9 +364,9 @@ WEIGHTING_PROTOTYPES(10, sse4_);
 WEIGHTING_PROTOTYPES(12, sse4_);
 
 #if HAVE_INTRINSICS_AVX2
-WEIGHTING_PROTOTYPES(8, avx2_);
-WEIGHTING_PROTOTYPES(10, avx2_);
-WEIGHTING_PROTOTYPES(12, avx2_);
+//WEIGHTING_PROTOTYPES(8, avx2_);
+//WEIGHTING_PROTOTYPES(10, avx2_);
+//WEIGHTING_PROTOTYPES(12, avx2_);
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
