@@ -738,6 +738,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 
 //#ifndef OPTI_ASM
 #if HAVE_INTRINSICS_AVX2
+            //fixme: missing avx2 optimizations
             PEL_LINK2(c->put_hevc_qpel, 7, 0 , 0 , pel_pixels32,  8, avx2_);
             PEL_LINK2(c->put_hevc_qpel, 9, 0 , 0 , pel_pixels64,  8, avx2_);
 
@@ -955,6 +956,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             }
 //#ifndef OPTI_ASM
 #if HAVE_INTRINSICS_AVX2
+            //fixme: missing avx2 optimizations
             PEL_LINK2(c->put_hevc_qpel, 5, 0 , 0 , pel_pixels16,  10, avx2_);
             PEL_LINK2(c->put_hevc_qpel, 7, 0 , 0 , pel_pixels32,  10, avx2_);
             PEL_LINK2(c->put_hevc_qpel, 8, 0 , 0 , pel_pixels48,  10, avx2_);
@@ -977,6 +979,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 #endif
 //#endif
 /*#ifdef OPTI_ASM
+ *           //fixme: missing asm avx2 optimizations
             c->put_hevc_epel[5][0][0] = ff_hevc_put_hevc_pel_pixels16_10_avx2;
             c->put_hevc_epel[6][0][0] = ff_hevc_put_hevc_pel_pixels24_10_avx2;
             c->put_hevc_epel[7][0][0] = ff_hevc_put_hevc_pel_pixels32_10_avx2;
@@ -1192,6 +1195,7 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
         if (EXTERNAL_AVX2(cpu_flags)) {
             c->idct_dc[2] = ff_hevc_idct16x16_dc_12_avx2;
             c->idct_dc[3] = ff_hevc_idct32x32_dc_12_avx2;
+            //fixme: missing avx2 mc optimizations
         }
 #endif
     }
