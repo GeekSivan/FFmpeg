@@ -40,6 +40,7 @@
 #include "libavutil/common.h"
 #include "libavutil/cpu.h"
 #include "libavutil/mem.h"
+#include "libavutil/internal.h"
 
 typedef int (action_func)(AVCodecContext *c, void *arg);
 typedef int (action_func2)(AVCodecContext *c, void *arg, int jobnr, int threadnr);
@@ -120,7 +121,10 @@ void ff_slice_thread_free(AVCodecContext *avctx)
     pthread_mutex_destroy(&c->current_job_lock);
     pthread_cond_destroy(&c->current_job_cond);
     pthread_cond_destroy(&c->last_job_cond);
-    av_free(c->workers);
+    av_freep(&c->workers);
+    av_freep(&c->entries);
+    av_freep(&c->progress_mutex);
+    av_freep(&c->progress_cond);
     av_freep(&avctx->internal->thread_ctx);
 }
 
@@ -201,7 +205,7 @@ int ff_slice_thread_init(AVCodecContext *avctx)
     if (!c)
         return -1;
 
-    c->workers = av_mallocz(sizeof(pthread_t)*thread_count);
+    c->workers = av_mallocz_array(thread_count, sizeof(pthread_t));
     if (!c->workers) {
         av_free(c);
         return -1;
@@ -266,15 +270,18 @@ int ff_alloc_entries(AVCodecContext *avctx, int count)
     if (avctx->active_thread_type & FF_THREAD_SLICE)  {
         SliceThreadContext *p = avctx->internal->thread_ctx;
         p->thread_count  = avctx->thread_count;
-        p->entries       = av_mallocz(count * sizeof(int));
+        p->entries       = av_mallocz_array(count, sizeof(int));
 
-        if (!p->entries) {
+        p->progress_mutex = av_malloc_array(p->thread_count, sizeof(pthread_mutex_t));
+        p->progress_cond  = av_malloc_array(p->thread_count, sizeof(pthread_cond_t));
+
+        if (!p->entries || !p->progress_mutex || !p->progress_cond) {
+            av_freep(&p->entries);
+            av_freep(&p->progress_mutex);
+            av_freep(&p->progress_cond);
             return AVERROR(ENOMEM);
         }
-
         p->entries_count  = count;
-        p->progress_mutex = av_malloc(p->thread_count * sizeof(pthread_mutex_t));
-        p->progress_cond  = av_malloc(p->thread_count * sizeof(pthread_cond_t));
 
         for (i = 0; i < p->thread_count; i++) {
             pthread_mutex_init(&p->progress_mutex[i], NULL);
@@ -288,5 +295,6 @@ int ff_alloc_entries(AVCodecContext *avctx, int count)
 void ff_reset_entries(AVCodecContext *avctx)
 {
     SliceThreadContext *p = avctx->internal->thread_ctx;
-    memset(p->entries, 0, p->entries_count * sizeof(int));
+    if (p)
+        memset(p->entries, 0, p->entries_count * sizeof(int));
 }

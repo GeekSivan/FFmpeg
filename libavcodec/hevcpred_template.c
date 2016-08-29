@@ -27,10 +27,11 @@
 
 #define POS(x, y) src[(x) + stride * (y)]
 
-static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int c_idx)
+static av_always_inline void FUNC(intra_pred)(HEVCContext *s, int x0, int y0,
+                                              int log2_size, int c_idx)
 {
 #define PU(x) \
-    ((x) >> s->sps->log2_min_pu_size)
+    ((x) >> s->ps.sps->log2_min_pu_size)
 #define MVF(x, y) \
     (s->ref->tab_mvf[(x) + (y) * min_pu_width])
 #define MVF_PU(x, y) \
@@ -38,10 +39,14 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
 #define IS_INTRA(x, y) \
     (MVF_PU(x, y).pred_flag == PF_INTRA)
 #define MIN_TB_ADDR_ZS(x, y) \
-    s->pps->min_tb_addr_zs[(y) * s->sps->min_tb_width + (x)]
-#define EXTEND(ptr, start, length)                                             \
-        for (i = start; i < (start) + (length); i += 4)                        \
-            AV_WN4P(&(ptr[i]), a)
+    s->ps.pps->min_tb_addr_zs[(y) * (s->ps.sps->tb_mask+2) + (x)]
+#define EXTEND(ptr, val, len)         \
+do {                                  \
+    pixel4 pix = PIXEL_SPLAT_X4(val); \
+    for (i = 0; i < (len); i += 4)    \
+        AV_WN4P(ptr + i, pix);        \
+} while (0)
+
 #define EXTEND_RIGHT_CIP(ptr, start, length)                                   \
         for (i = start; i < (start) + (length); i += 4)                        \
             if (!IS_INTRA(i, -1))                                              \
@@ -67,26 +72,26 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
 
     HEVCLocalContext *lc = s->HEVClc;
     int i;
-    int hshift = s->sps->hshift[c_idx];
-    int vshift = s->sps->vshift[c_idx];
+    int hshift = s->ps.sps->hshift[c_idx];
+    int vshift = s->ps.sps->vshift[c_idx];
     int size = (1 << log2_size);
     int size_in_luma_h = size << hshift;
-    int size_in_tbs_h  = size_in_luma_h >> s->sps->log2_min_tb_size;
+    int size_in_tbs_h  = size_in_luma_h >> s->ps.sps->log2_min_tb_size;
     int size_in_luma_v = size << vshift;
-    int size_in_tbs_v  = size_in_luma_v >> s->sps->log2_min_tb_size;
+    int size_in_tbs_v  = size_in_luma_v >> s->ps.sps->log2_min_tb_size;
     int x = x0 >> hshift;
     int y = y0 >> vshift;
-    int x_tb = x0 >> s->sps->log2_min_tb_size;
-    int y_tb = y0 >> s->sps->log2_min_tb_size;
+    int x_tb = (x0 >> s->ps.sps->log2_min_tb_size) & s->ps.sps->tb_mask;
+    int y_tb = (y0 >> s->ps.sps->log2_min_tb_size) & s->ps.sps->tb_mask;
     int cur_tb_addr = MIN_TB_ADDR_ZS(x_tb, y_tb);
 
     ptrdiff_t stride = s->frame->linesize[c_idx] / sizeof(pixel);
     pixel *src = (pixel*)s->frame->data[c_idx] + x + y * stride;
 
-    int min_pu_width = s->sps->min_pu_width;
+    int min_pu_width = s->ps.sps->min_pu_width;
 
-    enum IntraPredMode mode = c_idx ? lc->pu.intra_pred_mode_c :
-                              lc->tu.cur_intra_pred_mode;
+    enum IntraPredMode mode = c_idx ? lc->tu.intra_pred_mode_c :
+                              lc->tu.intra_pred_mode;
     pixel4 a;
     pixel  left_array[2 * MAX_TB_SIZE + 1];
     pixel  filtered_left_array[2 * MAX_TB_SIZE + 1];
@@ -97,29 +102,28 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
     pixel  *top           = top_array  + 1;
     pixel  *filtered_left = filtered_left_array + 1;
     pixel  *filtered_top  = filtered_top_array  + 1;
-
-    int cand_bottom_left = lc->na.cand_bottom_left && cur_tb_addr > MIN_TB_ADDR_ZS(x_tb - 1, y_tb + size_in_tbs_v);
+    int cand_bottom_left = lc->na.cand_bottom_left && cur_tb_addr > MIN_TB_ADDR_ZS( x_tb - 1, (y_tb + size_in_tbs_v) & s->ps.sps->tb_mask);
     int cand_left        = lc->na.cand_left;
     int cand_up_left     = lc->na.cand_up_left;
     int cand_up          = lc->na.cand_up;
-    int cand_up_right    = lc->na.cand_up_right && cur_tb_addr > MIN_TB_ADDR_ZS(x_tb + size_in_tbs_h, y_tb - 1);
+    int cand_up_right    = lc->na.cand_up_right    && cur_tb_addr > MIN_TB_ADDR_ZS((x_tb + size_in_tbs_h) & s->ps.sps->tb_mask, y_tb - 1);
 
-    int bottom_left_size = (FFMIN(y0 + 2 * size_in_luma_v, s->sps->height) -
+    int bottom_left_size = (FFMIN(y0 + 2 * size_in_luma_v, s->ps.sps->height) -
                            (y0 + size_in_luma_v)) >> vshift;
-    int top_right_size   = (FFMIN(x0 + 2 * size_in_luma_h, s->sps->width) -
+    int top_right_size   = (FFMIN(x0 + 2 * size_in_luma_h, s->ps.sps->width) -
                            (x0 + size_in_luma_h)) >> hshift;
 
-    if (s->pps->constrained_intra_pred_flag == 1) {
+    if (s->ps.pps->constrained_intra_pred_flag == 1) {
         int size_in_luma_pu_v = PU(size_in_luma_v);
         int size_in_luma_pu_h = PU(size_in_luma_h);
-        int on_pu_edge_x    = !(x0 & ((1 << s->sps->log2_min_pu_size) - 1));
-        int on_pu_edge_y    = !(y0 & ((1 << s->sps->log2_min_pu_size) - 1));
+        int on_pu_edge_x    = !(x0 & ((1 << s->ps.sps->log2_min_pu_size) - 1));
+        int on_pu_edge_y    = !(y0 & ((1 << s->ps.sps->log2_min_pu_size) - 1));
         if (!size_in_luma_pu_h)
             size_in_luma_pu_h++;
         if (cand_bottom_left == 1 && on_pu_edge_x) {
             int x_left_pu   = PU(x0 - 1);
             int y_bottom_pu = PU(y0 + size_in_luma_v);
-            int max = FFMIN(size_in_luma_pu_v, s->sps->min_pu_height - y_bottom_pu);
+            int max = FFMIN(size_in_luma_pu_v, s->ps.sps->min_pu_height - y_bottom_pu);
             cand_bottom_left = 0;
             for (i = 0; i < max; i += 2)
                 cand_bottom_left |= (MVF(x_left_pu, y_bottom_pu + i).pred_flag == PF_INTRA);
@@ -127,7 +131,7 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
         if (cand_left == 1 && on_pu_edge_x) {
             int x_left_pu   = PU(x0 - 1);
             int y_left_pu   = PU(y0);
-            int max = FFMIN(size_in_luma_pu_v, s->sps->min_pu_height - y_left_pu);
+            int max = FFMIN(size_in_luma_pu_v, s->ps.sps->min_pu_height - y_left_pu);
             cand_left = 0;
             for (i = 0; i < max; i += 2)
                 cand_left |= (MVF(x_left_pu, y_left_pu + i).pred_flag == PF_INTRA);
@@ -140,7 +144,7 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
         if (cand_up == 1 && on_pu_edge_y) {
             int x_top_pu    = PU(x0);
             int y_top_pu    = PU(y0 - 1);
-            int max = FFMIN(size_in_luma_pu_h, s->sps->min_pu_width - x_top_pu);
+            int max = FFMIN(size_in_luma_pu_h, s->ps.sps->min_pu_width - x_top_pu);
             cand_up = 0;
             for (i = 0; i < max; i += 2)
                 cand_up |= (MVF(x_top_pu + i, y_top_pu).pred_flag == PF_INTRA);
@@ -148,7 +152,7 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
         if (cand_up_right == 1 && on_pu_edge_y) {
             int y_top_pu    = PU(y0 - 1);
             int x_right_pu  = PU(x0 + size_in_luma_h);
-            int max = FFMIN(size_in_luma_pu_h, s->sps->min_pu_width - x_right_pu);
+            int max = FFMIN(size_in_luma_pu_h, s->ps.sps->min_pu_width - x_right_pu);
             cand_up_right = 0;
             for (i = 0; i < max; i += 2)
                 cand_up_right |= (MVF(x_right_pu + i, y_top_pu).pred_flag == PF_INTRA);
@@ -162,41 +166,36 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
         top[-1]  = left[-1];
     }
     if (cand_up)
-        for (i = 0; i <size; i+=4)
-            AV_WN4P(&top[i], AV_RN4P(&POS(i, -1)));
-
+        memcpy(top, src - stride, size * sizeof(pixel));
     if (cand_up_right) {
-        a = PIXEL_SPLAT_X4(POS(size + top_right_size - 1, -1));
-        for (i = size + top_right_size; i < (size << 1); i += 4)
-            AV_WN4P(&top[i], a);
-        for (i = size ; i < size+top_right_size; i+=4)
-            AV_WN4P(&top[i], AV_RN4P(&POS(i, -1)));
+        memcpy(top + size, src - stride + size, size * sizeof(pixel));
+        EXTEND(top + size + top_right_size, POS(size + top_right_size - 1, -1),
+               size - top_right_size);
     }
     if (cand_left)
         for (i = 0; i < size; i++)
             left[i] = POS(-1, i);
     if (cand_bottom_left) {
-        for (i = size ; i < size+bottom_left_size; i++)
+        for (i = size; i < size + bottom_left_size; i++)
             left[i] = POS(-1, i);
-        a = PIXEL_SPLAT_X4(POS(-1, size + bottom_left_size - 1));
-        for (i = size + bottom_left_size; i < (size << 1); i+=4)
-            AV_WN4P(&left[i], a);
+        EXTEND(left + size + bottom_left_size, POS(-1, size + bottom_left_size - 1),
+               size - bottom_left_size);
     }
 
-    if (s->pps->constrained_intra_pred_flag == 1) {
+    if (s->ps.pps->constrained_intra_pred_flag == 1) {
         if (cand_bottom_left || cand_left || cand_up_left || cand_up || cand_up_right) {
-            int size_max_x = x0 + ((2 * size) << hshift) < s->sps->width ?
-                                    2 * size : (s->sps->width - x0) >> hshift;
-            int size_max_y = y0 + ((2 * size) << vshift) < s->sps->height ?
-                                    2 * size : (s->sps->height - y0) >> vshift;
+            int size_max_x = x0 + ((2 * size) << hshift) < s->ps.sps->width ?
+                                    2 * size : (s->ps.sps->width - x0) >> hshift;
+            int size_max_y = y0 + ((2 * size) << vshift) < s->ps.sps->height ?
+                                    2 * size : (s->ps.sps->height - y0) >> vshift;
             int j = size + (cand_bottom_left? bottom_left_size: 0) -1;
             if (!cand_up_right) {
-                size_max_x = x0 + ((size) << hshift) < s->sps->width ?
-                                                    size : (s->sps->width - x0) >> hshift;
+                size_max_x = x0 + ((size) << hshift) < s->ps.sps->width ?
+                                                    size : (s->ps.sps->width - x0) >> hshift;
             }
             if (!cand_bottom_left) {
-                size_max_y = y0 + (( size) << vshift) < s->sps->height ?
-                                                     size : (s->sps->height - y0) >> vshift;
+                size_max_y = y0 + (( size) << vshift) < s->ps.sps->height ?
+                                                     size : (s->ps.sps->height - y0) >> vshift;
             }
             if (cand_bottom_left || cand_left || cand_up_left) {
                 while (j > -1 && !IS_INTRA(-1, j))
@@ -207,7 +206,6 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
                         j++;
                     EXTEND_LEFT_CIP(top, j, j + 1);
                     left[-1] = top[-1];
-                    j        = 0;
                 }
             } else {
                 j = 0;
@@ -221,28 +219,22 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
                         top[-1] = top[0];
                     }
                 left[-1] = top[-1];
-                j        = 0;
             }
             left[-1] = top[-1];
             if (cand_bottom_left || cand_left) {
                 a = PIXEL_SPLAT_X4(left[-1]);
                 EXTEND_DOWN_CIP(left, 0, size_max_y);
             }
-            if (!cand_left) {
-                a = PIXEL_SPLAT_X4(left[-1]);
-                EXTEND(left, 0, size);
-            }
-            if (!cand_bottom_left) {
-                a = PIXEL_SPLAT_X4(left[size - 1]);
-                EXTEND(left, size, size);
-            }
+            if (!cand_left)
+                EXTEND(left, left[-1], size);
+            if (!cand_bottom_left)
+                EXTEND(left + size, left[size - 1], size);
             if (x0 != 0 && y0 != 0) {
                 a = PIXEL_SPLAT_X4(left[size_max_y - 1]);
                 EXTEND_UP_CIP(left, size_max_y - 1, size_max_y);
                 if (!IS_INTRA(-1, - 1))
                     left[-1] = left[0];
             } else if (x0 == 0) {
-                a = PIXEL_SPLAT_X4(left[size_max_y - 1]);
                 EXTEND(left, 0, size_max_y);
             } else {
                 a = PIXEL_SPLAT_X4(left[size_max_y - 1]);
@@ -258,61 +250,50 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
     // Infer the unavailable samples
     if (!cand_bottom_left) {
         if (cand_left) {
-            a = PIXEL_SPLAT_X4(left[size-1]);
-            EXTEND(left, size, size);
+            EXTEND(left + size, left[size - 1], size);
         } else if (cand_up_left) {
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(left, left[-1], 2 * size);
             cand_left = 1;
         } else if (cand_up) {
             left[-1] = top[0];
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(left, left[-1], 2 * size);
             cand_up_left = 1;
             cand_left    = 1;
         } else if (cand_up_right) {
+            EXTEND(top, top[size], size);
             left[-1] = top[size];
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(top, 0, size);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(left, left[-1], 2 * size);
             cand_up      = 1;
             cand_up_left = 1;
             cand_left    = 1;
         } else { // No samples available
             left[-1] = (1 << (BIT_DEPTH - 1));
-            a = PIXEL_SPLAT_X4(left[-1]);
-            EXTEND(top, 0, 2 * size);
-            EXTEND(left, 0, 2 * size);
+            EXTEND(top,  left[-1], 2 * size);
+            EXTEND(left, left[-1], 2 * size);
         }
     }
 
-    if (!cand_left) {
-        a = PIXEL_SPLAT_X4(left[size]);
-        EXTEND(left, 0, size);
-    }
+    if (!cand_left)
+        EXTEND(left, left[size], size);
     if (!cand_up_left) {
         left[-1] = left[0];
     }
-    if (!cand_up) {
-        a = PIXEL_SPLAT_X4(left[-1]);
-        EXTEND(top, 0, size);
-    }
-    if (!cand_up_right) {
-        a = PIXEL_SPLAT_X4(top[size-1]);
-        EXTEND(top, size, size);
-    }
+    if (!cand_up)
+        EXTEND(top, left[-1], size);
+    if (!cand_up_right)
+        EXTEND(top + size, top[size - 1], size);
 
     top[-1] = left[-1];
 
     // Filtering process
-    if (c_idx == 0) {
+    if (!s->ps.sps->intra_smoothing_disabled_flag && (c_idx == 0  || s->ps.sps->chroma_format_idc == 3)) {
         if (mode != INTRA_DC && size != 4){
             int intra_hor_ver_dist_thresh[] = { 7, 1, 0 };
             int min_dist_vert_hor = FFMIN(FFABS((int)(mode - 26U)),
                                           FFABS((int)(mode - 10U)));
             if (min_dist_vert_hor > intra_hor_ver_dist_thresh[log2_size - 3]) {
                 int threshold = 1 << (BIT_DEPTH - 5);
-                if (s->sps->sps_strong_intra_smoothing_enable_flag && c_idx == 0 &&
+                if (s->ps.sps->sps_strong_intra_smoothing_enable_flag && c_idx == 0 &&
                     log2_size == 5 &&
                     FFABS(top[-1]  + top[63]  - 2 * top[31])  < threshold &&
                     FFABS(left[-1] + left[63] - 2 * left[31]) < threshold) {
@@ -362,6 +343,19 @@ static void FUNC(intra_pred)(HEVCContext *s, int x0, int y0, int log2_size, int 
     }
 }
 
+#define INTRA_PRED(size)                                                            \
+static void FUNC(intra_pred_ ## size)(HEVCContext *s, int x0, int y0, int c_idx)    \
+{                                                                                   \
+    FUNC(intra_pred)(s, x0, y0, size, c_idx);                                       \
+}
+
+INTRA_PRED(2)
+INTRA_PRED(3)
+INTRA_PRED(4)
+INTRA_PRED(5)
+
+#undef INTRA_PRED
+
 static av_always_inline void FUNC(pred_planar)(uint8_t *_src, const uint8_t *_top,
                                   const uint8_t *_left, ptrdiff_t stride,
                                   int trafo_size)
@@ -377,29 +371,19 @@ static av_always_inline void FUNC(pred_planar)(uint8_t *_src, const uint8_t *_to
                          (size - 1 - y) * top[x]  + (y + 1) * left[size] + size) >> (trafo_size + 1);
 }
 
-static void FUNC(pred_planar_0)(uint8_t *_src, const uint8_t *_top,
-                                const uint8_t *_left, ptrdiff_t stride)
-{
-    FUNC(pred_planar)(_src, _top, _left, stride, 2);
+#define PRED_PLANAR(size)\
+static void FUNC(pred_planar_ ## size)(uint8_t *src, const uint8_t *top,        \
+                                       const uint8_t *left, ptrdiff_t stride)   \
+{                                                                               \
+    FUNC(pred_planar)(src, top, left, stride, size + 2);                        \
 }
 
-static void FUNC(pred_planar_1)(uint8_t *_src, const uint8_t *_top,
-                                const uint8_t *_left, ptrdiff_t stride)
-{
-    FUNC(pred_planar)(_src, _top, _left, stride, 3);
-}
+PRED_PLANAR(0)
+PRED_PLANAR(1)
+PRED_PLANAR(2)
+PRED_PLANAR(3)
 
-static void FUNC(pred_planar_2)(uint8_t *_src, const uint8_t *_top,
-                                const uint8_t *_left, ptrdiff_t stride)
-{
-    FUNC(pred_planar)(_src, _top, _left, stride, 4);
-}
-
-static void FUNC(pred_planar_3)(uint8_t *_src, const uint8_t *_top,
-                                const uint8_t *_left, ptrdiff_t stride)
-{
-    FUNC(pred_planar)(_src, _top, _left, stride, 5);
-}
+#undef PRED_PLANAR
 
 static void FUNC(pred_dc)(uint8_t *_src, const uint8_t *_top,
                           const uint8_t *_left,

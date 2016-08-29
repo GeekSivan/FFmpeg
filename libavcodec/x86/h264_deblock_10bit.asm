@@ -5,7 +5,7 @@
 ;*
 ;* Authors: Oskar Arvidsson <oskar@irock.se>
 ;*          Loren Merritt <lorenm@u.washington.edu>
-;*          Jason Garrett-Glaser <darkshikari@gmail.com>
+;*          Fiona Glaser <fiona@x264.com>
 ;*
 ;* This file is part of FFmpeg.
 ;*
@@ -26,15 +26,13 @@
 
 %include "libavutil/x86/x86util.asm"
 
-SECTION_RODATA
-
-pw_pixel_max: times 8 dw ((1 << 10)-1)
-
 SECTION .text
 
 cextern pw_2
 cextern pw_3
 cextern pw_4
+cextern pw_1023
+%define pw_pixel_max pw_1023
 
 ; out: %4 = |%1-%2|-%3
 ; clobbers: %5

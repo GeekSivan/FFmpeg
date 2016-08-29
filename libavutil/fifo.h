@@ -42,6 +42,14 @@ typedef struct AVFifoBuffer {
 AVFifoBuffer *av_fifo_alloc(unsigned int size);
 
 /**
+ * Initialize an AVFifoBuffer.
+ * @param nmemb number of elements
+ * @param size  size of the single element
+ * @return AVFifoBuffer or NULL in case of memory allocation failure
+ */
+AVFifoBuffer *av_fifo_alloc_array(size_t nmemb, size_t size);
+
+/**
  * Free an AVFifoBuffer.
  * @param f AVFifoBuffer to free
  */
@@ -65,7 +73,7 @@ void av_fifo_reset(AVFifoBuffer *f);
  * @param f AVFifoBuffer to read from
  * @return size
  */
-int av_fifo_size(FF_CONST_AVUTIL53 AVFifoBuffer *f);
+int av_fifo_size(const AVFifoBuffer *f);
 
 /**
  * Return the amount of space in bytes in the AVFifoBuffer, that is the
@@ -73,7 +81,28 @@ int av_fifo_size(FF_CONST_AVUTIL53 AVFifoBuffer *f);
  * @param f AVFifoBuffer to write into
  * @return size
  */
-int av_fifo_space(FF_CONST_AVUTIL53 AVFifoBuffer *f);
+int av_fifo_space(const AVFifoBuffer *f);
+
+/**
+ * Feed data at specific position from an AVFifoBuffer to a user-supplied callback.
+ * Similar as av_fifo_gereric_read but without discarding data.
+ * @param f AVFifoBuffer to read from
+ * @param offset offset from current read position
+ * @param buf_size number of bytes to read
+ * @param func generic read function
+ * @param dest data destination
+ */
+int av_fifo_generic_peek_at(AVFifoBuffer *f, void *dest, int offset, int buf_size, void (*func)(void*, void*, int));
+
+/**
+ * Feed data from an AVFifoBuffer to a user-supplied callback.
+ * Similar as av_fifo_gereric_read but without discarding data.
+ * @param f AVFifoBuffer to read from
+ * @param buf_size number of bytes to read
+ * @param func generic read function
+ * @param dest data destination
+ */
+int av_fifo_generic_peek(AVFifoBuffer *f, void *dest, int buf_size, void (*func)(void*, void*, int));
 
 /**
  * Feed data from an AVFifoBuffer to a user-supplied callback.
