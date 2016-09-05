@@ -35,8 +35,8 @@
 //temp
 #include "h264dec.h"
 
-
-#if HAVE_SSE2
+//TODO move intrinsics to x86 funcions
+/*#if HAVE_SSE2
 #include <emmintrin.h>
 #endif
 #if HAVE_SSSE3
@@ -45,7 +45,7 @@
 #if HAVE_SSE42
 #include <smmintrin.h>
 #endif
-
+*/
 #define LUMA 0
 #define CB 1
 #define CR 2

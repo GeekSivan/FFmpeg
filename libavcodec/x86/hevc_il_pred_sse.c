@@ -17,6 +17,23 @@
 #if HAVE_SSE42
 #include <smmintrin.h>
 #endif
+
+#if HAVE_SSE42
+#define _MM_PACKUS_EPI32 _mm_packus_epi32
+#else
+#if HAVE_SSE2
+static av_always_inline __m128i _MM_PACKUS_EPI32( __m128i a, __m128i b )
+{
+     a = _mm_slli_epi32 (a, 16);
+     a = _mm_srai_epi32 (a, 16);
+     b = _mm_slli_epi32 (b, 16);
+     b = _mm_srai_epi32 (b, 16);
+     a = _mm_packs_epi32 (a, b);
+    return a;
+}
+#endif
+#endif
+
 /*      Upsampling filters      */
 
 DECLARE_ALIGNED(16, static const int8_t, up_sample_filter_luma_x2_h_sse[4][16] )= /*0 , 8 */
