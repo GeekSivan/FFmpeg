@@ -17,12 +17,13 @@ AVPROGS-$(CONFIG_FFMPEG)   += ffmpeg
 AVPROGS-$(CONFIG_FFPLAY)   += ffplay
 AVPROGS-$(CONFIG_FFPROBE)  += ffprobe
 AVPROGS-$(CONFIG_FFSERVER) += ffserver
+AVPROGS-$(CONFIG_OHPLAY)   += ohplay
 
 AVPROGS    := $(AVPROGS-yes:%=%$(PROGSSUF)$(EXESUF))
 INSTPROGS   = $(AVPROGS-yes:%=%$(PROGSSUF)$(EXESUF))
 PROGS      += $(AVPROGS)
 
-AVBASENAMES  = ffmpeg ffplay ffprobe ffserver
+AVBASENAMES  = ffmpeg ffplay ffprobe ffserver ohplay
 ALLAVPROGS   = $(AVBASENAMES:%=%$(PROGSSUF)$(EXESUF))
 ALLAVPROGS_G = $(AVBASENAMES:%=%$(PROGSSUF)_g$(EXESUF))
 
@@ -41,6 +42,12 @@ OBJS-ffmpeg-$(HAVE_DXVA2_LIB) += ffmpeg_dxva2.o
 OBJS-ffmpeg-$(HAVE_VDPAU_X11) += ffmpeg_vdpau.o
 OBJS-ffserver                 += ffserver_config.o
 
+# OpenHEVC Simple Player
+OBJS-ohplay					  := 
+OBJS-ohplay                   += ohplay_getopt.o
+OBJS-ohplay                   += ohplay_SDL_framerate.o
+OBJS-ohplay                   += ohplay_sdl.o
+
 TESTTOOLS   = audiogen videogen rotozoom tiny_psnr tiny_ssim base64 audiomatch
 HOSTPROGS  := $(TESTTOOLS:%=tests/%) doc/print_options
 TOOLS       = qt-faststart trasher uncoded_frame
@@ -55,6 +62,7 @@ FFLIBS-$(CONFIG_AVRESAMPLE) += avresample
 FFLIBS-$(CONFIG_POSTPROC)   += postproc
 FFLIBS-$(CONFIG_SWRESAMPLE) += swresample
 FFLIBS-$(CONFIG_SWSCALE)    += swscale
+FFLIBS-$(CONFIG_OPENHEVC)   += openhevc
 
 FFLIBS := avutil
 

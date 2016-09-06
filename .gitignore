@@ -25,6 +25,7 @@
 /ffplay
 /ffprobe
 /ffserver
+/ohplay
 /config.*
 /coverage.info
 /doc/*.1
