@@ -29,7 +29,7 @@ $(foreach VAR,$(SILENT),$(eval override $(VAR) = @$($(VAR))))
 $(eval INSTALL = @$(call ECHO,INSTALL,$$(^:$(SRC_DIR)/%=%)); $(INSTALL))
 endif
 
-ALLFFLIBS = avcodec avdevice avfilter avformat avresample avutil postproc swscale swresample
+ALLFFLIBS = avcodec avdevice avfilter avformat avresample avutil postproc swscale swresample openhevc
 
 # NASM requires -I path terminated with /
 IFLAGS     := -I. -I$(SRC_LINK)/

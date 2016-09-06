@@ -118,6 +118,9 @@ Program options:
   --disable-ffprobe        disable ffprobe build
   --disable-ffserver       disable ffserver build
 
+OpenHEVC options:
+  --openhevc-only          only build openhevc
+
 Documentation options:
   --disable-doc            do not build documentation
   --disable-htmlpages      do not build HTML documentation pages
@@ -1437,6 +1440,7 @@ AVFORMAT_COMPONENTS="
 
 AVRESAMPLE_COMPONENTS=""
 AVUTIL_COMPONENTS=""
+OPENHEVC_COMPONENTS=""
 
 COMPONENT_LIST="
     $AVCODEC_COMPONENTS
@@ -1445,6 +1449,7 @@ COMPONENT_LIST="
     $AVFORMAT_COMPONENTS
     $AVRESAMPLE_COMPONENTS
     $AVUTIL_COMPONENTS
+    $OPENHEVC_COMPONENTS
 "
 
 EXAMPLE_LIST="
@@ -1604,6 +1609,7 @@ LIBRARY_LIST="
     postproc
     swresample
     swscale
+    openhevc
 "
 
 LICENSE_LIST="
@@ -1617,6 +1623,7 @@ PROGRAM_LIST="
     ffprobe
     ffserver
     ffmpeg
+    ohplay
 "
 
 SUBSYSTEM_LIST="
@@ -3131,6 +3138,7 @@ avresample_deps="avutil"
 postproc_deps="avutil gpl"
 swresample_deps="avutil"
 swscale_deps="avutil"
+openhevc_deps="avformat avcodec avutil"
 
 # programs
 ffmpeg_deps="avcodec avfilter avformat swresample"
@@ -3143,6 +3151,8 @@ ffplay_select="rdft crop_filter transpose_filter hflip_filter vflip_filter rotat
 ffprobe_deps="avcodec avformat"
 ffserver_deps="avformat fork sarestart"
 ffserver_select="ffm_muxer rtp_protocol rtsp_demuxer"
+ohplay_deps="avformat avcodec avutil openhevc sdl"
+ohplay_libs='$sdl_libs'
 
 # documentation
 podpages_deps="perl"
@@ -3386,6 +3396,9 @@ do_random(){
 for opt do
     optval="${opt#*=}"
     case "$opt" in
+        --openhevc-only)
+            # TODO set required flags
+        ;;
         --extra-ldflags=*)
             add_ldflags $optval
         ;;
@@ -6643,6 +6656,7 @@ TARGET_EXEC=$target_exec $target_exec_args
 TARGET_PATH=$target_path
 TARGET_SAMPLES=${target_samples:-\$(SAMPLES)}
 CFLAGS-ffplay=$sdl_cflags
+CFLAGS-ohplay=$sdl_cflags -DUSE_SDL=1
 ZLIB=$($ldflags_filter -lz)
 LIB_INSTALL_EXTRA_CMD=$LIB_INSTALL_EXTRA_CMD
 EXTRALIBS=$extralibs
@@ -6829,6 +6843,7 @@ EOF
 pkgconfig_generate libavutil     "FFmpeg utility library"               "$LIBAVUTIL_VERSION"     "$LIBRT $LIBM"
 pkgconfig_generate libavcodec    "FFmpeg codec library"                 "$LIBAVCODEC_VERSION"    "$extralibs"
 pkgconfig_generate libavformat   "FFmpeg container format library"      "$LIBAVFORMAT_VERSION"   "$extralibs"
+pkgconfig_generate libopenhevc   "Openhevc wrapper library"             "$LIBOPENHEVC_VERSION"   "$LIBM"
 pkgconfig_generate libavdevice   "FFmpeg device handling library"       "$LIBAVDEVICE_VERSION"   "$extralibs"
 pkgconfig_generate libavfilter   "FFmpeg audio/video filtering library" "$LIBAVFILTER_VERSION"   "$extralibs"
 pkgconfig_generate libpostproc   "FFmpeg postprocessing library"        "$LIBPOSTPROC_VERSION"   ""
