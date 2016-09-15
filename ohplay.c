@@ -78,14 +78,14 @@ static int find_start_code (unsigned char *Buf, int zeros_in_startcode)
             return 0;
     return Buf[i];
 }
-
+/*
 static int get_next_nal(FILE* inpf, unsigned char* Buf)
 {
     int pos = 0;
     int StartCodeFound = 0;
     int info2 = 0;
     int info3 = 0;
-    while(!feof(inpf)&&(/*Buf[pos++]=*/fgetc(inpf))==0);
+    while(!feof(inpf)&&(/*Buf[pos++]=*//*fgetc(inpf))==0);
 
     while (pos < 3) Buf[pos++] = fgetc (inpf);
     while (!StartCodeFound)
@@ -103,7 +103,8 @@ static int get_next_nal(FILE* inpf, unsigned char* Buf)
     }
     fseek (inpf, - 4 + info2, SEEK_CUR);
     return pos - 4 + info2;
-}
+}*/
+
 typedef struct Info {
     int NbFrame;
     int Poc;
