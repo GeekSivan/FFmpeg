@@ -42,19 +42,19 @@
 #define ENABLE  1
 
 
-int h264_flags;
-int check_md5_flags;
-int thread_type;
-char *input_file;
-char *enhance_file;
-char display_flags;
-char *output_file;
-int nb_pthreads;
-int temporal_layer_id;
-int quality_layer_id;
-int no_cropping;
-int num_frames;
-float frame_rate;
+static int oh_h264_flags;
+static int oh_check_md5_flags;
+static int oh_thread_type;
+static char *input_file;
+static char *enhance_file;
+static char oh_display_flags;
+static char *output_file;
+static int oh_nb_pthreads;
+static int oh_temporal_layer_id;
+static int oh_quality_layer_id;
+static int oh_no_cropping;
+static int oh_num_frames;
+static float oh_frame_rate;
 
 // initialize APR and parse command-line options
 void init_main(int argc, char *argv[]);

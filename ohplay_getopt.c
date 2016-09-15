@@ -40,14 +40,14 @@ static char *rcsid = "$Id: getopt.c,v 1.2 1998/01/21 22:27:05 billm Exp $";
 
 int        opterr = 1,                /* if error message should be printed */
 optind = 1,                /* index into parent argv vector */
-optopt,                        /* character checked for validity */
+oh_optopt,                        /* character checked for validity */
 optreset;                /* reset getopt */
-char *optarg;                /* argument associated with option */
+char const *optarg;                /* argument associated with option */
 
 static const char *usage = "%s: -i <file> [-n]\n";
 static char *program;
 
-void print_usage() {
+static void print_usage(void) {
     printf(usage, program);
     printf("     -a : disable AU\n");
     printf("     -c : no check md5\n");
@@ -70,7 +70,7 @@ void print_usage() {
  *        Parse argc/argv argument vector.
  */
 static int getopt(int nargc, char * const *nargv, const char *ostr) {
-    static char *place = EMSG;                /* option letter processing */
+    static char const *place = EMSG;                /* option letter processing */
     char *oli;                                /* option letter list index */
     
     if (nargc == 1)
@@ -88,19 +88,19 @@ static int getopt(int nargc, char * const *nargv, const char *ostr) {
             return (-1);
         }
     }                                        /* option letter okay? */
-    if ((optopt = (int)*place++) == (int)':' ||
-        !(oli = strchr(ostr, optopt))) {
+    if ((oh_optopt = (int)*place++) == (int)':' ||
+        !(oli = strchr(ostr, oh_optopt))) {
         /*
          * if the user didn't specify '-' as an option,
          * assume it means -1.
          */
-        if (optopt == (int)'-')
+        if (oh_optopt == (int)'-')
             return (-1);
         if (!*place)
             ++optind;
         if (opterr && *ostr != ':')
             (void)fprintf(stderr,
-                          "%s: illegal option -- %c\n", nargv[0], optopt);
+                          "%s: illegal option -- %c\n", nargv[0], oh_optopt);
         return (BADCH);
     }
     if (*++oli != ':') {                        /* don't need argument */
@@ -118,7 +118,7 @@ static int getopt(int nargc, char * const *nargv, const char *ostr) {
             if (opterr)
                 (void)fprintf(stderr,
                               "%s: option requires an argument -- %c\n",
-                              nargv[0], optopt);
+                              nargv[0], oh_optopt);
             return (BADCH);
         }
         else                                /* white space */
@@ -126,7 +126,7 @@ static int getopt(int nargc, char * const *nargv, const char *ostr) {
         place = EMSG;
         ++optind;
     }
-    return (optopt);                        /* dump back option letter */
+    return (oh_optopt);                        /* dump back option letter */
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -137,19 +137,19 @@ void init_main(int argc, char *argv[]) {
     const char *ostr = "achvi:e:no:p:f:s:t:wl:r:";
 
     int c;
-    h264_flags        = DISABLE;
-    check_md5_flags   = ENABLE;
-    thread_type       = 1;
-    input_file        = NULL;
-    enhance_file 	  = NULL;
-    display_flags     = ENABLE;
-    output_file       = NULL;
-    nb_pthreads       = 1;
-    temporal_layer_id = 7;
-    no_cropping       = DISABLE;
-    quality_layer_id  = 0; // Base layer
-    num_frames        = 0;
-    frame_rate        = 0;
+    oh_h264_flags        = DISABLE;
+    oh_check_md5_flags   = ENABLE;
+    oh_thread_type       = 1;
+    input_file           = NULL;
+    enhance_file 	 = NULL;
+    oh_display_flags     = ENABLE;
+    output_file          = NULL;
+    oh_nb_pthreads       = 1;
+    oh_temporal_layer_id = 7;
+    oh_no_cropping       = DISABLE;
+    oh_quality_layer_id  = 0; // Base layer
+    oh_num_frames        = 0;
+    oh_frame_rate        = 0;
 
     program           = argv[0];
     
@@ -158,11 +158,11 @@ void init_main(int argc, char *argv[]) {
     while (c != -1) {
         switch (c) {
         case 'c':
-            check_md5_flags = DISABLE;
+            oh_check_md5_flags = DISABLE;
             break;
         case 'f':
-            thread_type = atoi(optarg);
-            if (thread_type!=1 && thread_type!=2 && thread_type!=4) {
+            oh_thread_type = atoi(optarg);
+            if (oh_thread_type!=1 && oh_thread_type!=2 && oh_thread_type!=4) {
                 print_usage();
                 exit(1);
             }
@@ -174,7 +174,7 @@ void init_main(int argc, char *argv[]) {
         	enhance_file = strdup(optarg);
         	break;
         case 'n':
-            display_flags = DISABLE;
+            oh_display_flags = DISABLE;
             break;
         case 'o':
             output_file = strdup(optarg);
@@ -183,25 +183,25 @@ void init_main(int argc, char *argv[]) {
                 output_file[strlen(output_file)-4] = '\0';
             break;
         case 'p':
-            nb_pthreads = atoi(optarg);
+            oh_nb_pthreads = atoi(optarg);
             break;
         case 't':
-            temporal_layer_id = atoi(optarg);
+            oh_temporal_layer_id = atoi(optarg);
             break;
         case 'v':
-            h264_flags = ENABLE;
+            oh_h264_flags = ENABLE;
             break;
         case 'w':
-            no_cropping = ENABLE;
+            oh_no_cropping = ENABLE;
             break;
         case 'l':
-            quality_layer_id = atoi(optarg);
+            oh_quality_layer_id = atoi(optarg);
             break;
         case 's':
-            num_frames = atoi(optarg);
+            oh_num_frames = atoi(optarg);
             break;
         case 'r':
-            frame_rate = atof(optarg);
+            oh_frame_rate = atof(optarg);
             break;
         default:
             print_usage();
