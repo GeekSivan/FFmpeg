@@ -55,7 +55,7 @@ int Init_SDL(int edge, int frame_width, int frame_height){
 
 #ifndef SDL_NO_DISPLAY
     int screenwidth = 0, screenheight = 0;
-    char *window_title = "SDL Display";
+    char const *window_title = "SDL Display";
     const SDL_VideoInfo* info;
     Uint8 bpp;
     Uint32 vflags;
@@ -148,7 +148,7 @@ void setFramerate_SDL(float frate) {
 }
 
 void framerateDelay_SDL() {
-    if (SDL_framerateDelay(&fpsm) < 0) {
+    if (!SDL_framerateDelay(&fpsm)) {
         printf("SDL_glx: Couldn't set frame rate delay\n");
         SDL_Quit();
         exit(0);

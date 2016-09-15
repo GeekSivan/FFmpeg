@@ -118,7 +118,7 @@ static void video_decode_example(const char *filename,const char *enh_filename)
 	AVFormatContext *pFormatCtx[2];
 	AVPacket        packet[2];
 
-	int AVC_BL = h264_flags;
+	int AVC_BL = oh_h264_flags;
     int split_layers = enh_filename != NULL;//fixme: we do not check the -e option here
     int AVC_BL_only = AVC_BL && !split_layers;
 
@@ -156,15 +156,15 @@ static void video_decode_example(const char *filename,const char *enh_filename)
     /* Call corresponding codecs context initialization
      * */
     if (AVC_BL_only){
-        openHevcHandle = libOpenH264Init(nb_pthreads, thread_type/*, pFormatCtx*/);
+        openHevcHandle = libOpenH264Init(oh_nb_pthreads, oh_thread_type/*, pFormatCtx*/);
     } else if (AVC_BL && split_layers){
     	printf("file name : %s\n", enhance_file);
-    	openHevcHandle = libOpenShvcInit(nb_pthreads, thread_type/*, pFormatCtx*/);
+    	openHevcHandle = libOpenShvcInit(oh_nb_pthreads, oh_thread_type/*, pFormatCtx*/);
     } else {
-        openHevcHandle = libOpenHevcInit(nb_pthreads, thread_type/*, pFormatCtx*/);
+        openHevcHandle = libOpenHevcInit(oh_nb_pthreads, oh_thread_type/*, pFormatCtx*/);
     }
 
-    libOpenHevcSetCheckMD5(openHevcHandle, check_md5_flags);
+    libOpenHevcSetCheckMD5(openHevcHandle, oh_check_md5_flags);
 
     if (!openHevcHandle) {
         fprintf(stderr, "could not open OpenHevc\n");
@@ -187,18 +187,18 @@ static void video_decode_example(const char *filename,const char *enh_filename)
         exit(1);
     }
 
-    if (!split_layers && quality_layer_id == 1)
+    if (!split_layers && oh_quality_layer_id == 1)
         pFormatCtx[0]->video_codec_id=AV_CODEC_ID_SHVC;
 
     for(i=0; i<2 ; i++){
+        size_t extra_size_alloc;
 		if ( (video_stream_idx = av_find_best_stream(pFormatCtx[i], AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0)) < 0) {
 			fprintf(stderr, "Could not find video stream in input file\n");
 			exit(1);
 		}
 		//test
 		//av_dump_format(pFormatCtx[i], 0, filename, 0);
-
-        const size_t extra_size_alloc = pFormatCtx[i]->streams[video_stream_idx]->codecpar->extradata_size > 0 ?
+       extra_size_alloc = pFormatCtx[i]->streams[video_stream_idx]->codecpar->extradata_size > 0 ?
         (pFormatCtx[i]->streams[video_stream_idx]->codecpar->extradata_size + FF_INPUT_BUFFER_PADDING_SIZE) : 0;
 
         if (extra_size_alloc){
@@ -220,18 +220,18 @@ static void video_decode_example(const char *filename,const char *enh_filename)
 
 #if USE_SDL
     Init_Time();
-    if (frame_rate > 0) {
+    if (oh_frame_rate > 0) {
         initFramerate_SDL();
-        setFramerate_SDL(frame_rate);
+        setFramerate_SDL(oh_frame_rate);
     }
 #endif
 #ifdef TIME2
     time_us = GetTimeMs64();
 #endif
    
-    libOpenHevcSetTemporalLayer_id(openHevcHandle, temporal_layer_id);
-    libOpenHevcSetActiveDecoders(openHevcHandle, quality_layer_id);
-    libOpenHevcSetViewLayers(openHevcHandle, quality_layer_id);
+    libOpenHevcSetTemporalLayer_id(openHevcHandle, oh_temporal_layer_id);
+    libOpenHevcSetActiveDecoders(openHevcHandle, oh_quality_layer_id);
+    libOpenHevcSetViewLayers(openHevcHandle, oh_quality_layer_id);
 
 #if FRAME_CONCEALMENT
     fin_loss = fopen( "/Users/wassim/Softwares/shvc_transmission/parser/hevc_parser/BascketBall_Loss.txt", "rb");
@@ -300,13 +300,14 @@ static void video_decode_example(const char *filename,const char *enh_filename)
 						fout = fopen(output_file2, "wb");
 					}
 	#if USE_SDL
-						if (display_flags == ENABLE) {
+						if (oh_display_flags == ENABLE) {
 							Init_SDL((openHevcFrame.frameInfo.nYPitch - openHevcFrame.frameInfo.nWidth)/2, openHevcFrame.frameInfo.nWidth, openHevcFrame.frameInfo.nHeight);
 						}
 	#endif
 					if (fout) {
+						int format;
 						libOpenHevcGetPictureInfo(openHevcHandle, &openHevcFrameCpy.frameInfo);
-						int format = openHevcFrameCpy.frameInfo.chromat_format == YUV420 ? 1 : 0;
+						format = openHevcFrameCpy.frameInfo.chromat_format == YUV420 ? 1 : 0;
 						if(openHevcFrameCpy.pvY) {
 							free(openHevcFrameCpy.pvY);
 							free(openHevcFrameCpy.pvU);
@@ -318,10 +319,10 @@ static void video_decode_example(const char *filename,const char *enh_filename)
 					}
 				}// end of frame resizing
 	#if USE_SDL
-					if (frame_rate > 0) {
+					if (oh_frame_rate > 0) {
 						framerateDelay_SDL();
 					}
-					if (display_flags == ENABLE) {
+					if (oh_display_flags == ENABLE) {
 						libOpenHevcGetOutput(openHevcHandle, 1, &openHevcFrame);
 						libOpenHevcGetPictureInfo(openHevcHandle, &openHevcFrame.frameInfo);
 						SDL_Display((openHevcFrame.frameInfo.nYPitch - openHevcFrame.frameInfo.nWidth)/2, openHevcFrame.frameInfo.nWidth, openHevcFrame.frameInfo.nHeight,
@@ -339,7 +340,7 @@ static void video_decode_example(const char *filename,const char *enh_filename)
 				}
 				nbFrame++;
 
-				if (nbFrame == num_frames)// we already decoded all the frames we wanted to
+				if (nbFrame == oh_num_frames)// we already decoded all the frames we wanted to
 					stop = 1;
 
 			}
@@ -351,7 +352,7 @@ static void video_decode_example(const char *filename,const char *enh_filename)
 			}
 
 
-		    if (stop_dec >= nb_pthreads && nbFrame == 0) {
+		    if (stop_dec >= oh_nb_pthreads && nbFrame == 0) {
                 av_packet_unref(&packet[0]);
 			    if(split_layers)
                     av_packet_unref(&packet[1]);
