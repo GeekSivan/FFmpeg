@@ -1,0 +1,112 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle ohplay Documentation
+@titlepage
+@center @titlefont{ohplay Documentation}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter Synopsis
+
+ohplay [@var{options}] [@file{input_file}]  [@var{options}] [@file{output_file}]
+
+@chapter Description
+@c man begin DESCRIPTION
+
+ohplay is a simple HEVC/SHVC player based on OpenHEVC and SDL libraries. 
+
+@c man end
+
+@chapter Options
+@c man begin OPTIONS
+
+@table @option
+
+@item -i @file{input_file}
+Input file
+
+@item -v
+Used to signal the presence of a H264/AVC base layer bitstream 
+
+@item -e @file{enhancement_layer_file}
+Used to specify the enhancement layer when it consist of a second bitstream
+
+@item -n
+Disable the display
+
+@item -o @file{output_file}
+Output raw video to @file{output_file}
+
+@item -c
+Do not check md5.
+
+@item -l @var{quality_layer_id}
+Used to specify the @var{quality_layer_id} to be decoded.
+
+@item -t @var{temporal_layer_id}
+Signal the target @var{temporal_layer_id} to be decoded. Default to the highest
+
+@item -s @var{INTEGER} 
+Only decode @var{INTEGER} first frames.
+
+@item -r @var{FLOAT}
+Forces the frame rate to @var{FLOAT}
+
+@end table
+
+@c man end OPTIONS
+
+
+
+@ifset config-all
+@set config-readonly
+@end ifset
+
+@chapter See Also
+
+@ifhtml
+@ifset config-all
+@url{ffprobe.html,ffprobe},
+@end ifset
+@ifset config-not-all
+@url{ffprobe-all.html,ffprobe-all},
+@end ifset
+@url{ffmpeg.html,ffmpeg}, @url{ffplay.html,ffplay}, @url{ffserver.html,ffserver},
+@url{ffmpeg-utils.html,ffmpeg-utils},
+@url{ffmpeg-scaler.html,ffmpeg-scaler},
+@url{ffmpeg-resampler.html,ffmpeg-resampler},
+@url{ffmpeg-codecs.html,ffmpeg-codecs},
+@url{ffmpeg-bitstream-filters.html,ffmpeg-bitstream-filters},
+@url{ffmpeg-formats.html,ffmpeg-formats},
+@url{ffmpeg-devices.html,ffmpeg-devices},
+@url{ffmpeg-protocols.html,ffmpeg-protocols},
+@url{ffmpeg-filters.html,ffmpeg-filters}
+@end ifhtml
+
+@ifnothtml
+@ifset config-all
+ffprobe(1),
+@end ifset
+@ifset config-not-all
+ffprobe-all(1),
+@end ifset
+ffmpeg(1), ffplay(1), ffserver(1),
+ffmpeg-utils(1), ffmpeg-scaler(1), ffmpeg-resampler(1),
+ffmpeg-codecs(1), ffmpeg-bitstream-filters(1), ffmpeg-formats(1),
+ffmpeg-devices(1), ffmpeg-protocols(1), ffmpeg-filters(1)
+@end ifnothtml
+
+
+
+@ignore
+
+@setfilename ffprobe
+@settitle ffprobe media prober
+
+@end ignore
+
+@bye
