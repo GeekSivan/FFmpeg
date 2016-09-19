@@ -90,6 +90,7 @@ void av_rdft_end(RDFTContext *s);
 
 typedef struct DCTContext DCTContext;
 
+#include "config.h"
 enum DCTTransformType {
 #if COM16_C806_EMT
 	DCT_II = 0,

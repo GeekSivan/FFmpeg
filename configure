@@ -6745,6 +6745,8 @@ print_config CONFIG_ "$config_files" $CONFIG_LIST       \
                                      $CONFIG_EXTRA      \
                                      $ALL_COMPONENTS    \
 
+echo "#define COM16_C806_EMT 0 " >> $TMPH
+echo "#define HEVC_ENCRYPTION 0" >> $TMPH
 echo "#endif /* FFMPEG_CONFIG_H */" >> $TMPH
 echo "endif # FFMPEG_CONFIG_MAK" >> config.mak
 
