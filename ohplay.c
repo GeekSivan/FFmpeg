@@ -114,6 +114,20 @@ typedef struct Info {
     int size;
 } Info;
 
+ int oh_h264_flags;
+ int oh_check_md5_flags;
+ int oh_thread_type;
+ char *input_file;
+ char *enhance_file;
+ char oh_display_flags;
+ char *output_file;
+ int oh_nb_pthreads;
+ int oh_temporal_layer_id;
+ int oh_quality_layer_id;
+ int oh_no_cropping;
+ int oh_num_frames;
+ float oh_frame_rate;
+
 static void video_decode_example(const char *filename,const char *enh_filename)
 {
 	AVFormatContext *pFormatCtx[2];
