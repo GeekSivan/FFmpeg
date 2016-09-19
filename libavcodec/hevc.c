@@ -608,10 +608,11 @@ static int hls_slice_header(HEVCContext *s)
 //#endif
     int i, j, ret, change_pps = 0,numRef;
     int NumILRRefIdx;
-
+    int first_slice_in_pic_flag;
     print_cabac("\n --- Decode slice header --- \n", s->nuh_layer_id);
 
-    int first_slice_in_pic_flag = get_bits1(gb);
+    // Coded parameters
+    first_slice_in_pic_flag = get_bits1(gb);
 #if PARALLEL_SLICE
     if (IS_IRAP(s)) {
         if(!first_slice_in_pic_flag) {
@@ -633,10 +634,10 @@ static int hls_slice_header(HEVCContext *s)
 #endif
     sh->first_slice_in_pic_flag   = first_slice_in_pic_flag;
     if (s1->force_first_slice_in_pic) {
-      if (!sh->first_slice_in_pic_flag) {
-        av_log(s->avctx, AV_LOG_DEBUG, "First_slice_in_pic_flag forced\n");
-        sh->first_slice_in_pic_flag = 1;
-      }
+        if (!sh->first_slice_in_pic_flag) {
+            av_log(s->avctx, AV_LOG_DEBUG, "First_slice_in_pic_flag forced\n");
+            sh->first_slice_in_pic_flag = 1;
+        }
       s1->force_first_slice_in_pic = 0;
     }
 
@@ -701,8 +702,7 @@ static int hls_slice_header(HEVCContext *s)
     s->avctx->level   = s->ps.sps->ptl.general_ptl.level_idc;
 
     sh->dependent_slice_segment_flag = 0;
-//    if (!sh->first_slice_in_pic_flag) {
-    if(!first_slice_in_pic_flag) {
+    if (!sh->first_slice_in_pic_flag) {
         int slice_address_length;
 
         if (s->ps.pps->dependent_slice_segments_enabled_flag){
@@ -1418,7 +1418,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
         if (cbf_luma)
             ff_hevc_hls_residual_coding(s, x0, y0, log2_trafo_size, scan_idx, 0
 #if COM16_C806_EMT
-            		, log2_cb_size
+                                        , log2_cb_size
 #endif
             );
         if (s->ps.sps->chroma_format_idc && (log2_trafo_size > 2 || s->ps.sps->chroma_format_idc == 3)) {
@@ -1438,7 +1438,11 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                 }
                 if (cbf_cb[i])
                     ff_hevc_hls_residual_coding(s, x0, y0 + (i << log2_trafo_size_c),
-                                                log2_trafo_size_c, scan_idx_c, 1);
+                                                log2_trafo_size_c, scan_idx_c, 1
+#if COM16_C806_EMT
+                                                , log2_cb_size
+#endif
+                    );
                 else
                     if (lc->tu.cross_pf) {
                         ptrdiff_t stride = s->frame->linesize[1];
@@ -1469,7 +1473,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                     ff_hevc_hls_residual_coding(s, x0, y0 + (i << log2_trafo_size_c),
                                                 log2_trafo_size_c, scan_idx_c, 2
 #if COM16_C806_EMT
-            		, log2_cb_size
+                                                , log2_cb_size
 #endif
                     );
                 else
@@ -1502,7 +1506,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                     ff_hevc_hls_residual_coding(s, xBase, yBase + (i << log2_trafo_size),
                                                 log2_trafo_size, scan_idx_c, 1
 #if COM16_C806_EMT
-            		, log2_cb_size
+                                                , log2_cb_size
 #endif
             		);
             }
@@ -1516,7 +1520,7 @@ static int hls_transform_unit(HEVCContext *s, int x0, int y0,
                     ff_hevc_hls_residual_coding(s, xBase, yBase + (i << log2_trafo_size),
                                                 log2_trafo_size, scan_idx_c, 2
 #if COM16_C806_EMT
-            		, log2_cb_size
+                                                , log2_cb_size
 #endif
                     );
             }
@@ -1644,6 +1648,13 @@ static int hls_transform_tree(HEVCContext *s, int x0, int y0,
         const int trafo_size_split = 1 << (log2_trafo_size - 1);
         const int x1 = x0 + trafo_size_split;
         const int y1 = y0 + trafo_size_split;
+
+#if COM16_C806_EMT
+        if (0==trafo_depth)
+        {
+            s->HEVClc->cu.emt_cu_flag = ff_hevc_emt_cu_flag_decode(s, log2_cb_size, 1);
+        }
+#endif
 
 #define SUBDIVIDE(x, y, idx)                                                    \
 do {                                                                            \
@@ -4183,8 +4194,8 @@ static int hevc_decode_frame(AVCodecContext *avctx, void *data, int *got_output,
 
     if (avpkt->pts != AV_NOPTS_VALUE) {
       if (! s->last_frame_pts || (s->last_frame_pts!=avpkt->pts)) {
-        av_log(s->avctx, AV_LOG_DEBUG, "Forcing first_slice_in_pic_flag for pts %lld\n", avpkt->pts);
-        s->force_first_slice_in_pic = 1;
+          av_log(s->avctx, AV_LOG_DEBUG, "Forcing first_slice_in_pic_flag for pts %lld\n", avpkt->pts);
+          s->force_first_slice_in_pic = 1;
       }
       s->last_frame_pts = avpkt->pts;
     }
