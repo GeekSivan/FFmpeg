@@ -4254,7 +4254,9 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
     int i;
 
     pic_arrays_free(s);
+#if HEVC_ENCRYPTION
     DeleteCryptoC(s->HEVClc->dbs_g);
+#endif
     av_freep(&s->md5_ctx);
 
     for(i=0; i < s->nals_allocated; i++) {
