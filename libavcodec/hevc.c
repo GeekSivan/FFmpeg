@@ -1141,9 +1141,9 @@ else
         }
         if (sh->num_entry_point_offsets > 0) {
             int offset_len = get_ue_golomb_long(gb) + 1;
-            print_cabac("offset_len_minus1", offset_len-1);
             int segments = offset_len >> 4;
             int rest = (offset_len & 15);
+            print_cabac("offset_len_minus1", offset_len-1);
             av_freep(&sh->entry_point_offset);
             av_freep(&sh->offset);
             av_freep(&sh->size);
