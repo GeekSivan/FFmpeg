@@ -1709,25 +1709,29 @@ static void upsample_block_luma(HEVCContext *s, HEVCFrame *ref0, int x0, int y0)
 
     AVFrame *bl_frame;
 
+
     pixel *dst = (pixel*)ref0->frame->data[0];
     int ctb_size  = 1<<s->ps.sps->log2_ctb_size;
     int el_width  =  s->ps.sps->width;
     int el_height =  s->ps.sps->height;
+
+    //HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
+    int bl_height =  s->BL_height;
+    int bl_width  =  s->BL_width;
+
+    int bl_stride;
+
+    int el_stride =  ref0->frame->linesize[0]/sizeof(pixel);
+    int ePbW = x0 + ctb_size > el_width  ? el_width  - x0 : ctb_size;
+    int ePbH = y0 + ctb_size > el_height ? el_height - y0 : ctb_size;
 
     if(s->ps.vps->vps_nonHEVCBaseLayerFlag){ // fixme: Not very efficient the cast could be done before instead of doing it for each block
         bl_frame = ((H264Picture *)s->BL_frame)->f;
     } else {
         bl_frame = ((HEVCFrame *)s->BL_frame)->frame;
     }
-    //HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
-    int bl_height =  s->BL_height;
-    int bl_width  =  s->BL_width;
 
-    int bl_stride =  bl_frame->linesize[0];
-
-    int el_stride =  ref0->frame->linesize[0]/sizeof(pixel);
-    int ePbW = x0 + ctb_size > el_width  ? el_width  - x0 : ctb_size;
-    int ePbH = y0 + ctb_size > el_height ? el_height - y0 : ctb_size;
+    bl_stride =  bl_frame->linesize[0];
 
     if (s->up_filter_inf.idx == SNR) { /* x1 quality (SNR) scalability */
       copy_block ( s, bl_frame->data[0] + y0 * bl_stride + x0,
@@ -1814,17 +1818,14 @@ static void upsample_block_mc(HEVCContext *s, HEVCFrame *ref0, int x0, int y0) {
     int el_width  =  s->ps.sps->width>>1;
     int el_height =  s->ps.sps->height>>1;
 
-    if(s->ps.vps->vps_nonHEVCBaseLayerFlag){// fixme: Not very efficient the cast could be done before instead of doing it for each block
-        bl_frame = ((H264Picture *)s->BL_frame)->f;
-    }else {
-        bl_frame = ((HEVCFrame *)s->BL_frame)->frame;
-    }
-    //HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
     int bl_height = s->BL_height >> 1;
     int bl_width  = s->BL_width  >> 1;
+
+    //HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
+
     //int bl_width  =  bl_frame->width  >>1;
     //int bl_height =  bl_frame->height >>1;// > el_height ? bl_frame->height>>1:el_height;
-    int bl_stride =  bl_frame->linesize[1];
+    int bl_stride;
 
     int ret, cr, bl_edge_top0;
     int ctb_size = 1<<(s->ps.sps->log2_ctb_size-1);
@@ -1833,6 +1834,14 @@ static void upsample_block_mc(HEVCContext *s, HEVCFrame *ref0, int x0, int y0) {
     int ePbH = y0 + ctb_size > el_height ? el_height - y0 : ctb_size;
 
     int el_stride = ref0->frame->linesize[1]/sizeof(pixel);
+
+    if(s->ps.vps->vps_nonHEVCBaseLayerFlag){// fixme: Not very efficient the cast could be done before instead of doing it for each block
+        bl_frame = ((H264Picture *)s->BL_frame)->f;
+    }else {
+        bl_frame = ((HEVCFrame *)s->BL_frame)->frame;
+    }
+
+    bl_stride =  bl_frame->linesize[0];
 
     if (s->up_filter_inf.idx == SNR) {
         for (cr = 1; cr <= 2; cr++) {
