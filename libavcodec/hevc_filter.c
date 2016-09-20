@@ -1374,8 +1374,7 @@ static void copy_block(HEVCContext *s, uint8_t *src, uint8_t * dst, ptrdiff_t bl
 
 static void colorMapping(HEVCContext *s, uint8_t *src_y, uint8_t *src_u, uint8_t *src_v, int src_stride, int src_stridec,int x0, int y0, int x0_cr, int y0_cr, int bl_width, int bl_height, int el_width, int el_height) {
     int i, j, k;
-    int ctb_size  = 1<<s->ps.sps->log2_ctb_size;
-    ctb_size = ((( ctb_size  ) * s->up_filter_inf.scaleXCr - s->up_filter_inf.addXLum) >> 12)  >> 4;
+    int ctb_size  = ((( 1<<s->ps.sps->log2_ctb_size) * s->up_filter_inf.scaleXCr - s->up_filter_inf.addXLum) >> 12)  >> 4;
     uint8_t srcYaver, tmpU, tmpV;
     uint16_t val[6], val_dst[6], val_prev[2];
     pixel *src_U_prev, *src_V_prev, *src_U_next, *src_V_next;
