@@ -1351,26 +1351,26 @@ static void copy_block(HEVCContext *s, uint8_t *src, uint8_t * dst, ptrdiff_t bl
 #endif
 }
 
-static void copy_block_16(HEVCContext *s, uint16_t *src, uint16_t * dst, ptrdiff_t bl_stride, ptrdiff_t el_stride, int ePbH, int ePbW, enum ChannelType channel ) {
-    int i;
-#if 0
-    for (i = 0; i < ePbH ; i++) {
-        memcpy(dst, src, ePbW * sizeof(pixel));
-        src += bl_stride;
-        dst += el_stride;
-    }
-#else
-    int j/*, refLayerId*/ = 0;
-    int shift = s->up_filter_inf.shift[channel];
-    for (i = 0; i < ePbH ; i++) {
-        for (j = 0; j < ePbW ; j++){
-            dst[j] = src[j]<<shift;
-        }
-        src += bl_stride;
-        dst += el_stride;
-    }
-#endif
-}
+//static void copy_block_16(HEVCContext *s, uint16_t *src, uint16_t * dst, ptrdiff_t bl_stride, ptrdiff_t el_stride, int ePbH, int ePbW, enum ChannelType channel ) {
+//    int i;
+//#if 0
+//    for (i = 0; i < ePbH ; i++) {
+//        memcpy(dst, src, ePbW * sizeof(pixel));
+//        src += bl_stride;
+//        dst += el_stride;
+//    }
+//#else
+//    int j/*, refLayerId*/ = 0;
+//    int shift = s->up_filter_inf.shift[channel];
+//    for (i = 0; i < ePbH ; i++) {
+//        for (j = 0; j < ePbW ; j++){
+//            dst[j] = src[j]<<shift;
+//        }
+//        src += bl_stride;
+//        dst += el_stride;
+//    }
+//#endif
+//}
 
 static void colorMapping(HEVCContext *s, uint8_t *src_y, uint8_t *src_u, uint8_t *src_v, int src_stride, int src_stridec,int x0, int y0, int x0_cr, int y0_cr, int bl_width, int bl_height, int el_width, int el_height) {
     int i, j, k;
