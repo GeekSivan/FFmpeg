@@ -868,7 +868,7 @@ static void derive_necessary_layer_flag(HEVCVPS *vps) {
 #define MAX_VPS_NUM_SCALABILITY_TYPES 16
 
 static void parse_vps_extension (GetBitContext *gb, AVCodecContext *avctx, HEVCVPS *vps)  {
-    int i, j, k, num_scalability_types = 0;
+    int i, j, /*k,*/ num_scalability_types = 0;
     //GetBitContext   *gb             = &s->HEVClc->gb;
     HEVCVPSExt      *Hevc_VPS_Ext   = &vps->Hevc_VPS_Ext;
     int NumOutputLayersInOutputLayerSet[16],  layerSetIdxForOutputLayerSet;
@@ -1139,7 +1139,6 @@ int ff_hevc_decode_nal_vps(GetBitContext *gb, AVCodecContext *avctx,
 {
     int i,j;
     int vps_id = 0;
-    ptrdiff_t nal_size;
     HEVCVPS *vps;
     AVBufferRef *vps_buf = av_buffer_allocz(sizeof(*vps));
 
@@ -1148,17 +1147,6 @@ int ff_hevc_decode_nal_vps(GetBitContext *gb, AVCodecContext *avctx,
     vps = (HEVCVPS*)vps_buf->data;
 
     av_log(avctx, AV_LOG_DEBUG, "Decoding VPS\n");
-
-    nal_size = gb->buffer_end - gb->buffer;
-    if (nal_size > sizeof(vps->data)) {
-        av_log(avctx, AV_LOG_WARNING, "Truncating likely oversized VPS "
-               "(%"PTRDIFF_SPECIFIER" > %"SIZE_SPECIFIER")\n",
-               nal_size, sizeof(vps->data));
-        vps->data_size = sizeof(vps->data);
-    } else {
-        vps->data_size = nal_size;
-    }
-    memcpy(vps->data, gb->buffer, vps->data_size);
 
     vps_id = get_bits(gb, 4);
     if (vps_id >= MAX_VPS_COUNT) {
@@ -1639,7 +1627,7 @@ static int sps_range_extensions(GetBitContext *gb, AVCodecContext *avctx, HEVCSP
                "cabac_bypass_alignment_enabled_flag not yet implemented\n");
     return 0;
 }
-
+//Fixme: this functions only reads one element and returns nothing
 static int sps_multilayer_extensions(GetBitContext *gb, AVCodecContext *avctx, HEVCSPS *sps)
 {
     //GetBitContext *gb = &s->HEVClc->gb;
@@ -1657,10 +1645,10 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
     int ret    = 0;
     //int sps_id = 0;
     int log2_diff_max_min_transform_block_size;
-    int bit_depth_chroma, start, vui_present, sublayer_ordering_info;
+    int /*bit_depth_chroma,*/ start, vui_present, sublayer_ordering_info;
     int i;
     uint8_t bMultiLayerExtSpsFlag ;
-    
+    int sps_extension_flag;
     //HEVCSPS *sps;
     HEVCVPS *vps;
     //AVBufferRef *sps_buf = av_buffer_allocz(sizeof(*sps));
@@ -1737,6 +1725,7 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
          sps->update_rep_format_flag = 0;
 
     if(!bMultiLayerExtSpsFlag) {
+        int conformance_window_flag;
         sps->chroma_format_idc = get_ue_golomb_long(gb);
         print_cabac("chroma_format_idc", sps->chroma_format_idc);
         if (!(sps->chroma_format_idc == 0 || sps->chroma_format_idc == 1 || sps->chroma_format_idc == 2 || sps->chroma_format_idc == 3)) {
@@ -1762,7 +1751,7 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
             return ret;
     
    
-        int conformance_window_flag = get_bits1(gb);
+        conformance_window_flag = get_bits1(gb);
         print_cabac("conformance_window_flag", conformance_window_flag);
         if (conformance_window_flag) { // pic_conformance_flag
             int vert_mult  = 1 + (sps->chroma_format_idc < 2);
@@ -2087,7 +2076,7 @@ int ff_hevc_parse_sps(HEVCSPS *sps, GetBitContext *gb, unsigned int *sps_id,
     printf("%d \n",sps->use_inter_emt);
 #endif
 
-    int sps_extension_flag = get_bits1(gb); 
+    sps_extension_flag = get_bits1(gb);
     print_cabac("sps_extension_flag", sps_extension_flag);
     if (sps_extension_flag) {
         int sps_extension_flag[2];
@@ -2216,24 +2205,12 @@ int ff_hevc_decode_nal_sps(GetBitContext *gb, AVCodecContext *avctx,
     AVBufferRef *sps_buf = av_buffer_allocz(sizeof(*sps));
     unsigned int sps_id;
     int ret;
-    ptrdiff_t nal_size;
 
     if (!sps_buf)
         return AVERROR(ENOMEM);
     sps = (HEVCSPS*)sps_buf->data;
 
     av_log(avctx, AV_LOG_DEBUG, "Decoding SPS\n");
-
-    nal_size = gb->buffer_end - gb->buffer;
-    if (nal_size > sizeof(sps->data)) {
-        av_log(avctx, AV_LOG_WARNING, "Truncating likely oversized SPS "
-               "(%"PTRDIFF_SPECIFIER" > %"SIZE_SPECIFIER")\n",
-               nal_size, sizeof(sps->data));
-        sps->data_size = sizeof(sps->data);
-    } else {
-        sps->data_size = nal_size;
-    }
-    memcpy(sps->data, gb->buffer, sps->data_size);
 
     ret = ff_hevc_parse_sps(sps, gb, &sps_id,
                             apply_defdispwin,
@@ -2757,7 +2734,7 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
     HEVCSPS      *sps = NULL;
     int i, ret = 0;
     unsigned int pps_id = 0;
-    ptrdiff_t nal_size;
+    uint8_t pps_extension_present_flag;
 
     AVBufferRef *pps_buf;
     HEVCPPS *pps = av_mallocz(sizeof(*pps));
@@ -2774,17 +2751,6 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
     }
 
     av_log(avctx, AV_LOG_DEBUG, "Decoding PPS\n");
-
-    nal_size = gb->buffer_end - gb->buffer;
-    if (nal_size > sizeof(pps->data)) {
-        av_log(avctx, AV_LOG_WARNING, "Truncating likely oversized PPS "
-               "(%"PTRDIFF_SPECIFIER" > %"SIZE_SPECIFIER")\n",
-               nal_size, sizeof(pps->data));
-        pps->data_size = sizeof(pps->data);
-    } else {
-        pps->data_size = nal_size;
-    }
-    memcpy(pps->data, gb->buffer, pps->data_size);
 
     // Default values
     pps->loop_filter_across_tiles_enabled_flag = 1;
@@ -3018,7 +2984,7 @@ int ff_hevc_decode_nal_pps(GetBitContext *gb, AVCodecContext *avctx,
     print_cabac("slice_segment_header_extension_present_flag", pps->slice_header_extension_present_flag);
 
     
-    uint8_t pps_extension_present_flag = get_bits1(gb);
+    pps_extension_present_flag = get_bits1(gb);
     print_cabac("pps_extension_present_flag", pps_extension_present_flag);
 
     if (pps_extension_present_flag) { // pps_extension_present_flag
