@@ -120,7 +120,9 @@ static int pic_arrays_init(HEVCContext *s, const HEVCSPS *sps)
     int log2_min_cb_size = sps->log2_min_cb_size;
     int width            = sps->width;
     int height           = sps->height;
+#if ACTIVE_PU_UPSAMPLING
     int pic_size         = width * height;
+#endif
     int pic_size_in_ctb  = ((width  >> log2_min_cb_size) + 1) *
                            ((height >> log2_min_cb_size) + 1);
     int ctb_count        = sps->ctb_width * sps->ctb_height;
