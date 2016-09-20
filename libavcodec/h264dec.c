@@ -499,9 +499,10 @@ static void decode_postinit(H264Context *h, int setup_finished)
     const SPS *sps = h->ps.sps;
     H264Picture *out = h->cur_pic_ptr;
     H264Picture *cur = h->cur_pic_ptr;
-    h->avctx->BL_frame=out;
     int i, pics, out_of_order, out_idx;
-
+#if SVC_EXTENSION
+    h->avctx->BL_frame=out;
+#endif
     if (h->next_output_pic)
         return;
 
