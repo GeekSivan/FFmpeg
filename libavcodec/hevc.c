@@ -421,7 +421,7 @@ static int get_buffer_sao(HEVCContext *s, AVFrame *frame, const HEVCSPS *sps)
 static int set_sps(HEVCContext *s, const HEVCSPS *sps, enum AVPixelFormat pix_fmt)
 {
     int ret;
-    unsigned int num = 0, den = 0;
+    //unsigned int num = 0, den = 0;
 
     pic_arrays_free(s);
     s->ps.sps = NULL;
