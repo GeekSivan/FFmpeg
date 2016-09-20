@@ -399,6 +399,7 @@ static void export_stream_params(AVCodecContext *avctx, const HEVCParamSets *ps,
                   num, den, 1 << 30);
 }
 
+#ifndef USE_SAO_SMALL_BUFFER
 static int get_buffer_sao(HEVCContext *s, AVFrame *frame, const HEVCSPS *sps)
 {
     int ret, i;
@@ -417,6 +418,7 @@ static int get_buffer_sao(HEVCContext *s, AVFrame *frame, const HEVCSPS *sps)
 
     return 0;
 }
+#endif
 
 static int set_sps(HEVCContext *s, const HEVCSPS *sps, enum AVPixelFormat pix_fmt)
 {
