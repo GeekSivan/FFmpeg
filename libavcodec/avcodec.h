@@ -370,6 +370,7 @@ enum AVCodecID {
     AV_CODEC_ID_HNM4_VIDEO,
     AV_CODEC_ID_HEVC,
 #define AV_CODEC_ID_H265 AV_CODEC_ID_HEVC
+    AV_CODEC_ID_SHVC,
     AV_CODEC_ID_FIC,
     AV_CODEC_ID_ALIAS_PIX,
     AV_CODEC_ID_BRENDER_PIX,
@@ -3106,6 +3107,7 @@ typedef struct AVCodecContext {
     int thread_type;
 #define FF_THREAD_FRAME   1 ///< Decode more than one frame at once
 #define FF_THREAD_SLICE   2 ///< Decode more than one part of a single frame at once
+#define FF_THREAD_FRAME_SLICE   4 ///< Decode more than one part of a single frame at once at more than one frame at once
 
     /**
      * Which multithreading methods are in use by the codec.
@@ -3259,6 +3261,10 @@ typedef struct AVCodecContext {
 #define FF_PROFILE_HEVC_MAIN_10                     2
 #define FF_PROFILE_HEVC_MAIN_STILL_PICTURE          3
 #define FF_PROFILE_HEVC_REXT                        4
+#define FF_PROFILE_HEVC_HIGHTHROUGHPUTREXT          5
+#define FF_PROFILE_HEVC_MULTIVIEWMAIN               6
+#define FF_PROFILE_HEVC_SCALABLEMAIN                7
+#define FF_PROFILE_HEVC_SCALABLEMAIN10              8
 
     /**
      * level
@@ -3487,6 +3493,22 @@ typedef struct AVCodecContext {
      * - decoding: set by user through AVOPtions (NO direct access)
      */
     char *codec_whitelist;
+
+    /**
+     * thread count for opaque2
+     * is used to decide how many independent tasks should be passed to execute()
+     * - encoding: Set by user.
+     * - decoding: Set by user.
+     */
+    int thread_count_frame;
+ 
+    /**
+     *  The decoded picture at layer n for SHVC decoder
+     *  this frame is used by the layer (n+1) as refernce frame for inter-layer predictions 
+     */
+    void *BL_frame;
+    void *BL_avcontext;
+    int quality_id;
 
     /*
      * Properties of the stream that gets decoded

@@ -174,6 +174,48 @@ static int hevc_find_frame_end(AVCodecParserContext *s, const uint8_t *buf,
     return END_NOT_FOUND;
 }
 
+static int hevc_find_frame_end2(AVCodecParserContext *s, const uint8_t *buf,
+                               int buf_size)
+{
+    int i;
+    ParseContext *pc = s->priv_data;
+
+    for (i = 0; i < buf_size; i++) {
+        int nut, layer_id;
+
+        pc->state64 = (pc->state64 << 8) | buf[i];
+
+        if (((pc->state64 >> 3 * 8) & 0xFFFFFF) != START_CODE)
+            continue;
+        //frame_counter++;
+
+        nut = (pc->state64 >> 2 * 8 + 1) & 0x3F;
+        layer_id  =  (((pc->state64 >> 2 * 8) &0x01)<<5) + (((pc->state64 >> 1 * 8)&0xF8)>>3);
+        //printf("Frame_counter : %d\nNAL Unit : %d \nLayer ID : %d\n", frame_counter, nut, layer_id);
+        // Beginning of access unit
+        if ((nut >= NAL_VPS && nut <= NAL_AUD) || nut == NAL_SEI_PREFIX ||
+            (nut >= 41 && nut <= 44) || (nut >= 48 && nut <= 55)) {
+            if (pc->frame_start_found && !layer_id) {
+                pc->frame_start_found = 0;
+                return i - 5;
+            }
+        } else if (nut <= NAL_RASL_R ||
+                   (nut >= NAL_BLA_W_LP && nut <= NAL_CRA_NUT)) {
+            int first_slice_segment_in_pic_flag = buf[i] >> 7;
+            if (first_slice_segment_in_pic_flag && !layer_id) {
+                if (!pc->frame_start_found) {
+                    pc->frame_start_found = 1;
+                } else { // First slice of next frame found
+                    pc->frame_start_found = 0;
+                    return i - 5;
+                }
+            }
+        }
+    }
+
+    return END_NOT_FOUND;
+}
+
 #if ADVANCED_PARSER
 /**
  * Parse NAL units of found picture and decode some basic information.
@@ -237,6 +279,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, const uint8_t *buf,
 
         h->nal_unit_type = (*buf >> 1) & 0x3f;
         h->temporal_id   = (*(buf + 1) & 0x07) - 1;
+        //h->nuh_layer_id  =  (((*buf)&0x01)<<5) + (((*(buf+1))&0xF8)>>3);
         if (h->nal_unit_type <= NAL_CRA_NUT) {
             // Do not walk the whole buffer just to decode slice segment header
             if (src_length > 20)
@@ -256,7 +299,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, const uint8_t *buf,
             ff_hevc_decode_nal_vps(gb, avctx, ps);
             break;
         case NAL_SPS:
-            ff_hevc_decode_nal_sps(gb, avctx, ps, 1);
+            ff_hevc_decode_nal_sps(gb, avctx, ps, 1, 1/*h->nuh_layer_id*/);
             break;
         case NAL_PPS:
             ff_hevc_decode_nal_pps(gb, avctx, ps);
@@ -281,6 +324,22 @@ static inline int parse_nal_units(AVCodecParserContext *s, const uint8_t *buf,
         case NAL_IDR_W_RADL:
         case NAL_IDR_N_LP:
         case NAL_CRA_NUT:
+            av_log(h->avctx, AV_LOG_DEBUG, "parsing NALU %d\n", h->decoder_id);
+            switch(h->picture_struct) {
+                case  0 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "(progressive) frame \n"); break;
+                case  1 : s->picture_structure = AV_PICTURE_STRUCTURE_TOP_FIELD;    av_log(h->avctx, AV_LOG_DEBUG, "top field\n"); break;
+                case  2 : s->picture_structure = AV_PICTURE_STRUCTURE_BOTTOM_FIELD; av_log(h->avctx, AV_LOG_DEBUG, "bottom field\n"); break;
+                case  3 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "top field, bottom field, in that order\n"); break;
+                case  4 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "bottom field, top field, in that order\n"); break;
+                case  5 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "top field, bottom field, top field repeated, in that order\n"); break;
+                case  6 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "bottom field, top field, bottom field repeated, in that order\n"); break;
+                case  7 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "frame doubling\n"); break;
+                case  8 : s->picture_structure = AV_PICTURE_STRUCTURE_FRAME;        av_log(h->avctx, AV_LOG_DEBUG, "frame tripling\n"); break;
+                case  9 : s->picture_structure = AV_PICTURE_STRUCTURE_TOP_FIELD;    av_log(h->avctx, AV_LOG_DEBUG, "top field paired with previous bottom field in output order\n"); break;
+                case 10 : s->picture_structure = AV_PICTURE_STRUCTURE_BOTTOM_FIELD; av_log(h->avctx, AV_LOG_DEBUG, "bottom field paired with previous top field in output order\n"); break;
+                case 11 : s->picture_structure = AV_PICTURE_STRUCTURE_TOP_FIELD;    av_log(h->avctx, AV_LOG_DEBUG, "top field paired with next bottom field in output order\n"); break;
+                case 12 : s->picture_structure = AV_PICTURE_STRUCTURE_BOTTOM_FIELD; av_log(h->avctx, AV_LOG_DEBUG, "bottom field paired with next top field in output order\n"); break;
+            }
 
             if (is_global) {
                 av_log(avctx, AV_LOG_ERROR, "Invalid NAL unit: %d\n", h->nal_unit_type);
@@ -399,6 +458,7 @@ static int hevc_parse(AVCodecParserContext *s,
         next = buf_size;
     } else {
         next = hevc_find_frame_end(s, buf, buf_size);
+        //printf("Position of next frame : %d\n", next);
         if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
             *poutbuf      = NULL;
             *poutbuf_size = 0;
@@ -413,6 +473,38 @@ static int hevc_parse(AVCodecParserContext *s,
     return next;
 }
 
+static int hevc_parse2(AVCodecParserContext *s,
+                      AVCodecContext *avctx,
+                      const uint8_t **poutbuf, int *poutbuf_size,
+                      const uint8_t *buf, int buf_size)
+{
+    int next;
+    HEVCParserContext *ctx = s->priv_data;
+    ParseContext *pc = &ctx->pc;
+
+    if (avctx->extradata && !ctx->parsed_extradata) {
+        parse_nal_units(s, avctx->extradata, avctx->extradata_size, avctx);
+        ctx->parsed_extradata = 1;
+    }
+
+    if (s->flags & PARSER_FLAG_COMPLETE_FRAMES) {
+        next = buf_size;
+    } else {
+        next = hevc_find_frame_end2(s, buf, buf_size);
+        //printf("Position of next frame : %d\n", next);
+        if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
+            *poutbuf      = NULL;
+            *poutbuf_size = 0;
+            return buf_size;
+        }
+    }
+
+    parse_nal_units(s, buf, buf_size, avctx);
+
+    *poutbuf      = buf;
+    *poutbuf_size = buf_size;
+    return next;
+}
 // Split after the parameter sets at the beginning of the stream if they exist.
 static int hevc_split(AVCodecContext *avctx, const uint8_t *buf, int buf_size)
 {
@@ -484,6 +576,15 @@ AVCodecParser ff_hevc_parser = {
     .codec_ids      = { AV_CODEC_ID_HEVC },
     .priv_data_size = sizeof(HEVCParserContext),
     .parser_parse   = hevc_parse,
+    .parser_close   = hevc_parser_close,
+    .split          = hevc_split,
+};
+
+
+AVCodecParser ff_shvc_parser = {
+    .codec_ids      = { AV_CODEC_ID_SHVC },
+    .priv_data_size = sizeof(HEVCParserContext),
+    .parser_parse   = hevc_parse2,
     .parser_close   = hevc_parser_close,
     .split          = hevc_split,
 };

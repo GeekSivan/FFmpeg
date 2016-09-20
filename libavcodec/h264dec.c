@@ -322,6 +322,16 @@ static int h264_init_context(AVCodecContext *avctx, H264Context *h)
     h->sei.frame_packing.frame_packing_arrangement_cancel_flag = -1;
     h->sei.unregistered.x264_build = -1;
 
+#if SVC_EXTENSION
+    h->poc_id = 0;
+    for (i = 0; i < FF_ARRAY_ELEMS(h->Add_ref); i++) {
+        h->Add_ref[i].f = av_frame_alloc();
+        if (!h->Add_ref[i].f)
+            break;
+        h->Add_ref[i].tf.f = h->Add_ref[i].f;
+    }
+#endif
+
     h->next_outputed_poc = INT_MIN;
     for (i = 0; i < MAX_DELAYED_PIC_COUNT; i++)
         h->last_pocs[i] = INT_MIN;
@@ -385,6 +395,16 @@ static av_cold int h264_decode_end(AVCodecContext *avctx)
     av_frame_free(&h->cur_pic.f);
     ff_h264_unref_picture(h, &h->last_pic_for_ec);
     av_frame_free(&h->last_pic_for_ec.f);
+
+#if SVC_EXTENSION
+{
+    int i;
+    for (i = 0; i < FF_ARRAY_ELEMS(h->Add_ref); i++) {
+        ff_h264_unref_picture(h, &h->Add_ref[i]);
+        av_frame_free(&h->Add_ref[i].f);
+    }
+}
+#endif
 
     return 0;
 }
@@ -479,6 +499,7 @@ static void decode_postinit(H264Context *h, int setup_finished)
     const SPS *sps = h->ps.sps;
     H264Picture *out = h->cur_pic_ptr;
     H264Picture *cur = h->cur_pic_ptr;
+    h->avctx->BL_frame=out;
     int i, pics, out_of_order, out_idx;
 
     if (h->next_output_pic)
@@ -960,7 +981,11 @@ end:
     }
 #endif /* CONFIG_ERROR_RESILIENCE */
     /* clean up */
+#if SVC_EXTENSION
+    if (h->cur_pic_ptr /*&& !h->droppable*/) {
+#else
     if (h->cur_pic_ptr && !h->droppable) {
+#endif
         ff_thread_report_progress(&h->cur_pic_ptr->tf, INT_MAX,
                                   h->picture_structure == PICT_BOTTOM_FIELD);
     }

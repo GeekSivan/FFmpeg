@@ -395,7 +395,9 @@ int ff_h264_update_thread_context(AVCodecContext *dst,
     h->backup_width         = h1->backup_width;
     h->backup_height        = h1->backup_height;
     h->backup_pix_fmt       = h1->backup_pix_fmt;
-
+#if SVC_EXTENSION
+    h->poc_id               = h1->poc_id;
+#endif
     for (i = 0; i < H264_MAX_PICTURE_COUNT; i++) {
         ff_h264_unref_picture(h, &h->DPB[i]);
         if (h1->DPB[i].f->buf[0] &&
@@ -492,6 +494,11 @@ static int h264_frame_start(H264Context *h)
     pic->f->coded_picture_number = h->coded_picture_number++;
     pic->field_picture          = h->picture_structure != PICT_FRAME;
     pic->frame_num               = h->poc.frame_num;
+
+#if SVC_EXTENSION
+    h->poc_id++;
+    h->poc_id &= 1023;
+#endif
     /*
      * Zero key_frame here; IDR markings per slice in frame or fields are ORed
      * in later.
@@ -522,6 +529,24 @@ static int h264_frame_start(H264Context *h)
 
     if ((ret = ff_h264_ref_picture(h, &h->cur_pic, h->cur_pic_ptr)) < 0)
         return ret;
+
+#if SVC_EXTENSION
+           //{int i;
+            if(h->avctx->active_thread_type & FF_THREAD_FRAME){
+                for (i = 0; i < FF_ARRAY_ELEMS(h->Add_ref); i++) {
+                    H264Picture *frame = &h->Add_ref[i];
+                    if (frame->f->buf[0])
+                        continue;
+                    ret = ff_h264_ref_picture(h, &h->Add_ref[i], h->cur_pic_ptr);
+                    if (ret < 0)
+                        return ret;
+                    ff_thread_report_il_progress(h->avctx, h->poc_id, &h->Add_ref[i], &h->Add_ref[i]);
+                    break;
+                }
+            if(i==FF_ARRAY_ELEMS(h->Add_ref))
+               av_log(h->avctx, AV_LOG_ERROR, "Error allocating frame, Addditional DPB full, decoder_%d.\n", 0);
+    }
+#endif
 
     for (i = 0; i < h->nb_slice_ctx; i++) {
         h->slice_ctx[i].linesize   = h->cur_pic_ptr->f->linesize[0];
@@ -1811,7 +1836,12 @@ int ff_h264_decode_slice_header(H264Context *h, H264SliceContext *sl,
         }
 
         if (!h->first_field) {
+#if SVC_EXTENSION
+            if (h->cur_pic_ptr /*&& !h->droppable*/) {
+#else
             if (h->cur_pic_ptr && !h->droppable) {
+#endif
+
                 ff_thread_report_progress(&h->cur_pic_ptr->tf, INT_MAX,
                                           h->picture_structure == PICT_BOTTOM_FIELD);
             }

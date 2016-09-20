@@ -350,7 +350,9 @@ typedef struct H264Context {
     H264Picture *cur_pic_ptr;
     H264Picture cur_pic;
     H264Picture last_pic_for_ec;
-
+#if SVC_EXTENSION
+    H264Picture Add_ref[2];
+#endif
     H264SliceContext *slice_ctx;
     int            nb_slice_ctx;
 
@@ -460,7 +462,9 @@ typedef struct H264Context {
     uint16_t *slice_table_base;
 
     H264POCContext poc;
-
+#if SVC_EXTENSION
+    int poc_id;
+#endif
     H264Ref default_ref[2];
     H264Picture *short_ref[32];
     H264Picture *long_ref[32];

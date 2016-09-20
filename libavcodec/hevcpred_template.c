@@ -83,7 +83,6 @@ do {                                  \
     int y = y0 >> vshift;
     int x_tb = (x0 >> s->ps.sps->log2_min_tb_size) & s->ps.sps->tb_mask;
     int y_tb = (y0 >> s->ps.sps->log2_min_tb_size) & s->ps.sps->tb_mask;
-
     int cur_tb_addr = MIN_TB_ADDR_ZS(x_tb, y_tb);
 
     ptrdiff_t stride = s->frame->linesize[c_idx] / sizeof(pixel);
@@ -117,8 +116,8 @@ do {                                  \
     if (s->ps.pps->constrained_intra_pred_flag == 1) {
         int size_in_luma_pu_v = PU(size_in_luma_v);
         int size_in_luma_pu_h = PU(size_in_luma_h);
-        int on_pu_edge_x    = !av_mod_uintp2(x0, s->ps.sps->log2_min_pu_size);
-        int on_pu_edge_y    = !av_mod_uintp2(y0, s->ps.sps->log2_min_pu_size);
+        int on_pu_edge_x    = !(x0 & ((1 << s->ps.sps->log2_min_pu_size) - 1));
+        int on_pu_edge_y    = !(y0 & ((1 << s->ps.sps->log2_min_pu_size) - 1));
         if (!size_in_luma_pu_h)
             size_in_luma_pu_h++;
         if (cand_bottom_left == 1 && on_pu_edge_x) {

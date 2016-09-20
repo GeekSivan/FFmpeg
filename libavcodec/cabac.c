@@ -185,12 +185,13 @@ int ff_init_cabac_decoder(CABACContext *c, const uint8_t *buf, int buf_size){
     // Keep our fetches on a 2-byte boundry as this should avoid ever having to
     // do unaligned loads if the compiler (or asm) optimises the double byte
     // load into a single instruction
-    if(((uintptr_t)c->bytestream & 1) == 0) {
-        c->low += (1 << 9);
-    }
-    else {
+    //fixme: This breaks conformance with DELTAQP_A_BRCM_4.bit
+//    if(((uintptr_t)c->bytestream & 1) == 0) {
+//        c->low += (1 << 9);
+//    }
+//    else {
         c->low += ((*c->bytestream++) << 2) + 2;
-    }
+//    }
 #else
     c->low =  (*c->bytestream++)<<10;
     c->low+= ((*c->bytestream++)<<2) + 2;

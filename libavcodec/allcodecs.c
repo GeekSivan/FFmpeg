@@ -210,6 +210,7 @@ void avcodec_register_all(void)
 #endif
     REGISTER_ENCDEC (HAP,               hap);
     REGISTER_DECODER(HEVC,              hevc);
+    REGISTER_DECODER(SHVC,              shvc);
     REGISTER_DECODER(HEVC_QSV,          hevc_qsv);
     REGISTER_DECODER(HNM4_VIDEO,        hnm4_video);
     REGISTER_DECODER(HQ_HQA,            hq_hqa);
@@ -683,6 +684,7 @@ void avcodec_register_all(void)
     REGISTER_PARSER(H263,               h263);
     REGISTER_PARSER(H264,               h264);
     REGISTER_PARSER(HEVC,               hevc);
+    REGISTER_PARSER(SHVC,               shvc);
     REGISTER_PARSER(MJPEG,              mjpeg);
     REGISTER_PARSER(MLP,                mlp);
     REGISTER_PARSER(MPEG4VIDEO,         mpeg4video);

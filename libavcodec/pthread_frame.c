@@ -26,11 +26,18 @@
 
 #include <stdint.h>
 
+#if HAVE_PTHREADS
+#include <pthread.h>
+#elif HAVE_W32THREADS
+#include "compat/w32pthreads.h"
+#elif HAVE_OS2THREADS
+#include "compat/os2threads.h"
+#endif
+
 #include "avcodec.h"
 #include "internal.h"
 #include "pthread_internal.h"
 #include "thread.h"
-#include "version.h"
 
 #include "libavutil/avassert.h"
 #include "libavutil/buffer.h"
@@ -40,11 +47,12 @@
 #include "libavutil/internal.h"
 #include "libavutil/log.h"
 #include "libavutil/mem.h"
-#include "libavutil/opt.h"
-#include "libavutil/thread.h"
+#include "libavcodec/hevc.h"
+#include "libavcodec/h264.h"
 
+#define MAX_POC      1024
 /**
- * Context used by codec threads and stored in their AVCodecInternal thread_ctx.
+ * Context used by codec threads and stored in their AVCodecInternal thread_ctx_frame.
  */
 typedef struct PerThreadContext {
     struct FrameThreadContext *parent;
@@ -93,12 +101,10 @@ typedef struct PerThreadContext {
 
     const enum AVPixelFormat *available_formats; ///< Format array for get_format()
     enum AVPixelFormat result_format;            ///< get_format() result
-
-    int die;                        ///< Set when the thread should exit.
 } PerThreadContext;
 
 /**
- * Context stored in the client AVCodecInternal thread_ctx.
+ * Context stored in the client AVCodecInternal thread_ctx_frame.
  */
 typedef struct FrameThreadContext {
     PerThreadContext *threads;     ///< The contexts for each thread.
@@ -113,10 +119,23 @@ typedef struct FrameThreadContext {
                                     * Set for the first N packets, where N is the number of threads.
                                     * While it is set, ff_thread_en/decode_frame won't return any results.
                                     */
+
+    int die;                       ///< Set when threads should exit.
+    int is_decoded[MAX_POC];
+    int last_Tid;
+    void* frames_ref[MAX_POC];
+    void* frames_data[MAX_POC];
+    pthread_mutex_t il_progress_mutex; ///< Mutex used to protect frame progress values and progress_cond.
+    pthread_cond_t  il_progress_cond;   ///< Used by child threads to wait for progress to change.
 } FrameThreadContext;
 
+#if FF_API_GET_BUFFER
+#define THREAD_SAFE_CALLBACKS(avctx) \
+((avctx)->thread_safe_callbacks || (!(avctx)->get_buffer && (avctx)->get_buffer2 == avcodec_default_get_buffer2))
+#else
 #define THREAD_SAFE_CALLBACKS(avctx) \
 ((avctx)->thread_safe_callbacks || (avctx)->get_buffer2 == avcodec_default_get_buffer2)
+#endif
 
 /**
  * Codec worker thread.
@@ -128,15 +147,16 @@ typedef struct FrameThreadContext {
 static attribute_align_arg void *frame_worker_thread(void *arg)
 {
     PerThreadContext *p = arg;
+    FrameThreadContext *fctx = p->parent;
     AVCodecContext *avctx = p->avctx;
     const AVCodec *codec = avctx->codec;
 
     pthread_mutex_lock(&p->mutex);
     while (1) {
-            while (p->state == STATE_INPUT_READY && !p->die)
+            while (p->state == STATE_INPUT_READY && !fctx->die)
                 pthread_cond_wait(&p->input_cond, &p->mutex);
 
-        if (p->die) break;
+        if (fctx->die) break;
 
         if (!codec->update_thread_context && THREAD_SAFE_CALLBACKS(avctx))
             ff_thread_finish_setup(avctx);
@@ -179,7 +199,6 @@ static attribute_align_arg void *frame_worker_thread(void *arg)
  * @param dst The destination context.
  * @param src The source context.
  * @param for_user 0 if the destination is a codec thread, 1 if the destination is the user's thread
- * @return 0 on success, negative error code on failure
  */
 static int update_context_from_thread(AVCodecContext *dst, AVCodecContext *src, int for_user)
 {
@@ -187,7 +206,6 @@ static int update_context_from_thread(AVCodecContext *dst, AVCodecContext *src, 
 
     if (dst != src) {
         dst->time_base = src->time_base;
-        dst->framerate = src->framerate;
         dst->width     = src->width;
         dst->height    = src->height;
         dst->pix_fmt   = src->pix_fmt;
@@ -200,11 +218,7 @@ static int update_context_from_thread(AVCodecContext *dst, AVCodecContext *src, 
 
         dst->bits_per_coded_sample = src->bits_per_coded_sample;
         dst->sample_aspect_ratio   = src->sample_aspect_ratio;
-#if FF_API_AFD
-FF_DISABLE_DEPRECATION_WARNINGS
         dst->dtg_active_format     = src->dtg_active_format;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif /* FF_API_AFD */
 
         dst->profile = src->profile;
         dst->level   = src->level;
@@ -230,11 +244,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     if (for_user) {
         dst->delay       = src->thread_count - 1;
-#if FF_API_CODED_FRAME
-FF_DISABLE_DEPRECATION_WARNINGS
         dst->coded_frame = src->coded_frame;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
     } else {
         if (dst->codec->update_thread_context)
             err = dst->codec->update_thread_context(dst, src);
@@ -254,9 +264,15 @@ static int update_context_from_user(AVCodecContext *dst, AVCodecContext *src)
 {
 #define copy_fields(s, e) memcpy(&dst->s, &src->s, (char*)&dst->e - (char*)&dst->s);
     dst->flags          = src->flags;
-
+    dst->quality_id     = src->quality_id;
     dst->draw_horiz_band= src->draw_horiz_band;
     dst->get_buffer2    = src->get_buffer2;
+#if FF_API_GET_BUFFER
+FF_DISABLE_DEPRECATION_WARNINGS
+    dst->get_buffer     = src->get_buffer;
+    dst->release_buffer = src->release_buffer;
+FF_ENABLE_DEPRECATION_WARNINGS
+#endif
 
     dst->opaque   = src->opaque;
     dst->debug    = src->debug;
@@ -313,8 +329,7 @@ static int submit_packet(PerThreadContext *p, AVPacket *avpkt)
     PerThreadContext *prev_thread = fctx->prev_thread;
     const AVCodec *codec = p->avctx->codec;
 
-    if (!avpkt->size && !(codec->capabilities & AV_CODEC_CAP_DELAY))
-        return 0;
+    if (!avpkt->size && !(codec->capabilities & AV_CODEC_CAP_DELAY)) return 0;
 
     pthread_mutex_lock(&p->mutex);
 
@@ -349,9 +364,14 @@ static int submit_packet(PerThreadContext *p, AVPacket *avpkt)
      * and it calls back to the client here.
      */
 
+FF_DISABLE_DEPRECATION_WARNINGS
     if (!p->avctx->thread_safe_callbacks && (
          p->avctx->get_format != avcodec_default_get_format ||
+#if FF_API_GET_BUFFER
+         p->avctx->get_buffer ||
+#endif
          p->avctx->get_buffer2 != avcodec_default_get_buffer2)) {
+FF_ENABLE_DEPRECATION_WARNINGS
         while (p->state != STATE_SETUP_FINISHED && p->state != STATE_INPUT_READY) {
             int call_done = 1;
             pthread_mutex_lock(&p->progress_mutex);
@@ -387,7 +407,7 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
                            AVFrame *picture, int *got_picture_ptr,
                            AVPacket *avpkt)
 {
-    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    FrameThreadContext *fctx = avctx->internal->thread_ctx_frame;
     int finished = fctx->next_finished;
     PerThreadContext *p;
     int err;
@@ -395,7 +415,7 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
     /*
      * Submit a packet to the next decoding thread.
      */
-
+    //printf("decode thread\n");
     p = &fctx->threads[fctx->next_decoding];
     err = update_context_from_user(p->avctx, avctx);
     if (err) return err;
@@ -406,7 +426,7 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
      * If we're still receiving the initial packets, don't return a frame.
      */
 
-    if (fctx->next_decoding > (avctx->thread_count-1-(avctx->codec_id == AV_CODEC_ID_FFV1)))
+    if (fctx->next_decoding > (avctx->thread_count_frame-1-(avctx->codec_id == AV_CODEC_ID_FFV1)))
         fctx->delaying = 0;
 
     if (fctx->delaying) {
@@ -421,7 +441,7 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
      * didn't output a frame, because we don't want to accidentally signal
      * EOF (avpkt->size == 0 && *got_picture_ptr == 0).
      */
-
+//    finished = fctx->next_decoding >= avctx->thread_count_frame ? 0:fctx->next_decoding;
     do {
         p = &fctx->threads[finished++];
 
@@ -436,9 +456,6 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
         *got_picture_ptr = p->got_frame;
         picture->pkt_dts = p->avpkt.dts;
 
-        if (p->result < 0)
-            err = p->result;
-
         /*
          * A later call with avkpt->size == 0 may loop over all threads,
          * including this one, searching for a frame to return before being
@@ -447,22 +464,14 @@ int ff_thread_decode_frame(AVCodecContext *avctx,
          */
         p->got_frame = 0;
 
-        if (finished >= avctx->thread_count) finished = 0;
+        if (finished >= avctx->thread_count_frame) finished = 0;
     } while (!avpkt->size && !*got_picture_ptr && finished != fctx->next_finished);
 
     update_context_from_thread(avctx, p->avctx, 1);
 
-    if (fctx->next_decoding >= avctx->thread_count) fctx->next_decoding = 0;
+    if (fctx->next_decoding >= avctx->thread_count_frame) fctx->next_decoding = 0;
 
     fctx->next_finished = finished;
-
-    /*
-     * When no frame was found while flushing, but an error occurred in
-     * any thread, return it instead of 0.
-     * Otherwise the error can get lost.
-     */
-    if (!avpkt->size && !*got_picture_ptr)
-        return err;
 
     /* return the size of the consumed packet if no error occurred */
     return (p->result >= 0) ? avpkt->size : p->result;
@@ -475,7 +484,7 @@ void ff_thread_report_progress(ThreadFrame *f, int n, int field)
 
     if (!progress || progress[field] >= n) return;
 
-    p = f->owner->internal->thread_ctx;
+    p = f->owner->internal->thread_ctx_frame;
 
     if (f->owner->debug&FF_DEBUG_THREADS)
         av_log(f->owner, AV_LOG_DEBUG, "%p finished %d field %d\n", progress, n, field);
@@ -493,7 +502,7 @@ void ff_thread_await_progress(ThreadFrame *f, int n, int field)
 
     if (!progress || progress[field] >= n) return;
 
-    p = f->owner->internal->thread_ctx;
+    p = f->owner->internal->thread_ctx_frame;
 
     if (f->owner->debug&FF_DEBUG_THREADS)
         av_log(f->owner, AV_LOG_DEBUG, "thread awaiting %d field %d from %p\n", n, field, progress);
@@ -504,8 +513,84 @@ void ff_thread_await_progress(ThreadFrame *f, int n, int field)
     pthread_mutex_unlock(&p->progress_mutex);
 }
 
+#ifdef SVC_EXTENSION
+void ff_thread_report_il_progress(AVCodecContext *avxt, int poc, void * in_ref, void *in_data) {
+/*
+    - Called by the  lower layer decoder to report that the frame used as reference at upper layers
+      is either decoded or allocated in the frame-based.
+    - Set the status to 1.
+    - This operation is signaled at the parent the frame-based thread.
+*/
+    PerThreadContext *p;
+    FrameThreadContext *fctx;
+    p = avxt->internal->thread_ctx_frame;
+    fctx = p->parent;
+
+    poc = poc & (MAX_POC-1);
+    if (avxt->debug&FF_DEBUG_THREADS)
+        av_log(avxt, AV_LOG_DEBUG, "ff_thread_report_il_progress %d\n", poc);
+    pthread_mutex_lock(&fctx->il_progress_mutex);
+    if(fctx->is_decoded[poc] == 3 && in_ref) {
+        ff_hevc_unref_frame(avxt->priv_data, in_ref, ~0);
+        fctx->is_decoded[poc] = 0;
+    } else {
+            fctx->is_decoded[poc]     = 1;
+            fctx->frames_ref[poc]     = in_ref;
+            fctx->frames_data[poc]    = in_data;
+            pthread_cond_broadcast(&fctx->il_progress_cond);
+    }
+    
+    pthread_mutex_unlock(&fctx->il_progress_mutex);
+}
+
+void ff_thread_await_il_progress(AVCodecContext *avxt, int poc, void ** out) {
+    /*
+     - Wait untill the lower layer picture used for inter-layer reference picture is either allocated or decoded
+     - The condition is that the $is_decoded$ variable of the corresponding poc is diffetent from 0.
+     - $copy_opaque$ allows to access to the $parent$ variable of the lower layer decoder.
+     - Get the reference of the reference picture picture from lower layer decoder.
+     
+     */
+    FrameThreadContext *fctx = ((AVCodecContext *)avxt->BL_avcontext)->internal->thread_ctx_frame;
+    poc = poc & (MAX_POC-1);
+    if (avxt->debug&FF_DEBUG_THREADS)
+        av_log(avxt, AV_LOG_DEBUG, "ff_thread_await_il_progress %d \n", poc);
+    pthread_mutex_lock(&fctx->il_progress_mutex);
+    while(fctx->is_decoded[poc] == 0)
+        pthread_cond_wait(&fctx->il_progress_cond, &fctx->il_progress_mutex);
+    *out = fctx->frames_data[poc];
+    pthread_mutex_unlock(&fctx->il_progress_mutex);
+}
+
+void ff_thread_report_il_status(AVCodecContext *avxt, int poc, int status) {
+    /*
+     - Called by the upper layer decoder to report that the picture using this reference frame is decoded and the lower layer is not any more required by upper layer decoder
+     */
+    FrameThreadContext *fctx = ((AVCodecContext *)avxt->BL_avcontext)->internal->thread_ctx_frame;
+    AVCodecContext *avxt_bl = (AVCodecContext *)avxt->BL_avcontext;
+    poc = poc & (MAX_POC-1);
+    if (avxt->debug&FF_DEBUG_THREADS)
+        av_log(avxt, AV_LOG_DEBUG, "ff_thread_report_il_status poc %d status %d\n", poc, status);
+    pthread_mutex_lock(&fctx->il_progress_mutex);
+    if(fctx->is_decoded[poc]==1 ) {
+        if(fctx->frames_ref[poc]){
+            ff_hevc_unref_frame(avxt_bl->priv_data, fctx->frames_ref[poc], ~0);
+            //ff_h264_unref_picture(avxt_bl->priv_data, fctx->frames_ref[poc]);
+            //fixme ff_hevc_unref and ff_h264_unref do the same thing so we can use ff_hevc_unref for both cases.
+            // it would be better to dissociate both cases though.
+        }
+        fctx->is_decoded[poc] = 0;
+    } else
+        fctx->is_decoded[poc] = 3;
+    fctx->frames_data[poc] = NULL;
+    fctx->frames_ref[poc] = NULL;
+    pthread_mutex_unlock(&fctx->il_progress_mutex);
+}
+
+#endif
+
 void ff_thread_finish_setup(AVCodecContext *avctx) {
-    PerThreadContext *p = avctx->internal->thread_ctx;
+    PerThreadContext *p = avctx->internal->thread_ctx_frame;
 
     if (!(avctx->active_thread_type&FF_THREAD_FRAME)) return;
 
@@ -539,7 +624,7 @@ static void park_frame_worker_threads(FrameThreadContext *fctx, int thread_count
 
 void ff_frame_thread_free(AVCodecContext *avctx, int thread_count)
 {
-    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    FrameThreadContext *fctx = avctx->internal->thread_ctx_frame;
     const AVCodec *codec = avctx->codec;
     int i;
 
@@ -552,11 +637,13 @@ void ff_frame_thread_free(AVCodecContext *avctx, int thread_count)
             fctx->threads->avctx->internal->is_copy = 1;
         }
 
+    fctx->die = 1;
+
     for (i = 0; i < thread_count; i++) {
         PerThreadContext *p = &fctx->threads[i];
-
+        if (p->avctx->active_thread_type&FF_THREAD_SLICE)
+            ff_slice_thread_free(p->avctx);
         pthread_mutex_lock(&p->mutex);
-        p->die = 1;
         pthread_cond_signal(&p->input_cond);
         pthread_mutex_unlock(&p->mutex);
 
@@ -564,8 +651,10 @@ void ff_frame_thread_free(AVCodecContext *avctx, int thread_count)
             pthread_join(p->thread, NULL);
         p->thread_init=0;
 
-        if (codec->close && p->avctx)
+        if (codec->close)
             codec->close(p->avctx);
+
+        avctx->codec = NULL;
 
         release_delayed_buffers(p);
         av_frame_free(&p->frame);
@@ -582,28 +671,23 @@ void ff_frame_thread_free(AVCodecContext *avctx, int thread_count)
         av_packet_unref(&p->avpkt);
         av_freep(&p->released_buffers);
 
-        if (i && p->avctx) {
+        if (i) {
             av_freep(&p->avctx->priv_data);
             av_freep(&p->avctx->slice_offset);
         }
 
-        if (p->avctx)
-            av_freep(&p->avctx->internal);
+        av_freep(&p->avctx->internal);
         av_freep(&p->avctx);
     }
 
     av_freep(&fctx->threads);
     pthread_mutex_destroy(&fctx->buffer_mutex);
-    av_freep(&avctx->internal->thread_ctx);
-
-    if (avctx->priv_data && avctx->codec && avctx->codec->priv_class)
-        av_opt_free(avctx->priv_data);
-    avctx->codec = NULL;
+    av_freep(&avctx->internal->thread_ctx_frame);
 }
 
 int ff_frame_thread_init(AVCodecContext *avctx)
 {
-    int thread_count = avctx->thread_count;
+    int thread_count = avctx->thread_count_frame;
     const AVCodec *codec = avctx->codec;
     AVCodecContext *src = avctx;
     FrameThreadContext *fctx;
@@ -619,9 +703,9 @@ int ff_frame_thread_init(AVCodecContext *avctx)
             nb_cpus = 1;
         // use number of cores + 1 as thread count if there is more than one
         if (nb_cpus > 1)
-            thread_count = avctx->thread_count = FFMIN(nb_cpus + 1, MAX_AUTO_THREADS);
+            thread_count = avctx->thread_count_frame = FFMIN(nb_cpus + 1, MAX_AUTO_THREADS);
         else
-            thread_count = avctx->thread_count = 1;
+            thread_count = avctx->thread_count_frame = 1;
     }
 
     if (thread_count <= 1) {
@@ -629,17 +713,12 @@ int ff_frame_thread_init(AVCodecContext *avctx)
         return 0;
     }
 
-    avctx->internal->thread_ctx = fctx = av_mallocz(sizeof(FrameThreadContext));
-    if (!fctx)
-        return AVERROR(ENOMEM);
+    avctx->internal->thread_ctx_frame = fctx = av_mallocz(sizeof(FrameThreadContext));
 
-    fctx->threads = av_mallocz_array(thread_count, sizeof(PerThreadContext));
-    if (!fctx->threads) {
-        av_freep(&avctx->internal->thread_ctx);
-        return AVERROR(ENOMEM);
-    }
-
+    fctx->threads = av_mallocz(sizeof(PerThreadContext) * thread_count);
     pthread_mutex_init(&fctx->buffer_mutex, NULL);
+    pthread_cond_init(&fctx->il_progress_cond, NULL);
+    pthread_mutex_init(&fctx->il_progress_mutex, NULL);
     fctx->delaying = 1;
 
     for (i = 0; i < thread_count; i++) {
@@ -671,13 +750,15 @@ int ff_frame_thread_init(AVCodecContext *avctx)
 
         copy->internal = av_malloc(sizeof(AVCodecInternal));
         if (!copy->internal) {
-            copy->priv_data = NULL;
             err = AVERROR(ENOMEM);
             goto error;
         }
         *copy->internal = *src->internal;
-        copy->internal->thread_ctx = p;
+        copy->internal->thread_ctx_frame = p;
         copy->internal->pkt = &p->avpkt;
+
+        if (avctx->active_thread_type&FF_THREAD_SLICE)
+            ff_slice_thread_init(copy);
 
         if (!i) {
             src = copy;
@@ -718,11 +799,11 @@ error:
 void ff_thread_flush(AVCodecContext *avctx)
 {
     int i;
-    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    FrameThreadContext *fctx = avctx->internal->thread_ctx_frame;
 
     if (!fctx) return;
 
-    park_frame_worker_threads(fctx, avctx->thread_count);
+    park_frame_worker_threads(fctx, avctx->thread_count_frame);
     if (fctx->prev_thread) {
         if (fctx->prev_thread != &fctx->threads[0])
             update_context_from_thread(fctx->threads[0].avctx, fctx->prev_thread->avctx, 0);
@@ -731,7 +812,7 @@ void ff_thread_flush(AVCodecContext *avctx)
     fctx->next_decoding = fctx->next_finished = 0;
     fctx->delaying = 1;
     fctx->prev_thread = NULL;
-    for (i = 0; i < avctx->thread_count; i++) {
+    for (i = 0; i < avctx->thread_count_frame; i++) {
         PerThreadContext *p = &fctx->threads[i];
         // Make sure decode flush calls with size=0 won't return old frames
         p->got_frame = 0;
@@ -746,7 +827,7 @@ void ff_thread_flush(AVCodecContext *avctx)
 
 int ff_thread_can_start_frame(AVCodecContext *avctx)
 {
-    PerThreadContext *p = avctx->internal->thread_ctx;
+    PerThreadContext *p = avctx->internal->thread_ctx_frame;
     if ((avctx->active_thread_type&FF_THREAD_FRAME) && p->state != STATE_SETTING_UP &&
         (avctx->codec->update_thread_context || !THREAD_SAFE_CALLBACKS(avctx))) {
         return 0;
@@ -756,7 +837,7 @@ int ff_thread_can_start_frame(AVCodecContext *avctx)
 
 static int thread_get_buffer_internal(AVCodecContext *avctx, ThreadFrame *f, int flags)
 {
-    PerThreadContext *p = avctx->internal->thread_ctx;
+    PerThreadContext *p = avctx->internal->thread_ctx_frame;
     int err;
 
     f->owner = avctx;
@@ -784,8 +865,13 @@ static int thread_get_buffer_internal(AVCodecContext *avctx, ThreadFrame *f, int
     }
 
     pthread_mutex_lock(&p->parent->buffer_mutex);
-    if (avctx->thread_safe_callbacks ||
-        avctx->get_buffer2 == avcodec_default_get_buffer2) {
+FF_DISABLE_DEPRECATION_WARNINGS
+    if (avctx->thread_safe_callbacks || (
+#if FF_API_GET_BUFFER
+        !avctx->get_buffer &&
+#endif
+        avctx->get_buffer2 == avcodec_default_get_buffer2)) {
+FF_ENABLE_DEPRECATION_WARNINGS
         err = ff_get_buffer(avctx, f->f, flags);
     } else {
         pthread_mutex_lock(&p->progress_mutex);
@@ -800,10 +886,10 @@ static int thread_get_buffer_internal(AVCodecContext *avctx, ThreadFrame *f, int
         err = p->result;
 
         pthread_mutex_unlock(&p->progress_mutex);
-
     }
     if (!THREAD_SAFE_CALLBACKS(avctx) && !avctx->codec->update_thread_context)
         ff_thread_finish_setup(avctx);
+
     if (err)
         av_buffer_unref(&f->progress);
 
@@ -815,7 +901,7 @@ static int thread_get_buffer_internal(AVCodecContext *avctx, ThreadFrame *f, int
 enum AVPixelFormat ff_thread_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
 {
     enum AVPixelFormat res;
-    PerThreadContext *p = avctx->internal->thread_ctx;
+    PerThreadContext *p = avctx->internal->thread_ctx_frame;
     if (!(avctx->active_thread_type & FF_THREAD_FRAME) || avctx->thread_safe_callbacks ||
         avctx->get_format == avcodec_default_get_format)
         return ff_get_format(avctx, fmt);
@@ -848,12 +934,18 @@ int ff_thread_get_buffer(AVCodecContext *avctx, ThreadFrame *f, int flags)
 
 void ff_thread_release_buffer(AVCodecContext *avctx, ThreadFrame *f)
 {
-    PerThreadContext *p = avctx->internal->thread_ctx;
+    PerThreadContext *p = avctx->internal->thread_ctx_frame;
     FrameThreadContext *fctx;
     AVFrame *dst, *tmp;
+FF_DISABLE_DEPRECATION_WARNINGS
     int can_direct_free = !(avctx->active_thread_type & FF_THREAD_FRAME) ||
                           avctx->thread_safe_callbacks                   ||
-                          avctx->get_buffer2 == avcodec_default_get_buffer2;
+                          (
+#if FF_API_GET_BUFFER
+                           !avctx->get_buffer &&
+#endif
+                           avctx->get_buffer2 == avcodec_default_get_buffer2);
+FF_ENABLE_DEPRECATION_WARNINGS
 
     if (!f->f || !f->f->buf[0])
         return;

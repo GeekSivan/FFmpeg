@@ -20,6 +20,7 @@
  */
 
 #include "bit_depth_template.c"
+#include "hevc.h"
 void FUNC(ff_emulated_edge_mc)(uint8_t *buf, const uint8_t *src,
                                ptrdiff_t buf_linesize,
                                ptrdiff_t src_linesize,
@@ -97,4 +98,111 @@ void FUNC(ff_emulated_edge_mc)(uint8_t *buf, const uint8_t *src,
         }
         buf += buf_linesize;
     }
+}
+
+static int FUNC(ff_emulated_edge_up_h)(uint8_t *dst, uint8_t *src, ptrdiff_t linesize,
+                                    const struct HEVCWindow *Enhscal,
+                                    int block_w, int block_h, int bl_edge_left,
+                                    int bl_edge_right, int bl_edge_up, int shift)
+{
+    int i, j;
+    uint8_t   *src_tmp = src;
+    uint8_t   *dst_tmp = dst;
+    int dst_stride = MAX_EDGE_BUFFER_STRIDE;
+
+    if( bl_edge_up < shift){
+    	memcpy(dst_tmp-bl_edge_left-MAX_EDGE_BUFFER_STRIDE, src_tmp-bl_edge_left, block_w);
+    	dst_tmp += dst_stride;
+    	for (j=0; j<block_h; ++j){
+    	    memcpy(dst_tmp-bl_edge_left, src_tmp-bl_edge_left, block_w);
+    	    dst_tmp += dst_stride;
+    	    src_tmp += linesize;
+    	}
+    	src_tmp = src;
+    	dst_tmp = dst;
+    	dst_tmp += dst_stride;
+    }
+
+    if(bl_edge_left < shift ) {
+
+      for(i=0; i < block_h; i++) {
+          for(j=0; j < shift+1; j++){
+    	      *(dst_tmp-j) = *src_tmp;
+          }
+        memcpy(dst_tmp, src_tmp, (block_w)*sizeof(uint8_t));
+        src_tmp += linesize;
+        dst_tmp += dst_stride;
+      }
+      return 0;
+    }
+
+    if(bl_edge_right<(shift+1)) {
+      for( i = 0; i < block_h ; i++ ) {
+    	  memcpy(dst_tmp,    src_tmp, (block_w)*sizeof(uint8_t));
+          for(j=0; j < shift+1; j++)
+              dst_tmp[block_w+j] = src_tmp[block_w-1];
+          src_tmp += linesize;
+          dst_tmp += dst_stride;
+      }
+      return 1;
+    }
+    if(bl_edge_up<shift)
+    	return 4;
+    return 2;
+}
+
+static int FUNC(ff_emulated_edge_up_cgs_h)(uint16_t *src, ptrdiff_t linesize,
+                                           const struct HEVCWindow *Enhscal,
+                                           int block_w, int block_h, int bl_edge_left,
+                                           int bl_edge_right, int shift)
+{
+    int i, j;
+    uint16_t   *src_tmp = src;
+
+    if(bl_edge_left < shift) {
+        for(i=0; i < block_h; i++) {
+            for(j=0; j < shift; j++)
+                src_tmp[j-shift] = src_tmp[0];
+            src_tmp += linesize;
+        }
+        return 0;
+    }
+
+    if(bl_edge_right<(shift+1)) {
+        for( i = 0; i < block_h ; i++ ) {
+            for(j=0; j < shift+1; j++)
+                src_tmp[block_w+j] = src_tmp[block_w-1];
+            src_tmp += linesize;
+        }
+    }
+    return 1;
+}
+
+static int FUNC(ff_emulated_edge_up_v)(int16_t *src, ptrdiff_t linesize,
+                                    const struct HEVCWindow *Enhscal,
+                                    int block_w, int block_h, int src_x, int bl_edge_up, int bl_edge_bottom, int wEL, int shift)
+{
+    int  i, j;
+
+    int16_t *src_tmp = src;
+    int16_t *dst     = src;
+
+    if(bl_edge_up < shift)  {
+        for( i = 0; i < block_w; i++ ) {
+            for(j= bl_edge_up; j<shift ; j++)
+                dst[(-j-1)*linesize] = src_tmp[-bl_edge_up*linesize];
+            src_tmp++;
+            dst++;
+        }
+        return 0;
+    }
+
+    if(bl_edge_bottom < (shift+1) )    {
+        for( i = 0; i < block_w; i++ )	{
+            for(j= 0; j< shift +1; j++) {
+                dst[(block_h+j)*linesize+i] = src_tmp[(block_h-1)*linesize+i];
+            }
+        }
+    }
+    return 1;
 }

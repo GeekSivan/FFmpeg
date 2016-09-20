@@ -41,6 +41,6 @@ typedef struct HEVCPredContext {
 } HEVCPredContext;
 
 void ff_hevc_pred_init(HEVCPredContext *hpc, int bit_depth);
-void ff_hevc_pred_init_mips(HEVCPredContext *hpc, int bit_depth);
+void ff_hevcpred_init_x86(HEVCPredContext *c, const int bit_depth);
 
 #endif /* AVCODEC_HEVCPRED_H */

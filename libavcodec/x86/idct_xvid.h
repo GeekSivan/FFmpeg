@@ -1,4 +1,6 @@
 /*
+ * XVID MPEG-4 VIDEO CODEC
+ *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -16,22 +18,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef AVCODEC_WMV2DSP_H
-#define AVCODEC_WMV2DSP_H
+/**
+ * @file
+ * header for Xvid IDCT functions
+ */
+
+#ifndef AVCODEC_X86_IDCT_XVID_H
+#define AVCODEC_X86_IDCT_XVID_H
 
 #include <stdint.h>
 
-#include "qpeldsp.h"
+void ff_idct_xvid_mmx(short *block);
+void ff_idct_xvid_mmx_put(uint8_t *dest, int line_size, int16_t *block);
+void ff_idct_xvid_mmx_add(uint8_t *dest, int line_size, int16_t *block);
 
-typedef struct WMV2DSPContext {
-    void (*idct_add)(uint8_t *dest, int line_size, int16_t *block);
-    void (*idct_put)(uint8_t *dest, int line_size, int16_t *block);
+void ff_idct_xvid_mmxext(short *block);
+void ff_idct_xvid_mmxext_put(uint8_t *dest, int line_size, int16_t *block);
+void ff_idct_xvid_mmxext_add(uint8_t *dest, int line_size, int16_t *block);
 
-    qpel_mc_func put_mspel_pixels_tab[8];
+void ff_idct_xvid_sse2(short *block);
+void ff_idct_xvid_sse2_put(uint8_t *dest, int line_size, short *block);
+void ff_idct_xvid_sse2_add(uint8_t *dest, int line_size, short *block);
 
-    int idct_perm;
-} WMV2DSPContext;
-
-void ff_wmv2dsp_init(WMV2DSPContext *c);
-
-#endif /* AVCODEC_WMV2DSP_H */
+#endif /* AVCODEC_X86_IDCT_XVID_H */

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2009 Mans Rullgard <mans@mansr.com>
+ *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -16,22 +18,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef AVCODEC_WMV2DSP_H
-#define AVCODEC_WMV2DSP_H
+#ifndef AVCODEC_ARM_DSPUTIL_ARM_H
+#define AVCODEC_ARM_DSPUTIL_ARM_H
 
-#include <stdint.h>
+#include "libavcodec/avcodec.h"
+#include "libavcodec/dsputil.h"
 
-#include "qpeldsp.h"
+void ff_dsputil_init_armv5te(DSPContext *c, AVCodecContext *avctx,
+                             unsigned high_bit_depth);
+void ff_dsputil_init_armv6(DSPContext *c, AVCodecContext *avctx,
+                           unsigned high_bit_depth);
+void ff_dsputil_init_neon(DSPContext *c, AVCodecContext *avctx,
+                          unsigned high_bit_depth);
 
-typedef struct WMV2DSPContext {
-    void (*idct_add)(uint8_t *dest, int line_size, int16_t *block);
-    void (*idct_put)(uint8_t *dest, int line_size, int16_t *block);
-
-    qpel_mc_func put_mspel_pixels_tab[8];
-
-    int idct_perm;
-} WMV2DSPContext;
-
-void ff_wmv2dsp_init(WMV2DSPContext *c);
-
-#endif /* AVCODEC_WMV2DSP_H */
+#endif /* AVCODEC_ARM_DSPUTIL_ARM_H */

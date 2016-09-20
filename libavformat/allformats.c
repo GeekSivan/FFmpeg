@@ -148,6 +148,7 @@ void av_register_all(void)
     REGISTER_MUXER   (HASH,             hash);
     REGISTER_MUXER   (HDS,              hds);
     REGISTER_MUXDEMUX(HEVC,             hevc);
+    //REGISTER_DEMUXER(SHVC,              shvc);
     REGISTER_MUXDEMUX(HLS,              hls);
     REGISTER_DEMUXER (HNM,              hnm);
     REGISTER_MUXDEMUX(ICO,              ico);
