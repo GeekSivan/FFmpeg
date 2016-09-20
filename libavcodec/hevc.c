@@ -3165,7 +3165,7 @@ static void tiles_filters(HEVCContext *s)
         for (x0 = 0; x0 < s->ps.sps->width; x0 += ctb_size)
             ff_hevc_hls_filter(s, x0, y0, ctb_size);
 }
-#if !PARALLEL_FILTERS
+#if PARALLEL_SLICE && !PARALLEL_FILTERS
 static void slices_filters(HEVCContext *s)
 {
     uint16_t ctb_size        = 1 << s->ps.sps->log2_ctb_size;
