@@ -517,7 +517,7 @@ static void deblocking_filter_CTB(HEVCContext *s, int x0, int y0)
 {
     uint8_t *src;
     int x, y;
-    int chroma;
+    //int chroma;
     int c_tc[2], tc[2], beta;
     uint8_t no_p[2] = { 0 };
     uint8_t no_q[2] = { 0 };
@@ -1340,7 +1340,7 @@ static void copy_block(HEVCContext *s, uint8_t *src, uint8_t * dst, ptrdiff_t bl
         dst += el_stride;
     }
 #else
-    int j, refLayerId = 0;
+    int j/*, refLayerId*/ = 0;
     int shift = s->up_filter_inf.shift[channel];
     for (i = 0; i < ePbH ; i++) {
         for (j = 0; j < ePbW ; j++)
@@ -1360,7 +1360,7 @@ static void copy_block_16(HEVCContext *s, uint16_t *src, uint16_t * dst, ptrdiff
         dst += el_stride;
     }
 #else
-    int j, refLayerId = 0;
+    int j/*, refLayerId*/ = 0;
     int shift = s->up_filter_inf.shift[channel];
     for (i = 0; i < ePbH ; i++) {
         for (j = 0; j < ePbW ; j++){
@@ -1719,7 +1719,7 @@ static void upsample_block_luma(HEVCContext *s, HEVCFrame *ref0, int x0, int y0)
     } else {
         bl_frame = ((HEVCFrame *)s->BL_frame)->frame;
     }
-    HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
+    //HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
     int bl_height =  s->BL_height;
     int bl_width  =  s->BL_width;
 
@@ -1819,7 +1819,7 @@ static void upsample_block_mc(HEVCContext *s, HEVCFrame *ref0, int x0, int y0) {
     }else {
         bl_frame = ((HEVCFrame *)s->BL_frame)->frame;
     }
-    HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
+    //HEVCWindow base_layer_window = s->ps.pps->ref_window[((HEVCVPS*)s->ps.vps_list[s->ps.sps->vps_id]->data)->Hevc_VPS_Ext.ref_layer_id[0][0]];//TODO: reflayerID could be other than 0;
     int bl_height = s->BL_height >> 1;
     int bl_width  = s->BL_width  >> 1;
     //int bl_width  =  bl_frame->width  >>1;
