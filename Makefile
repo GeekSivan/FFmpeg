@@ -46,7 +46,7 @@ OBJS-ffserver                 += ffserver_config.o
 OBJS-ohplay					  := 
 OBJS-ohplay                   += ohplay_getopt.o
 OBJS-ohplay                   += ohplay_SDL_framerate.o
-OBJS-ohplay                   += ohplay_sdl.o
+OBJS-ohplay                   += ohplay_sdl2.o
 
 TESTTOOLS   = audiogen videogen rotozoom tiny_psnr tiny_ssim base64 audiomatch
 HOSTPROGS  := $(TESTTOOLS:%=tests/%) doc/print_options

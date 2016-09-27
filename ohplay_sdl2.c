@@ -27,6 +27,7 @@
 #ifndef SDL_NO_DISPLAY
 #include <SDL.h>
 #include <stdio.h>
+#include "ohplay_sdl_wrapper.h"
 #include "ohplay_SDL_framerate.h"
 
 /* SDL variables */
