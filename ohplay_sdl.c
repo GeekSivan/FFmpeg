@@ -25,6 +25,7 @@
 #define SDL_NO_DISPLAY_
 
 #include <SDL.h>
+#include <SDL_Events.h>
 #include "ohplay_sdl_wrapper.h"
 #include "ohplay_SDL_framerate.h"
 
@@ -36,6 +37,17 @@ int          ticksSDL;
 
 /* SDL_gfx variable */
 FPSmanager   fpsm;
+
+bool IsCloseWindowEvent(){
+#ifndef SDL_NO_DISPLAY
+    bool ret = false;
+    SDL_Event event;
+    SDL_PollEvent(&event);
+    if (event.type == SDL_QUIT)
+        ret = true;
+    return ret;
+#endif
+}
 
 void Init_Time() {
 #ifndef SDL_NO_DISPLAY

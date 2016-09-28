@@ -26,7 +26,9 @@
 
 #ifndef SDL_NO_DISPLAY
 #include <SDL.h>
+#include <SDL_events.h>
 #include <stdio.h>
+#include <signal.h>
 #include "ohplay_sdl_wrapper.h"
 #include "ohplay_SDL_framerate.h"
 
@@ -48,11 +50,34 @@ void Init_Time() {
 #endif
 }
 
+int IsCloseWindowEvent(){
+#ifndef SDL_NO_DISPLAY
+    int ret = 0;
+    SDL_Event event;
+    SDL_PollEvent(&event);
+    if (event.type == SDL_QUIT)
+        ret = 1;
+    return ret;
+#endif
+}
+
 int Init_SDL(int edge, int frame_width, int frame_height){
 
 #ifndef SDL_NO_DISPLAY
+
+    struct sigaction action;
+    sigaction(SIGINT, NULL, &action);
+    sigaction(SIGTERM, NULL, &action);
+    sigaction(SIGKILL, NULL, &action);
+    sigaction(SIGHUP, NULL, &action);
+    SDL_Init(SDL_INIT_EVERYTHING);
+    sigaction(SIGINT, &action, NULL);
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGKILL, &action, NULL);
+    sigaction(SIGHUP, &action, NULL);
+
     /* First, initialize SDL's video subsystem. */
-    if( SDL_Init( SDL_INIT_VIDEO ) < 0 ) {
+    if( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_EVENTS ) < 0 ) {
         /* Failed, exit. */
         printf("Video initialization failed: %s\n", SDL_GetError( ) );
     }
