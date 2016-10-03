@@ -173,6 +173,8 @@ typedef struct AVCodecInternal {
     int buffer_pkt_valid; // encoding: packet without data can be valid
     AVFrame *buffer_frame;
     int draining_done;
+    int showed_multi_packet_warning;
+
     void *thread_ctx_frame;
 } AVCodecInternal;
 
