@@ -30,8 +30,7 @@
 #define RDFT_BITS_MAX 16
 
 enum WindowFunc {
-    WFUNC_MIN,
-    WFUNC_RECTANGULAR = WFUNC_MIN,
+    WFUNC_RECTANGULAR,
     WFUNC_HANN,
     WFUNC_HAMMING,
     WFUNC_BLACKMAN,
@@ -40,7 +39,8 @@ enum WindowFunc {
     WFUNC_NUTTALL,
     WFUNC_BNUTTALL,
     WFUNC_BHARRIS,
-    WFUNC_MAX = WFUNC_BHARRIS
+    WFUNC_TUKEY,
+    NB_WFUNC
 };
 
 #define NB_GAIN_ENTRY_MAX 4096
@@ -98,7 +98,7 @@ static const AVOption firequalizer_options[] = {
     { "gain_entry", "set gain entry", OFFSET(gain_entry), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, FLAGS },
     { "delay", "set delay", OFFSET(delay), AV_OPT_TYPE_DOUBLE, { .dbl = 0.01 }, 0.0, 1e10, FLAGS },
     { "accuracy", "set accuracy", OFFSET(accuracy), AV_OPT_TYPE_DOUBLE, { .dbl = 5.0 }, 0.0, 1e10, FLAGS },
-    { "wfunc", "set window function", OFFSET(wfunc), AV_OPT_TYPE_INT, { .i64 = WFUNC_HANN }, WFUNC_MIN, WFUNC_MAX, FLAGS, "wfunc" },
+    { "wfunc", "set window function", OFFSET(wfunc), AV_OPT_TYPE_INT, { .i64 = WFUNC_HANN }, 0, NB_WFUNC-1, FLAGS, "wfunc" },
         { "rectangular", "rectangular window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_RECTANGULAR }, 0, 0, FLAGS, "wfunc" },
         { "hann", "hann window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_HANN }, 0, 0, FLAGS, "wfunc" },
         { "hamming", "hamming window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_HAMMING }, 0, 0, FLAGS, "wfunc" },
@@ -108,6 +108,7 @@ static const AVOption firequalizer_options[] = {
         { "nuttall", "nuttall window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_NUTTALL }, 0, 0, FLAGS, "wfunc" },
         { "bnuttall", "blackman-nuttall window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_BNUTTALL }, 0, 0, FLAGS, "wfunc" },
         { "bharris", "blackman-harris window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_BHARRIS }, 0, 0, FLAGS, "wfunc" },
+        { "tukey", "tukey window", 0, AV_OPT_TYPE_CONST, { .i64 = WFUNC_TUKEY }, 0, 0, FLAGS, "wfunc" },
     { "fixed", "set fixed frame samples", OFFSET(fixed), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS },
     { "multi", "set multi channels mode", OFFSET(multi), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS },
     { "zero_phase", "set zero phase mode", OFFSET(zero_phase), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS },
@@ -385,6 +386,9 @@ static int generate_kernel(AVFilterContext *ctx, const char *gain, const char *g
                 break;
             case WFUNC_BHARRIS:
                 win = 0.35875 + 0.48829 * cos(u) + 0.14128 * cos(2*u) + 0.01168 * cos(3*u);
+                break;
+            case WFUNC_TUKEY:
+                win = (u <= 0.5 * M_PI) ? 1.0 : (0.5 + 0.5 * cos(2*u - M_PI));
                 break;
             default:
                 av_assert0(0);
