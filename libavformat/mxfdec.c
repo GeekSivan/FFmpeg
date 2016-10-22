@@ -102,6 +102,7 @@ typedef struct MXFCryptoContext {
 typedef struct MXFStructuralComponent {
     UID uid;
     enum MXFMetadataSetType type;
+    UID source_package_ul;
     UID source_package_uid;
     UID data_definition_ul;
     int64_t duration;
@@ -155,6 +156,7 @@ typedef struct {
     MXFSequence *sequence; /* mandatory, and only one */
     UID sequence_ref;
     int track_id;
+    char *name;
     uint8_t track_number[4];
     AVRational edit_rate;
     int intra_only;
@@ -327,6 +329,9 @@ static void mxf_free_metadataset(MXFMetadataSet **ctx, int freectx)
     case TaggedValue:
         av_freep(&((MXFTaggedValue *)*ctx)->name);
         av_freep(&((MXFTaggedValue *)*ctx)->value);
+        break;
+    case Track:
+        av_freep(&((MXFTrack *)*ctx)->name);
         break;
     case IndexTableSegment:
         seg = (MXFIndexTableSegment *)*ctx;
@@ -707,6 +712,41 @@ static int mxf_read_strong_ref_array(AVIOContext *pb, UID **refs, int *count)
     return 0;
 }
 
+static inline int mxf_read_utf16_string(AVIOContext *pb, int size, char** str, int be)
+{
+    int ret;
+    size_t buf_size;
+
+    if (size < 0 || size > INT_MAX/2)
+        return AVERROR(EINVAL);
+
+    buf_size = size + size / 2 + 1;
+    *str = av_malloc(buf_size);
+    if (!*str)
+        return AVERROR(ENOMEM);
+
+    if (be)
+        ret = avio_get_str16be(pb, size, *str, buf_size);
+    else
+        ret = avio_get_str16le(pb, size, *str, buf_size);
+
+    if (ret < 0) {
+        av_freep(str);
+        return ret;
+    }
+
+    return ret;
+}
+
+#define READ_STR16(type, big_endian)                                               \
+static int mxf_read_utf16 ## type ##_string(AVIOContext *pb, int size, char** str) \
+{                                                                                  \
+return mxf_read_utf16_string(pb, size, str, big_endian);                           \
+}
+READ_STR16(be, 1)
+READ_STR16(le, 0)
+#undef READ_STR16
+
 static int mxf_read_content_storage(void *arg, AVIOContext *pb, int tag, int size, UID uid, int64_t klv_offset)
 {
     MXFContext *mxf = arg;
@@ -732,7 +772,7 @@ static int mxf_read_source_clip(void *arg, AVIOContext *pb, int tag, int size, U
         break;
     case 0x1101:
         /* UMID, only get last 16 bytes */
-        avio_skip(pb, 16);
+        avio_read(pb, source_clip->source_package_ul, 16);
         avio_read(pb, source_clip->source_package_uid, 16);
         break;
     case 0x1102:
@@ -780,6 +820,9 @@ static int mxf_read_track(void *arg, AVIOContext *pb, int tag, int size, UID uid
     case 0x4804:
         avio_read(pb, track->track_number, 4);
         break;
+    case 0x4802:
+        mxf_read_utf16be_string(pb, size, &track->name);
+        break;
     case 0x4b01:
         track->edit_rate.num = avio_rb32(pb);
         track->edit_rate.den = avio_rb32(pb);
@@ -824,41 +867,6 @@ static int mxf_read_essence_group(void *arg, AVIOContext *pb, int tag, int size,
     }
     return 0;
 }
-
-static inline int mxf_read_utf16_string(AVIOContext *pb, int size, char** str, int be)
-{
-    int ret;
-    size_t buf_size;
-
-    if (size < 0)
-        return AVERROR(EINVAL);
-
-    buf_size = size + size / 2 + 1;
-    *str = av_malloc(buf_size);
-    if (!*str)
-        return AVERROR(ENOMEM);
-
-    if (be)
-        ret = avio_get_str16be(pb, size, *str, buf_size);
-    else
-        ret = avio_get_str16le(pb, size, *str, buf_size);
-
-    if (ret < 0) {
-        av_freep(str);
-        return ret;
-    }
-
-    return ret;
-}
-
-#define READ_STR16(type, big_endian)                                               \
-static int mxf_read_utf16 ## type ##_string(AVIOContext *pb, int size, char** str) \
-{                                                                                  \
-return mxf_read_utf16_string(pb, size, str, big_endian);                           \
-}
-READ_STR16(be, 1)
-READ_STR16(le, 0)
-#undef READ_STR16
 
 static int mxf_read_package(void *arg, AVIOContext *pb, int tag, int size, UID uid, int64_t klv_offset)
 {
@@ -1484,6 +1492,14 @@ static int mxf_compute_index_tables(MXFContext *mxf)
 {
     int i, j, k, ret, nb_sorted_segments;
     MXFIndexTableSegment **sorted_segments = NULL;
+    AVStream *st = NULL;
+
+    for (i = 0; i < mxf->fc->nb_streams; i++) {
+        if (mxf->fc->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_DATA)
+            continue;
+        st = mxf->fc->streams[i];
+        break;
+    }
 
     if ((ret = mxf_get_sorted_table_segments(mxf, &nb_sorted_segments, &sorted_segments)) ||
         nb_sorted_segments <= 0) {
@@ -1553,7 +1569,7 @@ static int mxf_compute_index_tables(MXFContext *mxf)
                 av_log(mxf->fc, AV_LOG_WARNING, "IndexSID %i segment %i has zero IndexDuration and there's more than one segment\n",
                        t->index_sid, k);
 
-            if (mxf->fc->nb_streams <= 0) {
+            if (!st) {
                 av_log(mxf->fc, AV_LOG_WARNING, "no streams?\n");
                 break;
             }
@@ -1561,7 +1577,7 @@ static int mxf_compute_index_tables(MXFContext *mxf)
             /* assume the first stream's duration is reasonable
              * leave index_duration = 0 on further segments in case we have any (unlikely)
              */
-            t->segments[k]->index_duration = mxf->fc->streams[0]->duration;
+            t->segments[k]->index_duration = st->duration;
             break;
         }
     }
@@ -1839,6 +1855,44 @@ static int mxf_parse_physical_source_package(MXFContext *mxf, MXFTrack *source_t
     return 0;
 }
 
+static int mxf_add_metadata_stream(MXFContext *mxf, MXFTrack *track)
+{
+    MXFStructuralComponent *component = NULL;
+    const MXFCodecUL *codec_ul = NULL;
+    MXFPackage tmp_package;
+    AVStream *st;
+    int j;
+
+    for (j = 0; j < track->sequence->structural_components_count; j++) {
+        component = mxf_resolve_sourceclip(mxf, &track->sequence->structural_components_refs[j]);
+        if (!component)
+            continue;
+        break;
+    }
+    if (!component)
+        return 0;
+
+    st = avformat_new_stream(mxf->fc, NULL);
+    if (!st) {
+        av_log(mxf->fc, AV_LOG_ERROR, "could not allocate metadata stream\n");
+        return AVERROR(ENOMEM);
+    }
+
+    st->codecpar->codec_type = AVMEDIA_TYPE_DATA;
+    st->codecpar->codec_id = AV_CODEC_ID_NONE;
+    st->id = track->track_id;
+
+    memcpy(&tmp_package.package_ul, component->source_package_ul, 16);
+    memcpy(&tmp_package.package_uid, component->source_package_uid, 16);
+    mxf_add_umid_metadata(&st->metadata, "file_package_umid", &tmp_package);
+    if (track->name && track->name[0])
+        av_dict_set(&st->metadata, "track_name", track->name, 0);
+
+    codec_ul = mxf_get_codec_ul(ff_mxf_data_definition_uls, &track->sequence->data_definition_ul);
+    av_dict_set(&st->metadata, "data_type", av_get_media_type_string(codec_ul->id), 0);
+    return 0;
+}
+
 static int mxf_parse_structural_metadata(MXFContext *mxf)
 {
     MXFPackage *material_package = NULL;
@@ -1940,8 +1994,11 @@ static int mxf_parse_structural_metadata(MXFContext *mxf)
             if(source_track && component)
                 break;
         }
-        if (!source_track || !component || !source_package)
+        if (!source_track || !component || !source_package) {
+            if((ret = mxf_add_metadata_stream(mxf, material_track)))
+                goto fail_and_free;
             continue;
+        }
 
         if (!(source_track->sequence = mxf_resolve_strong_ref(mxf, &source_track->sequence_ref, Sequence))) {
             av_log(mxf->fc, AV_LOG_ERROR, "could not resolve source track sequence strong ref\n");
@@ -1962,7 +2019,7 @@ static int mxf_parse_structural_metadata(MXFContext *mxf)
             ret = AVERROR(ENOMEM);
             goto fail_and_free;
         }
-        st->id = source_track->track_id;
+        st->id = material_track->track_id;
         st->priv_data = source_track;
 
         source_package->descriptor = mxf_resolve_strong_ref(mxf, &source_package->descriptor_ref, AnyType);
@@ -2038,6 +2095,8 @@ static int mxf_parse_structural_metadata(MXFContext *mxf)
         mxf_add_umid_metadata(&st->metadata, "file_package_umid", source_package);
         if (source_package->name && source_package->name[0])
             av_dict_set(&st->metadata, "file_package_name", source_package->name, 0);
+        if (material_track->name && material_track->name[0])
+            av_dict_set(&st->metadata, "track_name", material_track->name, 0);
 
         mxf_parse_physical_source_package(mxf, source_track, st);
 
@@ -2608,6 +2667,21 @@ static int is_pcm(enum AVCodecID codec_id)
     return codec_id >= AV_CODEC_ID_PCM_S16LE && codec_id < AV_CODEC_ID_PCM_S24DAUD;
 }
 
+static AVStream* mxf_get_opatom_stream(MXFContext *mxf)
+{
+    int i;
+
+    if (mxf->op != OPAtom)
+        return NULL;
+
+    for (i = 0; i < mxf->fc->nb_streams; i++) {
+        if (mxf->fc->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_DATA)
+            continue;
+        return mxf->fc->streams[i];
+    }
+    return NULL;
+}
+
 /**
  * Deal with the case where for some audio atoms EditUnitByteCount is
  * very small (2, 4..). In those cases we should read more than one
@@ -2619,13 +2693,13 @@ static void mxf_handle_small_eubc(AVFormatContext *s)
 
     /* assuming non-OPAtom == frame wrapped
      * no sane writer would wrap 2 byte PCM packets with 20 byte headers.. */
-    if (mxf->op != OPAtom)
+    AVStream *st = mxf_get_opatom_stream(mxf);
+    if (!st)
         return;
 
     /* expect PCM with exactly one index table segment and a small (< 32) EUBC */
-    if (s->nb_streams != 1                                     ||
-        s->streams[0]->codecpar->codec_type != AVMEDIA_TYPE_AUDIO ||
-        !is_pcm(s->streams[0]->codecpar->codec_id)                ||
+    if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO         ||
+        !is_pcm(st->codecpar->codec_id)                        ||
         mxf->nb_index_tables != 1                              ||
         mxf->index_tables[0].nb_segments != 1                  ||
         mxf->index_tables[0].segments[0]->edit_unit_byte_count >= 32)
@@ -2650,11 +2724,12 @@ static int mxf_handle_missing_index_segment(MXFContext *mxf)
     int essence_partition_count = 0;
     int i, ret;
 
-    if (mxf->op != OPAtom)
+    st = mxf_get_opatom_stream(mxf);
+    if (!st)
         return 0;
 
     /* TODO: support raw video without an index if they exist */
-    if (s->nb_streams != 1 || s->streams[0]->codecpar->codec_type != AVMEDIA_TYPE_AUDIO || !is_pcm(s->streams[0]->codecpar->codec_id))
+    if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO || !is_pcm(st->codecpar->codec_id))
         return 0;
 
     /* check if file already has a IndexTableSegment */
@@ -2685,7 +2760,6 @@ static int mxf_handle_missing_index_segment(MXFContext *mxf)
         return ret;
     }
 
-    st = s->streams[0];
     segment->type = IndexTableSegment;
     /* stream will be treated as small EditUnitByteCount */
     segment->edit_unit_byte_count = (av_get_bits_per_sample(st->codecpar->codec_id) * st->codecpar->channels) >> 3;
@@ -3096,12 +3170,12 @@ static int mxf_read_packet(AVFormatContext *s, AVPacket *pkt)
         return mxf_read_packet_old(s, pkt);
 
     // If we have no streams then we basically are at EOF
-    if (s->nb_streams < 1)
+    st = mxf_get_opatom_stream(mxf);
+    if (!st)
         return AVERROR_EOF;
 
     /* OPAtom - clip wrapped demuxing */
     /* NOTE: mxf_read_header() makes sure nb_index_tables > 0 for OPAtom */
-    st = s->streams[0];
     t = &mxf->index_tables[0];
 
     if (mxf->current_edit_unit >= st->duration)
@@ -3131,7 +3205,7 @@ static int mxf_read_packet(AVFormatContext *s, AVPacket *pkt)
     if ((size = av_get_packet(s->pb, pkt, size)) < 0)
         return size;
 
-    pkt->stream_index = 0;
+    pkt->stream_index = st->index;
 
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && t->ptses &&
         mxf->current_edit_unit >= 0 && mxf->current_edit_unit < t->nb_ptses) {
@@ -3215,6 +3289,9 @@ static int mxf_read_seek(AVFormatContext *s, int stream_index, int64_t sample_ti
     int i, ret;
     MXFIndexTable *t;
     MXFTrack *source_track = st->priv_data;
+
+    if(st->codecpar->codec_type == AVMEDIA_TYPE_DATA)
+        return 0;
 
     /* if audio then truncate sample_time to EditRate */
     if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
