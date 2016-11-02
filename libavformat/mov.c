@@ -2961,7 +2961,7 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
     int first_non_zero_audio_edit = -1;
     int packet_skip_samples = 0;
 
-    if (!msc->elst_data || msc->elst_count <= 0) {
+    if (!msc->elst_data || msc->elst_count <= 0 || nb_old <= 0) {
         return;
     }
     // Clean AVStream from traces of old index
@@ -4884,6 +4884,7 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             a.type = avio_rl32(pb);
             if (a.type == MKTAG('f','r','e','e') &&
                 a.size >= 8 &&
+                c->fc->strict_std_compliance < FF_COMPLIANCE_STRICT &&
                 c->moov_retry) {
                 uint8_t buf[8];
                 uint32_t *type = (uint32_t *)buf + 1;
