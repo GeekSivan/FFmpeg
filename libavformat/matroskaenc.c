@@ -832,6 +832,14 @@ static int mkv_write_video_color(AVIOContext *pb, AVCodecParameters *par, AVStre
         par->color_range < AVCOL_RANGE_NB) {
         put_ebml_uint(dyn_cp, MATROSKA_ID_VIDEOCOLORRANGE, par->color_range);
     }
+    if (par->chroma_location != AVCHROMA_LOC_UNSPECIFIED &&
+        par->chroma_location <= AVCHROMA_LOC_TOP) {
+        int xpos, ypos;
+
+        avcodec_enum_to_chroma_pos(&xpos, &ypos, par->chroma_location);
+        put_ebml_uint(dyn_cp, MATROSKA_ID_VIDEOCOLORCHROMASITINGHORZ, (xpos >> 7) + 1);
+        put_ebml_uint(dyn_cp, MATROSKA_ID_VIDEOCOLORCHROMASITINGVERT, (ypos >> 7) + 1);
+    }
     if (side_data_size == sizeof(AVMasteringDisplayMetadata)) {
         ebml_master meta_element = start_ebml_master(
             dyn_cp, MATROSKA_ID_VIDEOCOLORMASTERINGMETA, 0);
@@ -1196,8 +1204,19 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
                 return AVERROR(EINVAL);
             }
             if (d_width != par->width || display_width_div != 1 || display_height_div != 1) {
-                put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYWIDTH , d_width / display_width_div);
-                put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYHEIGHT, par->height / display_height_div);
+                if (mkv->mode == MODE_WEBM || display_width_div != 1 || display_height_div != 1) {
+                    put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYWIDTH , d_width / display_width_div);
+                    put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYHEIGHT, par->height / display_height_div);
+                } else {
+                    AVRational display_aspect_ratio;
+                    av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
+                              par->width  * (int64_t)st->sample_aspect_ratio.num,
+                              par->height * (int64_t)st->sample_aspect_ratio.den,
+                              1024 * 1024);
+                    put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYWIDTH,  display_aspect_ratio.num);
+                    put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYHEIGHT, display_aspect_ratio.den);
+                    put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYUNIT, MATROSKA_VIDEO_DISPLAYUNIT_DAR);
+                }
             }
         } else if (display_width_div != 1 || display_height_div != 1) {
             put_ebml_uint(pb, MATROSKA_ID_VIDEODISPLAYWIDTH , par->width / display_width_div);
@@ -1547,7 +1566,7 @@ static int mkv_write_attachments(AVFormatContext *s)
 
     mkv->attachments = av_mallocz(sizeof(*mkv->attachments));
     if (!mkv->attachments)
-        return ret;
+        return AVERROR(ENOMEM);
 
     av_lfg_init(&c, av_get_random_seed());
 
@@ -1783,7 +1802,7 @@ static int mkv_write_header(AVFormatContext *s)
             put_ebml_void(pb, 11);              // assumes double-precision float to be written
         }
     }
-    if (s->pb->seekable)
+    if (s->pb->seekable && !mkv->is_live)
         put_ebml_void(s->pb, avio_tell(pb));
     else
         end_ebml_master_crc32(s->pb, &mkv->info_bc, mkv, mkv->info);
@@ -2274,7 +2293,7 @@ static int mkv_write_trailer(AVFormatContext *s)
             return ret;
     }
 
-    if (pb->seekable) {
+    if (pb->seekable && !mkv->is_live) {
         if (mkv->cues->num_entries) {
             if (mkv->reserve_cues_space) {
                 int64_t cues_end;
