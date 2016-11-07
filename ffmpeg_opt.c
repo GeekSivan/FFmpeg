@@ -2008,12 +2008,28 @@ static int init_complex_filters(void)
 
 static int configure_complex_filters(void)
 {
-    int i, ret = 0;
+    int i, j, ret = 0;
 
-    for (i = 0; i < nb_filtergraphs; i++)
-        if (!filtergraph_is_simple(filtergraphs[i]) &&
-            (ret = configure_filtergraph(filtergraphs[i])) < 0)
+    for (i = 0; i < nb_filtergraphs; i++) {
+        FilterGraph *fg = filtergraphs[i];
+
+        if (filtergraph_is_simple(fg))
+            continue;
+
+        for (j = 0; j < fg->nb_inputs; j++) {
+            ret = ifilter_parameters_from_decoder(fg->inputs[j],
+                                                  fg->inputs[j]->ist->dec_ctx);
+            if (ret < 0) {
+                av_log(NULL, AV_LOG_ERROR,
+                       "Error initializing filtergraph %d input %d\n", i, j);
+                return ret;
+            }
+        }
+
+        ret = configure_filtergraph(filtergraphs[i]);
+        if (ret < 0)
             return ret;
+    }
     return 0;
 }
 
@@ -3365,12 +3381,16 @@ const OptionDef options[] = {
         "set profile", "profile" },
     { "filter",         HAS_ARG | OPT_STRING | OPT_SPEC | OPT_OUTPUT, { .off = OFFSET(filters) },
         "set stream filtergraph", "filter_graph" },
+    { "filter_threads",  HAS_ARG | OPT_INT,                          { &filter_nbthreads },
+        "number of non-complex filter threads" },
     { "filter_script",  HAS_ARG | OPT_STRING | OPT_SPEC | OPT_OUTPUT, { .off = OFFSET(filter_scripts) },
         "read stream filtergraph description from a file", "filename" },
     { "reinit_filter",  HAS_ARG | OPT_INT | OPT_SPEC | OPT_INPUT,    { .off = OFFSET(reinit_filters) },
         "reinit filtergraph on input parameter changes", "" },
     { "filter_complex", HAS_ARG | OPT_EXPERT,                        { .func_arg = opt_filter_complex },
         "create a complex filtergraph", "graph_description" },
+    { "filter_complex_threads", HAS_ARG | OPT_INT,                   { &filter_complex_nbthreads },
+        "number of threads for -filter_complex" },
     { "lavfi",          HAS_ARG | OPT_EXPERT,                        { .func_arg = opt_filter_complex },
         "create a complex filtergraph", "graph_description" },
     { "filter_complex_script", HAS_ARG | OPT_EXPERT,                 { .func_arg = opt_filter_complex_script },
