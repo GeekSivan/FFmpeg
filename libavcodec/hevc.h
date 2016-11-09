@@ -37,7 +37,7 @@
 #include "thread.h"
 #include "videodsp.h"
 #include "hevc_defs.h"
-#if HEVC_ENCRYPTION
+#if CONFIG_HEVC_ENCRYPTION
 #include "crypto.h"
 #endif
 //#define COM16_C806_EMT			 0
@@ -1291,7 +1291,7 @@ typedef struct HEVCLocalContext {
     uint8_t slice_or_tiles_up_boundary;
 
     int ctb_tile_rs;
-#if HEVC_ENCRYPTION
+#if CONFIG_HEVC_ENCRYPTION
     Crypto_Handle       dbs_g;
 #endif
     int ct_depth;
@@ -1501,8 +1501,10 @@ typedef struct HEVCContext {
 	//int64_t last_frame_pts;
     int BL_width;
     int BL_height;
+#if CONFIG_HEVC_ENCRYPTION
     uint8_t encrypt_params;
     uint32_t prev_pos;
+#endif
 } HEVCContext;
 
 int ff_hevc_decode_short_term_rps(GetBitContext *gb, AVCodecContext *avctx,

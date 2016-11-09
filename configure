@@ -119,6 +119,7 @@ Program options:
 
 OpenHEVC options:
   --openhevc-only          only build openhevc
+  --enable-encryption      enable encryption
 
 Documentation options:
   --disable-doc            do not build documentation
@@ -1444,7 +1445,10 @@ AVFORMAT_COMPONENTS="
 
 AVRESAMPLE_COMPONENTS=""
 AVUTIL_COMPONENTS=""
-OPENHEVC_COMPONENTS=""
+OPENHEVC_COMPONENTS="
+    hevc_encryption
+    hevc_encryptioncryptopp
+"
 
 COMPONENT_LIST="
     $AVCODEC_COMPONENTS
@@ -1563,6 +1567,7 @@ EXTERNAL_LIBRARY_LIST="
     x11grab
     xlib
     zlib
+libcryptopp
 "
 
 HWACCEL_LIBRARY_LIST="
@@ -2711,6 +2716,9 @@ h264_qsv_encoder_deps="libmfx"
 h264_qsv_encoder_select="qsvenc"
 h264_vaapi_encoder_deps="VAEncPictureParameterBufferH264"
 h264_vaapi_encoder_select="vaapi_encode golomb"
+#Hevc encryption 
+hevc_encryptioncryptopp_deps="libcryptopp hevc_encryption"
+hevc_encryptioncryptopp_extralibs="-lstdc++ -lcryptopp"
 
 hevc_cuvid_decoder_deps="cuda cuvid"
 hevc_cuvid_decoder_select="hevc_mp4toannexb_bsf hevc_cuvid_hwaccel"
@@ -3401,6 +3409,11 @@ do_random(){
 for opt do
     optval="${opt#*=}"
     case "$opt" in
+        --enable-encryption)
+            enable hevc_encryption
+            enable hevc_encryptioncryptopp
+            # TODO set required flags
+        ;;
         --openhevc-only)
             # TODO set required flags
         ;;
@@ -5587,6 +5600,8 @@ check_lib2 "windows.h wincrypt.h" CryptGenRandom -ladvapi32
 check_lib2 "windows.h psapi.h" GetProcessMemoryInfo -lpsapi
 check_lib "CoreServices/CoreServices.h" UTGetOSTypeFromString "-framework CoreServices"
 
+pkg-config --exists  libcrypto++ && enable libcryptopp
+
 check_struct "sys/time.h sys/resource.h" "struct rusage" ru_maxrss
 
 check_type "windows.h dxva.h" "DXVA_PicParams_HEVC" -DWINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP -D_CRT_BUILD_DESKTOP_APP=0
@@ -5891,7 +5906,6 @@ if ! disabled sdl2; then
     fi
 fi
 enabled sdl2 && add_cflags $sdl2_cflags && add_extralibs $sdl2_libs
-
 disabled securetransport || { check_func SecIdentityCreate "-Wl,-framework,CoreFoundation -Wl,-framework,Security" &&
     check_lib2 "Security/SecureTransport.h Security/Security.h" "SSLCreateContext SecItemImport" "-Wl,-framework,CoreFoundation -Wl,-framework,Security" &&
     enable securetransport; }

@@ -1,9 +1,12 @@
+
 #include <stdio.h>
 #include <math.h>
 #include <config.h>
+#if CONFIG_HEVC_ENCRYPTION
 
 #define AESEncryptionStreamMode      1
-#if HEVC_ENCRYPTION
+#if CONFIG_HEVC_ENCRYPTIONCRYPTOPP
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,13 +27,11 @@ static av_always_inline Crypto_Handle InitC() {
     assert(0);
     return 0;
 }
-
 static av_always_inline void DecryptC(Crypto_Handle hdl, const unsigned char *in_stream,
                             int size_bits, unsigned char  *out_stream)
 {
     assert(0);
 }
-
 #if AESEncryptionStreamMode
 static av_always_inline unsigned int ff_get_key(Crypto_Handle *hdl, int nb_bits)
 {
@@ -38,9 +39,9 @@ static av_always_inline unsigned int ff_get_key(Crypto_Handle *hdl, int nb_bits)
     return 0;
 }
 #endif
-
 static av_always_inline void DeleteCryptoC(Crypto_Handle hdl)
 {
     assert(0);
 }
-#endif
+#endif //CONFIG_HEVC_ENCRYPTIONCRYPTOPP
+#endif //CONFIG_HEVC_ENCRYPTION

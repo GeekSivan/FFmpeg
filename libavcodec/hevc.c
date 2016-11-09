@@ -4332,7 +4332,7 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
     int i;
 
     pic_arrays_free(s);
-#if HEVC_ENCRYPTION
+#if CONFIG_HEVC_ENCRYPTION
     DeleteCryptoC(s->HEVClc->dbs_g);
 #endif
     av_freep(&s->md5_ctx);
@@ -4430,7 +4430,7 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
     s->cabac_state = av_malloc(HEVC_CONTEXTS);
     if (!s->cabac_state)
         goto fail;
-#if HEVC_ENCRYPTION
+#if CONFIG_HEVC_ENCRYPTION
     s->HEVClc->dbs_g = InitC();
 #endif
 #if !ACTIVE_PU_UPSAMPLING
@@ -4602,11 +4602,9 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
 
     s->enable_parallel_tiles = 0;
     s->picture_struct = 0;
+#if CONFIG_HEVC_ENCRYPTION
     s->prev_pos = 0;
-#if HEVC_ENCRYPTION
     s->encrypt_params = HEVC_CRYPTO_MV_SIGNS | HEVC_CRYPTO_MVs | HEVC_CRYPTO_TRANSF_COEFF_SIGNS | HEVC_CRYPTO_TRANSF_COEFFS;
-#else
-    s->encrypt_params = 0;
 #endif
     s->eos = 1;
 
