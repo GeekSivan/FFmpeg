@@ -5600,7 +5600,7 @@ check_lib2 "windows.h wincrypt.h" CryptGenRandom -ladvapi32
 check_lib2 "windows.h psapi.h" GetProcessMemoryInfo -lpsapi
 check_lib "CoreServices/CoreServices.h" UTGetOSTypeFromString "-framework CoreServices"
 
-pkg-config --exists  libcrypto++ && enable libcryptopp
+pkg-config --exists  libcrypto++ || pkg-config --exists  crypto++ && enable libcryptopp
 
 check_struct "sys/time.h sys/resource.h" "struct rusage" ru_maxrss
 
