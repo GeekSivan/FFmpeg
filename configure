@@ -5600,7 +5600,7 @@ check_lib2 "windows.h wincrypt.h" CryptGenRandom -ladvapi32
 check_lib2 "windows.h psapi.h" GetProcessMemoryInfo -lpsapi
 check_lib "CoreServices/CoreServices.h" UTGetOSTypeFromString "-framework CoreServices"
 
-pkg-config --exists  libcrypto++ || pkg-config --exists  crypto++ && enable libcryptopp
+pkg-config --exists  libcrypto++ || pkg-config --exists  cryptopp && enable libcryptopp
 
 check_struct "sys/time.h sys/resource.h" "struct rusage" ru_maxrss
 
@@ -6766,7 +6766,6 @@ print_config CONFIG_ "$config_files" $CONFIG_LIST       \
                                      $ALL_COMPONENTS    \
 
 echo "#define COM16_C806_EMT 0 " >> $TMPH
-echo "#define HEVC_ENCRYPTION 0" >> $TMPH
 echo "#endif /* FFMPEG_CONFIG_H */" >> $TMPH
 echo "endif # FFMPEG_CONFIG_MAK" >> config.mak
 
