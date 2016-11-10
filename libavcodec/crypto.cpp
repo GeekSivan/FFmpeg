@@ -14,7 +14,19 @@ typedef struct AESDecoder {
 } AESDecoder;
 
 
-AESDecoder* Init() {
+AESDecoder* Init(void);
+void DeleteCrypto(AESDecoder * AESdecoder);
+void Decrypt(AESDecoder *AESdecoder, const unsigned char *in_stream, int size_bits, unsigned char  *out_stream);
+void Incr_counter (unsigned char *counter);
+#if AESEncryptionStreamMode
+void Decrypt_counter(AESDecoder * AESdecoder);
+#endif
+#if AESEncryptionStreamMode
+unsigned int get_key (AESDecoder * AESdecoder, int nb_bits);
+#endif
+
+
+AESDecoder* Init(void) {
     int init_val[32] = {201, 75, 219, 152, 6, 245, 237, 107, 179, 194, 81, 29, 66, 98, 198, 0, 16, 213, 27, 56, 255, 127, 242, 112, 97, 126, 197, 204, 25, 59, 38, 30};
     AESDecoder * AESdecoder = (AESDecoder *)malloc(sizeof(AESDecoder));
     for(int i=0;i<16; i++) {
@@ -101,7 +113,7 @@ unsigned int get_key (AESDecoder * AESdecoder, int nb_bits) {
 }
 #endif
 
-Crypto_Handle InitC(){
+Crypto_Handle InitC(void){
     AESDecoder* AESdecoder = Init();
     return AESdecoder;
 }
