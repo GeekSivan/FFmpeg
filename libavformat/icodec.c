@@ -174,8 +174,10 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
         bytestream_put_le16(&buf, 0);
         bytestream_put_le32(&buf, 0);
 
-        if ((ret = avio_read(pb, buf, image->size)) < 0)
+        if ((ret = avio_read(pb, buf, image->size)) < 0) {
+            av_packet_unref(pkt);
             return ret;
+        }
 
         st->codecpar->bits_per_coded_sample = AV_RL16(buf + 14);
 
@@ -197,6 +199,13 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
+static int ico_read_close(AVFormatContext * s)
+{
+    IcoDemuxContext *ico = s->priv_data;
+    av_freep(&ico->images);
+    return 0;
+}
+
 AVInputFormat ff_ico_demuxer = {
     .name           = "ico",
     .long_name      = NULL_IF_CONFIG_SMALL("Microsoft Windows ICO"),
@@ -204,5 +213,6 @@ AVInputFormat ff_ico_demuxer = {
     .read_probe     = probe,
     .read_header    = read_header,
     .read_packet    = read_packet,
+    .read_close     = ico_read_close,
     .flags          = AVFMT_NOTIMESTAMPS,
 };
