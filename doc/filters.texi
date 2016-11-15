@@ -2921,9 +2921,6 @@ EBU R128 loudness normalization. Includes both dynamic and linear normalization 
 Support for both single pass (livestreams, files) and double pass (files) modes.
 This algorithm can target IL, LRA, and maximum true peak.
 
-To enable compilation of this filter you need to configure FFmpeg with
-@code{--enable-libebur128}.
-
 The filter accepts the following options:
 
 @table @option
@@ -4541,6 +4538,10 @@ the position in the file if known or -1 and the timestamp in seconds.
 
 In order to display the output lines, you need to set the loglevel at
 least to the AV_LOG_INFO value.
+
+This filter exports frame metadata @code{lavfi.blackframe.pblack}.
+The value represents the percentage of pixels in the picture that
+are below the threshold value.
 
 It accepts the following parameters:
 

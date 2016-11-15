@@ -1832,7 +1832,7 @@ static int mov_codec_id(AVStream *st, uint32_t format)
 static void mov_parse_stsd_video(MOVContext *c, AVIOContext *pb,
                                  AVStream *st, MOVStreamContext *sc)
 {
-    uint8_t codec_name[32];
+    uint8_t codec_name[32] = { 0 };
     int64_t stsd_start;
     unsigned int len;
 
@@ -2332,8 +2332,7 @@ static int mov_read_stsd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
     MOVStreamContext *sc;
-    int ret;
-    int entries;
+    int ret, entries;
 
     if (c->fc->nb_streams < 1)
         return 0;
@@ -2342,7 +2341,7 @@ static int mov_read_stsd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     avio_r8(pb); /* version */
     avio_rb24(pb); /* flags */
-    entries = avio_rb32(pb); /* entries */
+    entries = avio_rb32(pb);
 
     if (entries <= 0) {
         av_log(c->fc, AV_LOG_ERROR, "invalid STSD entries %d\n", entries);
@@ -2822,16 +2821,17 @@ static int get_edit_list_entry(MOVContext *mov,
 }
 
 /**
- * Find the closest previous keyframe to the timestamp, in e_old index
- * entries.
+ * Find the closest previous frame to the timestamp, in e_old index
+ * entries. Searching for just any frame / just key frames can be controlled by
+ * last argument 'flag'.
  * Returns the index of the entry in st->index_entries if successful,
  * else returns -1.
  */
-static int64_t find_prev_closest_keyframe_index(AVStream *st,
-                                                AVIndexEntry *e_old,
-                                                int nb_old,
-                                                int64_t timestamp,
-                                                int flag)
+static int64_t find_prev_closest_index(AVStream *st,
+                                       AVIndexEntry *e_old,
+                                       int nb_old,
+                                       int64_t timestamp,
+                                       int flag)
 {
     AVIndexEntry *e_keep = st->index_entries;
     int nb_keep = st->nb_index_entries;
@@ -3048,10 +3048,21 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
             search_timestamp = FFMAX(search_timestamp - msc->time_scale, e_old[0].timestamp);
         }
 
-        index = find_prev_closest_keyframe_index(st, e_old, nb_old, search_timestamp, 0);
+        index = find_prev_closest_index(st, e_old, nb_old, search_timestamp, 0);
         if (index == -1) {
-            av_log(mov->fc, AV_LOG_ERROR, "Missing key frame while reordering index according to edit list\n");
-            continue;
+            av_log(mov->fc, AV_LOG_WARNING,
+                   "st: %d edit list: %"PRId64" Missing key frame while searching for timestamp: %"PRId64"\n",
+                   st->index, edit_list_index, search_timestamp);
+            index = find_prev_closest_index(st, e_old, nb_old, search_timestamp, AVSEEK_FLAG_ANY);
+
+            if (index == -1) {
+                av_log(mov->fc, AV_LOG_WARNING,
+                       "st: %d edit list %"PRId64" Cannot find an index entry before timestamp: %"PRId64".\n"
+                       "Rounding edit list media time to zero.\n",
+                       st->index, edit_list_index, search_timestamp);
+                index = 0;
+                edit_list_media_time = 0;
+            }
         }
         current = e_old + index;
 
@@ -4443,7 +4454,14 @@ static int mov_read_elst(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         }
         e->rate = avio_rb32(pb) / 65536.0;
         av_log(c->fc, AV_LOG_TRACE, "duration=%"PRId64" time=%"PRId64" rate=%f\n",
-                e->duration, e->time, e->rate);
+               e->duration, e->time, e->rate);
+
+        if (e->time < 0 && e->time != -1 &&
+            c->fc->strict_std_compliance >= FF_COMPLIANCE_STRICT) {
+            av_log(c->fc, AV_LOG_ERROR, "Track %d, edit %d: Invalid edit list media time=%"PRId64"\n",
+                   c->fc->nb_streams-1, i, e->time);
+            return AVERROR_INVALIDDATA;
+        }
     }
     sc->elst_count = i;
 
