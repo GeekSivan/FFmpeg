@@ -3228,6 +3228,10 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
     if (s->sh.first_slice_in_pic_flag){
         s->HEVClc->ctb_tile_rs = 0;
     }
+#if CONFIG_HEVC_ENCRYPTION
+    InitC(s->HEVClc->dbs_g);
+    s->HEVClc->prev_pos = 0;
+#endif
     for (i = 1; i < s->threads_number; i++) {
         if (s->sh.first_slice_in_pic_flag){
             s->sList[i]->HEVClc->ctb_tile_rs = 0;
@@ -3236,6 +3240,10 @@ static int hls_slice_data(HEVCContext *s, const uint8_t *nal, int length)
         s->sList[i]->HEVClc->qp_y = s->sList[0]->HEVClc->qp_y;
         memcpy(s->sList[i], s, sizeof(HEVCContext));
         s->sList[i]->HEVClc = s->HEVClcList[i];
+#if CONFIG_HEVC_ENCRYPTION
+    InitC(s->sList[i]->HEVClc->dbs_g);
+    s->sList[i]->HEVClc->prev_pos = 0;
+#endif
     }
 
     avpriv_atomic_int_set(&s->wpp_err, 0);
@@ -3457,6 +3465,7 @@ static int hevc_frame_start(HEVCContext *s)
 #endif
     s->is_decoded        = 0;
     s->first_nal_type    = s->nal_unit_type;
+
 
     if (s->ps.pps->tiles_enabled_flag)
         lc->end_of_tiles_x = s->ps.pps->column_width[0] << s->ps.sps->log2_ctb_size;
@@ -4332,9 +4341,6 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
     int i;
 
     pic_arrays_free(s);
-#if CONFIG_HEVC_ENCRYPTION
-    DeleteCryptoC(s->HEVClc->dbs_g);
-#endif
     av_freep(&s->md5_ctx);
 
     for(i=0; i < s->nals_allocated; i++) {
@@ -4394,12 +4400,18 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
     for (i = 1; i < s->threads_number; i++) {
         HEVCLocalContext *lc = s->HEVClcList[i];
         if (lc) {
+#if CONFIG_HEVC_ENCRYPTION
+        	DeleteCryptoC(s->HEVClcList[i]->dbs_g);
+#endif
             av_freep(&s->HEVClcList[i]);
             av_freep(&s->sList[i]);
         }
     }
     if (s->HEVClc == s->HEVClcList[0])
         s->HEVClc = NULL;
+#if CONFIG_HEVC_ENCRYPTION
+    DeleteCryptoC(s->HEVClcList[0]->dbs_g);
+#endif
     av_freep(&s->HEVClcList[0]);
 
     for (i = 0; i < s->nals_allocated; i++)
@@ -4430,9 +4442,12 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
     s->cabac_state = av_malloc(HEVC_CONTEXTS);
     if (!s->cabac_state)
         goto fail;
+
 #if CONFIG_HEVC_ENCRYPTION
-    s->HEVClc->dbs_g = InitC();
+    s->HEVClc->dbs_g = CreateC();
+    s->HEVClc->prev_pos = 0;
 #endif
+
 #if !ACTIVE_PU_UPSAMPLING
     s->Ref_color_mapped_frame  = av_frame_alloc();
 #endif
@@ -4486,6 +4501,10 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
         s->sList[i] = av_mallocz(sizeof(HEVCContext));
         memcpy(s->sList[i], s, sizeof(HEVCContext));
         s->HEVClcList[i] = av_mallocz(sizeof(HEVCLocalContext));
+#if CONFIG_HEVC_ENCRYPTION
+        s->HEVClcList[i]->dbs_g = CreateC();
+        s->HEVClcList[i]->prev_pos = 0;
+#endif
         s->sList[i]->HEVClc = s->HEVClcList[i];
     }
 
@@ -4577,7 +4596,9 @@ static int hevc_update_thread_context(AVCodecContext *dst,
     s->field_order          = s0->field_order;
     s->picture_struct       = s0->picture_struct;
     s->interlaced           = s0->interlaced;
-
+#if CONFIG_HEVC_ENCRYPTION
+    s->encrypt_params       = s0->encrypt_params;
+#endif
     if (s->ps.sps != s0->ps.sps)
         ret = set_sps(s, s0->ps.sps, src->pix_fmt);
 
@@ -4603,7 +4624,6 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
     s->enable_parallel_tiles = 0;
     s->picture_struct = 0;
 #if CONFIG_HEVC_ENCRYPTION
-    s->prev_pos = 0;
     s->encrypt_params = HEVC_CRYPTO_MV_SIGNS | HEVC_CRYPTO_MVs | HEVC_CRYPTO_TRANSF_COEFF_SIGNS | HEVC_CRYPTO_TRANSF_COEFFS;
 #endif
     s->eos = 1;
