@@ -19,7 +19,7 @@ sleep 2
 (
     cd tests/data || exit $?
     rm -f ff-* ffserver.regression
-    WGET_OPTIONS="--user-agent=NSPlayer -q --proxy=off -e verbose=off -e server_response=off"
+    WGET_OPTIONS="--user-agent=NSPlayer -q --proxy=off -e verbose=off -e server_response=off -T3 --tries=1"
     for file in $FILES; do
         if [ $(expr $file : "a-*") != 0 ]; then
             wget $WGET_OPTIONS -O - http://localhost:9999/$file > ff-$file
@@ -28,6 +28,8 @@ sleep 2
         fi
         do_md5sum ff-$file >>ffserver.regression
     done
+    wget  $WGET_OPTIONS -O - teststat.html http://localhost:9999/teststat.html > ff-stat 2>/dev/null
+    do_md5sum ff-stat >>ffserver.regression
 )
 kill $FFSERVER_PID
 wait > /dev/null 2>&1
