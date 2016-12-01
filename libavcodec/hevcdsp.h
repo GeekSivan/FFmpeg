@@ -38,7 +38,7 @@ struct SAOParams;
 
 #define MAX_EDGE  4
 #define MAX_EDGE_CR  2
-#define N_SHIFT (20-8)
+#define N_SHIFT (20 - BIT_DEPTH)
 #define I_OFFSET (1 << (N_SHIFT - 1))
 
 
@@ -143,9 +143,17 @@ typedef struct HEVCDSPContext {
                                            uint8_t *dst, ptrdiff_t dststride, int16_t *_src, ptrdiff_t _srcstride,
                                            int y_BL, int x_EL, int y_EL, int block_w, int block_h, int widthEL, int heightEL,
                                            const struct HEVCWindow *Enhscal, struct UpsamplInf *up_info);
+    void (*map_color_block)(void *pc3DAsymLUT, uint8_t *src_y, uint8_t *src_u, uint8_t *src_v,
+                            uint8_t *dst_y, uint8_t *dst_u, uint8_t *dst_v,
+                            int src_stride, int src_stride_c,
+                            int dst_stride, int dst_stride_c,
+                            int dst_width, int dst_height,
+                            int is_bound_r,int is_bound_b, int is_bound_t,
+                            int is_bound_l);
 } HEVCDSPContext;
 
 void ff_hevc_dsp_init(HEVCDSPContext *hpc, int bit_depth);
+void ff_shvc_dsp_update(HEVCDSPContext *hevcdsp, int bit_depth, int have_CGS);
 
 extern const int8_t ff_hevc_epel_filters[7][4];
 extern const int8_t ff_hevc_qpel_filters[3][16];
@@ -193,5 +201,6 @@ void fastInverseDST7_B32(int16_t *coeff, int16_t *block, int shift, int line, in
 #endif
 
 void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth);
+void ff_shvc_dsp_update_x86(HEVCDSPContext *c, const int bit_depth, const int have_CGS);
 void ff_hevcdsp_init_arm(HEVCDSPContext *c, const int bit_depth);
 #endif /* AVCODEC_HEVCDSP_H */

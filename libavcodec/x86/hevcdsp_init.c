@@ -883,6 +883,18 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
 
             c->sao_band_filter    = oh_hevc_sao_band_filter_0_10_sse;
             c->sao_edge_filter    = oh_hevc_sao_edge_filter_10_sse;
+#if HAVE_SSE42
+#ifdef SVC_EXTENSION
+            c->upsample_filter_block_luma_h[1] = oh_upsample_filter_block_luma_h_x2_sse_16;
+            c->upsample_filter_block_cr_h[1]   = oh_upsample_filter_block_cr_h_x2_sse_16;
+            c->upsample_filter_block_luma_v[1] = oh_upsample_filter_block_luma_v_x2_sse_16;
+            c->upsample_filter_block_cr_v[1]   = oh_upsample_filter_block_cr_v_x2_sse_16;
+            c->upsample_filter_block_luma_h[2] = oh_upsample_filter_block_luma_h_x1_5_sse_16;
+            c->upsample_filter_block_cr_h[2]   = oh_upsample_filter_block_cr_h_x1_5_sse_16;
+            c->upsample_filter_block_luma_v[2] = oh_upsample_filter_block_luma_v_x1_5_sse_16;
+            c->upsample_filter_block_cr_v[2]   = oh_upsample_filter_block_cr_v_x1_5_sse_16;
+#endif
+#endif
         }
         if (EXTERNAL_AVX(cpu_flags)) {
             c->hevc_v_loop_filter_chroma = ff_hevc_v_loop_filter_chroma_10_avx;
@@ -1104,5 +1116,17 @@ void ff_hevc_dsp_init_x86(HEVCDSPContext *c, const int bit_depth)
             c->idct_dc[3] = ff_hevc_idct32x32_dc_12_avx2;
 
         }
+    }
+}
+
+void ff_shvc_dsp_update_x86(HEVCDSPContext *c, const int bit_depth, const int have_CGS)
+{
+    if(!have_CGS){
+        c->upsample_filter_block_luma_h[1] = oh_upsample_filter_block_luma_h_x2_sse;
+        c->upsample_filter_block_cr_h[1]   = oh_upsample_filter_block_cr_h_x2_sse;
+        c->upsample_filter_block_luma_h[2] = oh_upsample_filter_block_luma_h_x1_5_sse;
+        c->upsample_filter_block_cr_h[2]   = oh_upsample_filter_block_cr_h_x1_5_sse;
+    } else if (have_CGS){
+
     }
 }

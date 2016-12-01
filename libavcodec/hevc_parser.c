@@ -279,7 +279,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, const uint8_t *buf,
 
         h->nal_unit_type = (*buf >> 1) & 0x3f;
         h->temporal_id   = (*(buf + 1) & 0x07) - 1;
-        //h->nuh_layer_id  =  (((*buf)&0x01)<<5) + (((*(buf+1))&0xF8)>>3);
+        h->nuh_layer_id  =  (((*buf)&0x01)<<5) + (((*(buf+1))&0xF8)>>3);
         if (h->nal_unit_type <= NAL_CRA_NUT) {
             // Do not walk the whole buffer just to decode slice segment header
             if (src_length > 20)
@@ -299,7 +299,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, const uint8_t *buf,
             ff_hevc_decode_nal_vps(gb, avctx, ps);
             break;
         case NAL_SPS:
-            ff_hevc_decode_nal_sps(gb, avctx, ps, 1, 1/*h->nuh_layer_id*/);
+            ff_hevc_decode_nal_sps(gb, avctx, ps, 1, h->nuh_layer_id);
             break;
         case NAL_PPS:
             ff_hevc_decode_nal_pps(gb, avctx, ps);

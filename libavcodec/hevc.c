@@ -541,7 +541,7 @@ int set_el_parameter(HEVCContext *s) {
 #if !ACTIVE_PU_UPSAMPLING //fixme : was this intended to avc base layer??
     if(s->ps.pps->colour_mapping_enabled_flag) { // allocate frame with BL parameters
       av_frame_unref(s->Ref_color_mapped_frame);
-      s->Ref_color_mapped_frame->width  = s->BL_height;
+      s->Ref_color_mapped_frame->width  = s->BL_width;
       s->Ref_color_mapped_frame->height = s->BL_height;
       ret = ff_get_buffer(s->avctx, s->Ref_color_mapped_frame, AV_GET_BUFFER_FLAG_REF);
       if(ret < 0)
@@ -573,6 +573,15 @@ int set_el_parameter(HEVCContext *s) {
     for(i = 0; i <= s->nuh_layer_id; i++) {
             s->sh.Bit_Depth[i][CHANNEL_TYPE_LUMA  ] = getBitDepth(s, CHANNEL_TYPE_LUMA, i);
             s->sh.Bit_Depth[i][CHANNEL_TYPE_CHROMA] = getBitDepth(s, CHANNEL_TYPE_CHROMA, i);
+    }
+    if(s->nuh_layer_id){
+        int bl_bit_depth = getBitDepth(s, CHANNEL_TYPE_LUMA, s->nuh_layer_id - 1);
+        int bit_depth = getBitDepth(s, CHANNEL_TYPE_LUMA, s->nuh_layer_id);
+        int have_CGS = s->ps.pps->colour_mapping_enabled_flag;
+        if(bl_bit_depth == 8 && bit_depth > 8){
+            ff_shvc_dsp_update(&s->hevcdsp, bit_depth, have_CGS);
+            ff_videodsp_update(&s->vdsp, have_CGS);
+        }
     }
     for(i = 0; i < MAX_NUM_CHANNEL_TYPE; i++) {
       s->up_filter_inf.shift[i]    = s->sh.Bit_Depth[s->nuh_layer_id][i] - s->sh.Bit_Depth[refLayer][i];
@@ -3479,7 +3488,7 @@ static int hevc_frame_start(HEVCContext *s)
        if (s->el_decoder_el_exist){
             ff_thread_await_il_progress(s->avctx, s->poc_id, &s->avctx->BL_frame);
         } else if(s->ps.vps->vps_nonHEVCBaseLayerFlag && (s->threads_type & FF_THREAD_FRAME)){
-            ff_thread_await_il_progress(s->avctx, s->poc_id, &s->avctx->BL_frame);
+            ff_thread_await_il_progress(s->avctx, s->poc_id2, &s->avctx->BL_frame);
         } else
             if(s->threads_type & FF_THREAD_FRAME)
                 s->avctx->BL_frame = NULL; // Base Layer does not exist
@@ -3550,7 +3559,7 @@ fail:
             ff_thread_report_il_status(s->avctx, s->poc_id, 2);
 #if SVC_EXTENSION
         if(s->ps.vps->vps_nonHEVCBaseLayerFlag && (s->threads_type & FF_THREAD_FRAME))
-            ff_thread_report_il_status(s->avctx, s->poc_id, 2);
+            ff_thread_report_il_status_avc(s->avctx, s->poc_id2, 2);
 #endif
         if (s->inter_layer_ref)
             ff_hevc_unref_frame(s, s->inter_layer_ref, ~0);
@@ -4099,7 +4108,7 @@ fail:
             ff_thread_report_il_status(s->avctx, s->poc_id, 2);
 #if SVC_EXTENSION
         if(s->ps.vps && s->ps.vps->vps_nonHEVCBaseLayerFlag && (s->threads_type & FF_THREAD_FRAME))
-            ff_thread_report_il_status(s->avctx, s->poc_id, 2);
+            ff_thread_report_il_status_avc(s->avctx, s->poc_id2, 2);
 #endif
     }
     if (s->bl_decoder_el_exist)
@@ -4260,6 +4269,8 @@ static int hevc_decode_frame(AVCodecContext *avctx, void *data, int *got_output,
 {
     int ret;
     HEVCContext *s = avctx->priv_data;
+
+    s->poc_id2 = avpkt->poc_id;
 
     if (!avpkt->size) {
         ret = ff_hevc_output_frame(s, data, 1);
@@ -4599,6 +4610,7 @@ static int hevc_update_thread_context(AVCodecContext *dst,
 #if CONFIG_HEVC_ENCRYPTION
     s->encrypt_params       = s0->encrypt_params;
 #endif
+    s->poc_id2              = s0->poc_id2;
     if (s->ps.sps != s0->ps.sps)
         ret = set_sps(s, s0->ps.sps, src->pix_fmt);
 

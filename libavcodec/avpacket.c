@@ -139,8 +139,7 @@ int av_grow_packet(AVPacket *pkt, int grow_by)
         pkt->buf = av_buffer_alloc(new_size);
         if (!pkt->buf)
             return AVERROR(ENOMEM);
-        if (pkt->size > 0)
-            memcpy(pkt->buf->data, pkt->data, pkt->size);
+        memcpy(pkt->buf->data, pkt->data, pkt->size);
         pkt->data = pkt->buf->data;
     }
     pkt->size += grow_by;
@@ -548,6 +547,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #endif
     dst->flags                = src->flags;
     dst->stream_index         = src->stream_index;
+    dst->poc_id               = src->poc_id;
+    dst->el_available         = src->el_available;
+    dst->bl_available         = src->bl_available;
 
     for (i = 0; i < src->side_data_elems; i++) {
          enum AVPacketSideDataType type = src->side_data[i].type;

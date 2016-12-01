@@ -400,6 +400,8 @@ static av_cold int h264_decode_end(AVCodecContext *avctx)
 {
     int i;
     for (i = 0; i < FF_ARRAY_ELEMS(h->Add_ref); i++) {
+        if (avctx->active_thread_type & FF_THREAD_FRAME)
+            ff_thread_report_il_progress_avc(h->avctx,h->poc_id,NULL,NULL);
         ff_h264_unref_picture(h, &h->Add_ref[i]);
         av_frame_free(&h->Add_ref[i].f);
     }
@@ -667,6 +669,10 @@ static void flush_dpb(AVCodecContext *avctx)
     for (i = 0; i < H264_MAX_PICTURE_COUNT; i++)
         ff_h264_unref_picture(h, &h->DPB[i]);
     h->cur_pic_ptr = NULL;
+#if SVC_EXTENSION
+    if (avctx->active_thread_type & FF_THREAD_SLICE)
+        ff_thread_report_il_progress_avc(h->avctx,h->poc_id,NULL,NULL);
+#endif
     ff_h264_unref_picture(h, &h->cur_pic);
 
     h->mb_y = 0;
@@ -1092,6 +1098,11 @@ static int h264_decode_frame(AVCodecContext *avctx, void *data,
     }
 
     ff_h264_unref_picture(h, &h->last_pic_for_ec);
+
+#if SVC_EXTENSION
+    h->poc_id=avpkt->poc_id;
+    h->el_available=avpkt->el_available;
+#endif
 
     /* end of stream, output what is still in the buffers */
     if (buf_size == 0) {
