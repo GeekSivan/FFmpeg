@@ -164,6 +164,7 @@ typedef struct HTTPContext {
     char protocol[16];
     char method[16];
     char url[128];
+    char clean_url[128*7];
     int buffer_size;
     uint8_t *buffer;
     int is_packetized; /* if true, the stream is packetized */
@@ -1884,8 +1885,8 @@ static inline void print_stream_params(AVIOContext *pb, FFServerStream *stream)
 
     stream_no = stream->nb_streams;
 
-    avio_printf(pb, "<table cellspacing=0 cellpadding=4><tr><th>Stream<th>"
-                    "type<th>kbit/s<th align=left>codec<th align=left>"
+    avio_printf(pb, "<table><tr><th>Stream<th>"
+                    "type<th>kbit/s<th>codec<th>"
                     "Parameters\n");
 
     for (i = 0; i < stream_no; i++) {
@@ -1911,13 +1912,41 @@ static inline void print_stream_params(AVIOContext *pb, FFServerStream *stream)
             abort();
         }
 
-        avio_printf(pb, "<tr><td align=right>%d<td>%s<td align=right>%"PRId64
+        avio_printf(pb, "<tr><td>%d<td>%s<td>%"PRId64
                         "<td>%s<td>%s\n",
                     i, type, (int64_t)st->codecpar->bit_rate/1000,
                     codec ? codec->name : "", parameters);
      }
 
      avio_printf(pb, "</table>\n");
+}
+
+static void clean_html(char *clean, int clean_len, char *dirty)
+{
+    int i, o;
+
+    for (o = i = 0; o+10 < clean_len && dirty[i];) {
+        int len = strspn(dirty+i, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$-_.+!*(),?/ :;%");
+        if (len) {
+            if (o + len >= clean_len)
+                break;
+            memcpy(clean + o, dirty + i, len);
+            i += len;
+            o += len;
+        } else {
+            int c = dirty[i++];
+            switch (c) {
+            case  '&': av_strlcat(clean+o, "&amp;"  , clean_len - o); break;
+            case  '<': av_strlcat(clean+o, "&lt;"   , clean_len - o); break;
+            case  '>': av_strlcat(clean+o, "&gt;"   , clean_len - o); break;
+            case '\'': av_strlcat(clean+o, "&apos;" , clean_len - o); break;
+            case '\"': av_strlcat(clean+o, "&quot;" , clean_len - o); break;
+            default:   av_strlcat(clean+o, "&#9785;", clean_len - o); break;
+            }
+            o += strlen(clean+o);
+        }
+    }
+    clean[o] = 0;
 }
 
 static void compute_status(HTTPContext *c)
@@ -1950,8 +1979,8 @@ static void compute_status(HTTPContext *c)
     avio_printf(pb, "<h1>%s Status</h1>\n", program_name);
     /* format status */
     avio_printf(pb, "<h2>Available Streams</h2>\n");
-    avio_printf(pb, "<table cellspacing=0 cellpadding=4>\n");
-    avio_printf(pb, "<tr><th valign=top>Path<th align=left>Served<br>Conns<th><br>bytes<th valign=top>Format<th>Bit rate<br>kbit/s<th align=left>Video<br>kbit/s<th><br>Codec<th align=left>Audio<br>kbit/s<th><br>Codec<th align=left valign=top>Feed\n");
+    avio_printf(pb, "<table>\n");
+    avio_printf(pb, "<tr><th>Path<th>Served<br>Conns<th><br>bytes<th>Format<th>Bit rate<br>kbit/s<th>Video<br>kbit/s<th><br>Codec<th>Audio<br>kbit/s<th><br>Codec<th>Feed\n");
     stream = config.first_stream;
     while (stream) {
         char sfilename[1024];
@@ -1985,7 +2014,7 @@ static void compute_status(HTTPContext *c)
 
         avio_printf(pb, "<tr><td><a href=\"/%s\">%s</a> ",
                     sfilename, stream->filename);
-        avio_printf(pb, "<td align=right> %d <td align=right> ",
+        avio_printf(pb, "<td> %d <td> ",
                     stream->conns_served);
         // TODO: Investigate if we can make http bitexact so it always produces the same count of bytes
         if (!config.bitexact)
@@ -2029,8 +2058,7 @@ static void compute_status(HTTPContext *c)
                 }
             }
 
-            avio_printf(pb, "<td align=center> %s <td align=right> %d "
-                            "<td align=right> %d <td> %s %s <td align=right> "
+            avio_printf(pb, "<td> %s <td> %d <td> %d <td> %s %s <td> "
                             "%d <td> %s %s",
                         stream->fmt->name, stream->bandwidth,
                         video_bit_rate / 1000, video_codec_name,
@@ -2045,8 +2073,8 @@ static void compute_status(HTTPContext *c)
         }
             break;
         default:
-            avio_printf(pb, "<td align=center> - <td align=right> - "
-                            "<td align=right> - <td><td align=right> - <td>\n");
+            avio_printf(pb, "<td> - <td> - "
+                            "<td> - <td><td> - <td>\n");
             break;
         }
         stream = stream->next;
@@ -2107,7 +2135,7 @@ static void compute_status(HTTPContext *c)
                 current_bandwidth, config.max_bandwidth);
 
     avio_printf(pb, "<table>\n");
-    avio_printf(pb, "<tr><th>#<th>File<th>IP<th>Proto<th>State<th>Target "
+    avio_printf(pb, "<tr><th>#<th>File<th>IP<th>URL<th>Proto<th>State<th>Target "
                     "bit/s<th>Actual bit/s<th>Bytes transferred\n");
     c1 = first_http_ctx;
     i = 0;
@@ -2127,15 +2155,18 @@ static void compute_status(HTTPContext *c)
 
         i++;
         p = inet_ntoa(c1->from_addr.sin_addr);
-        avio_printf(pb, "<tr><td><b>%d</b><td>%s%s<td>%s<td>%s<td>%s"
-                        "<td align=right>",
+        clean_html(c1->clean_url, sizeof(c1->clean_url), c1->url);
+        avio_printf(pb, "<tr><td><b>%d</b><td>%s%s<td>%s<td>%s<td>%s<td>%s"
+                        "<td>",
                     i, c1->stream ? c1->stream->filename : "",
-                    c1->state == HTTPSTATE_RECEIVE_DATA ? "(input)" : "", p,
+                    c1->state == HTTPSTATE_RECEIVE_DATA ? "(input)" : "",
+                    p,
+                    c1->clean_url,
                     c1->protocol, http_state[c1->state]);
         fmt_bytecount(pb, bitrate);
-        avio_printf(pb, "<td align=right>");
+        avio_printf(pb, "<td>");
         fmt_bytecount(pb, compute_datarate(&c1->datarate, c1->data_count) * 8);
-        avio_printf(pb, "<td align=right>");
+        avio_printf(pb, "<td>");
         fmt_bytecount(pb, c1->data_count);
         avio_printf(pb, "\n");
         c1 = c1->next;
@@ -2146,7 +2177,7 @@ static void compute_status(HTTPContext *c)
         /* date */
         ti = time(NULL);
         p = ctime(&ti);
-        avio_printf(pb, "<hr size=1 noshade>Generated at %s", p);
+        avio_printf(pb, "<hr>Generated at %s", p);
     }
     avio_printf(pb, "</body>\n</html>\n");
 
@@ -3529,7 +3560,7 @@ static LayeredAVStream *add_av_stream1(FFServerStream *stream,
     //NOTE we previously allocated internal & internal->avctx, these seemed uneeded though
     fst->codecpar = avcodec_parameters_alloc();
     fst->index = stream->nb_streams;
-    fst->time_base = (AVRational) {1, 90000};
+    fst->time_base = codec->time_base;
     fst->pts_wrap_bits = 33;
     fst->sample_aspect_ratio = codec->sample_aspect_ratio;
     stream->streams[stream->nb_streams++] = fst;
