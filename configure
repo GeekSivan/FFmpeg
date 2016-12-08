@@ -2923,6 +2923,7 @@ ogv_muxer_select="ogg_muxer"
 opus_muxer_select="ogg_muxer"
 psp_muxer_select="mov_muxer"
 rtp_demuxer_select="sdp_demuxer"
+rtp_muxer_select="golomb"
 rtpdec_select="asf_demuxer jpegtables mov_demuxer mpegts_demuxer rm_demuxer rtp_protocol srtp"
 rtsp_demuxer_select="http_protocol rtpdec"
 rtsp_muxer_select="rtp_muxer http_protocol rtp_protocol rtpenc_chain"
@@ -6310,6 +6311,7 @@ __declspec($_restrict) void* foo(int);
 EOF
     fi
     check_func strtoll || add_cflags -Dstrtoll=_strtoi64
+    check_func strtoull || add_cflags -Dstrtoull=_strtoui64
     # the new SSA optimzer in VS2015 U3 is mis-optimizing some parts of the code
     # this flag should be re-checked on newer compiler releases and put under a
     # version check once its fixed
@@ -6407,6 +6409,22 @@ for thread in $THREADS_LIST; do
             thread_type="$thread"
     fi
 done
+
+if disabled stdatomic_h; then
+    if enabled atomics_gcc; then
+        add_cppflags '-I\$(SRC_PATH)/compat/atomics/gcc'
+    elif enabled atomics_win32; then
+        add_cppflags '-I\$(SRC_PATH)/compat/atomics/win32'
+    elif enabled atomics_suncc; then
+        add_cppflags '-I\$(SRC_PATH)/compat/atomics/suncc'
+    elif enabled pthreads; then
+        add_compat atomics/pthread/stdatomic.o
+        add_cppflags '-I\$(SRC_PATH)/compat/atomics/pthread'
+    else
+        enabled threads && die "Threading is enabled, but no atomics are available"
+        add_cppflags '-I\$(SRC_PATH)/compat/atomics/dummy'
+    fi
+fi
 
 enabled zlib && add_cppflags -DZLIB_CONST
 

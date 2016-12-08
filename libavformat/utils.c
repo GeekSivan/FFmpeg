@@ -2597,11 +2597,14 @@ static void update_stream_timings(AVFormatContext *ic)
             if (ic->nb_programs > 1) {
                 for (i = 0; i < ic->nb_programs; i++) {
                     p = ic->programs[i];
-                    if (p->start_time != AV_NOPTS_VALUE && p->end_time > p->start_time)
+                    if (p->start_time != AV_NOPTS_VALUE &&
+                        p->end_time > p->start_time &&
+                        p->end_time - (uint64_t)p->start_time <= INT64_MAX)
                         duration = FFMAX(duration, p->end_time - p->start_time);
                 }
-            } else
+            } else if (end_time >= start_time && end_time - (uint64_t)start_time <= INT64_MAX) {
                 duration = FFMAX(duration, end_time - start_time);
+            }
         }
     }
     if (duration != INT64_MIN && duration > 0 && ic->duration == AV_NOPTS_VALUE) {
@@ -3446,7 +3449,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             && codec && !avctx->codec) {
             if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)
                 av_log(ic, AV_LOG_WARNING,
-                       "Failed to open codec in av_find_stream_info\n");
+                       "Failed to open codec in %s\n",__FUNCTION__);
         }
 
         // Try to just open decoders, in case this is enough to get parameters.
@@ -3454,7 +3457,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             if (codec && !avctx->codec)
                 if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)
                     av_log(ic, AV_LOG_WARNING,
-                           "Failed to open codec in av_find_stream_info\n");
+                           "Failed to open codec in %s\n",__FUNCTION__);
         }
         if (!options)
             av_dict_free(&thread_opt);
@@ -3700,7 +3703,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                         av_dict_set(&opts, "codec_whitelist", ic->codec_whitelist, 0);
                     if (avcodec_open2(avctx, codec, (options && stream_index < orig_nb_streams) ? &options[stream_index] : &opts) < 0)
                         av_log(ic, AV_LOG_WARNING,
-                            "Failed to open codec in av_find_stream_info\n");
+                               "Failed to open codec in %s\n",__FUNCTION__);
                     av_dict_free(&opts);
                 }
             }

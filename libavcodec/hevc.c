@@ -5,7 +5,6 @@
  * Copyright (C) 2012 - 2013 Mickael Raulet
  * Copyright (C) 2012 - 2013 Gildas Cocherel
  * Copyright (C) 2012 - 2013 Wassim Hamidouche
- * Copyright (C) 2012 - 2013 Seppo Tomperi
  *
  * This file is part of FFmpeg.
  *

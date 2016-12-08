@@ -2738,8 +2738,10 @@ static int http_receive_data(HTTPContext *c)
         } else if (c->buffer_ptr - c->buffer >= 2 &&
                    !memcmp(c->buffer_ptr - 1, "\r\n", 2)) {
             c->chunk_size = strtol(c->buffer, 0, 16);
-            if (c->chunk_size == 0) // end of stream
+            if (c->chunk_size <= 0) { // end of stream or invalid chunk size
+                c->chunk_size = 0;
                 goto fail;
+            }
             c->buffer_ptr = c->buffer;
             break;
         } else if (++loop_run > 10)
@@ -2761,6 +2763,7 @@ static int http_receive_data(HTTPContext *c)
             /* end of connection : close it */
             goto fail;
         else {
+            av_assert0(len <= c->chunk_size);
             c->chunk_size -= len;
             c->buffer_ptr += len;
             c->data_count += len;
@@ -2854,7 +2857,8 @@ static int http_receive_data(HTTPContext *c)
             for (i = 0; i < s->nb_streams; i++) {
                 LayeredAVStream *fst = feed->streams[i];
                 AVStream *st = s->streams[i];
-                avcodec_copy_context(fst->codec, st->codec);
+                avcodec_parameters_to_context(fst->codec, st->codecpar);
+                avcodec_parameters_from_context(fst->codecpar, fst->codec);
             }
 
             avformat_close_input(&s);
