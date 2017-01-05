@@ -66,6 +66,9 @@ typedef enum HLSFlags {
     HLS_SPLIT_BY_TIME = (1 << 5),
     HLS_APPEND_LIST = (1 << 6),
     HLS_PROGRAM_DATE_TIME = (1 << 7),
+    HLS_SECOND_LEVEL_SEGMENT_INDEX = (1 << 8), // include segment index in segment filenames when use_localtime  e.g.: %%03d
+    HLS_SECOND_LEVEL_SEGMENT_DURATION = (1 << 9), // include segment duration (microsec) in segment filenames when use_localtime  e.g.: %%09t
+    HLS_SECOND_LEVEL_SEGMENT_SIZE = (1 << 10), // include segment size (bytes) in segment filenames when use_localtime  e.g.: %%014s
 } HLSFlags;
 
 typedef enum {
@@ -133,6 +136,7 @@ typedef struct HLSContext {
     char *method;
 
     double initial_prog_date_time;
+    char current_segment_final_filename_fmt[1024]; // when renaming segments
 } HLSContext;
 
 static int mkdir_p(const char *path) {
@@ -168,6 +172,58 @@ static int mkdir_p(const char *path) {
     return ret;
 }
 
+static int replace_int_data_in_filename(char *buf, int buf_size, const char *filename, char placeholder, int64_t number)
+{
+    const char *p;
+    char *q, buf1[20], c;
+    int nd, len, addchar_count;
+    int found_count = 0;
+
+    q = buf;
+    p = filename;
+    for (;;) {
+        c = *p;
+        if (c == '\0')
+            break;
+        if (c == '%' && *(p+1) == '%')  // %%
+            addchar_count = 2;
+        else if (c == '%' && (av_isdigit(*(p+1)) || *(p+1) == placeholder)) {
+            nd = 0;
+            addchar_count = 1;
+            while (av_isdigit(*(p + addchar_count))) {
+                nd = nd * 10 + *(p + addchar_count) - '0';
+                addchar_count++;
+            }
+
+            if (*(p + addchar_count) == placeholder) {
+                len = snprintf(buf1, sizeof(buf1), "%0*"PRId64, (number < 0) ? nd : nd++, number);
+                if (len < 1)  // returned error or empty buf1
+                    goto fail;
+                if ((q - buf + len) > buf_size - 1)
+                    goto fail;
+                memcpy(q, buf1, len);
+                q += len;
+                p += (addchar_count + 1);
+                addchar_count = 0;
+                found_count++;
+            }
+
+        } else
+            addchar_count = 1;
+
+        while (addchar_count--)
+            if ((q - buf) < buf_size - 1)
+                *q++ = *p++;
+            else
+                goto fail;
+    }
+    *q = '\0';
+    return found_count;
+fail:
+    *q = '\0';
+    return -1;
+}
+
 static int hls_delete_old_segments(HLSContext *hls) {
 
     HLSSegment *segment, *previous_segment = NULL;
@@ -185,7 +241,6 @@ static int hls_delete_old_segments(HLSContext *hls) {
     segment = hls->old_segments;
     while (segment) {
         playlist_duration -= segment->duration;
-        hls->initial_prog_date_time += segment->duration;
         previous_segment = segment;
         segment = previous_segment->next;
         if (playlist_duration <= -previous_segment->duration) {
@@ -194,7 +249,7 @@ static int hls_delete_old_segments(HLSContext *hls) {
         }
     }
 
-    if (segment) {
+    if (segment && !hls->use_localtime_mkdir) {
         if (hls->segment_filename) {
             dirname = av_strdup(hls->segment_filename);
         } else {
@@ -211,15 +266,20 @@ static int hls_delete_old_segments(HLSContext *hls) {
     while (segment) {
         av_log(hls, AV_LOG_DEBUG, "deleting old segment %s\n",
                                   segment->filename);
-        path_size = strlen(dirname) + strlen(segment->filename) + 1;
+        path_size =  (hls->use_localtime_mkdir ? 0 : strlen(dirname)) + strlen(segment->filename) + 1;
         path = av_malloc(path_size);
         if (!path) {
             ret = AVERROR(ENOMEM);
             goto fail;
         }
 
-        av_strlcpy(path, dirname, path_size);
-        av_strlcat(path, segment->filename, path_size);
+        if (hls->use_localtime_mkdir)
+            av_strlcpy(path, segment->filename, path_size);
+        else { // segment->filename contains basename only
+            av_strlcpy(path, dirname, path_size);
+            av_strlcat(path, segment->filename, path_size);
+        }
+
         if (unlink(path) < 0) {
             av_log(hls, AV_LOG_ERROR, "failed to delete old segment %s: %s\n",
                                      path, strerror(errno));
@@ -362,6 +422,16 @@ static int hls_mux_init(AVFormatContext *s)
     return 0;
 }
 
+static HLSSegment *find_segment_by_filename(HLSSegment *segment, const char *filename)
+{
+    while (segment) {
+        if (!av_strcasecmp(segment->filename,filename))
+            return segment;
+        segment = segment->next;
+    }
+    return (HLSSegment *) NULL;
+}
+
 /* Create a new segment and append it to the segment list */
 static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double duration,
                               int64_t pos, int64_t size)
@@ -373,10 +443,55 @@ static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double
     if (!en)
         return AVERROR(ENOMEM);
 
+    if ((hls->flags & (HLS_SECOND_LEVEL_SEGMENT_SIZE | HLS_SECOND_LEVEL_SEGMENT_DURATION)) &&
+        strlen(hls->current_segment_final_filename_fmt)) {
+        char * old_filename = av_strdup(hls->avf->filename);  // %%s will be %s after strftime
+        av_strlcpy(hls->avf->filename, hls->current_segment_final_filename_fmt, sizeof(hls->avf->filename));
+        if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_SIZE) {
+            char * filename = av_strdup(hls->avf->filename);  // %%s will be %s after strftime
+            if (!filename)
+                return AVERROR(ENOMEM);
+            if (replace_int_data_in_filename(hls->avf->filename, sizeof(hls->avf->filename),
+                filename, 's', pos + size) < 1) {
+                av_log(hls, AV_LOG_ERROR,
+                       "Invalid second level segment filename template '%s', "
+                        "you can try to remove second_level_segment_size flag\n",
+                       filename);
+                av_free(filename);
+                av_free(old_filename);
+                return AVERROR(EINVAL);
+            }
+            av_free(filename);
+        }
+        if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_DURATION) {
+            char * filename = av_strdup(hls->avf->filename);  // %%t will be %t after strftime
+            if (!filename)
+                return AVERROR(ENOMEM);
+            if (replace_int_data_in_filename(hls->avf->filename, sizeof(hls->avf->filename),
+                filename, 't',  (int64_t)round(1000000 * duration)) < 1) {
+                av_log(hls, AV_LOG_ERROR,
+                       "Invalid second level segment filename template '%s', "
+                        "you can try to remove second_level_segment_time flag\n",
+                       filename);
+                av_free(filename);
+                av_free(old_filename);
+                return AVERROR(EINVAL);
+            }
+            av_free(filename);
+        }
+        ff_rename(old_filename, hls->avf->filename, hls);
+        av_free(old_filename);
+    }
+
+
     filename = av_basename(hls->avf->filename);
 
     if (hls->use_localtime_mkdir) {
         filename = hls->avf->filename;
+    }
+    if (find_segment_by_filename(hls->segments, filename)
+        || find_segment_by_filename(hls->old_segments, filename)) {
+        av_log(hls, AV_LOG_WARNING, "Duplicated segment filename detected: %s\n", filename);
     }
     av_strlcpy(en->filename, filename, sizeof(en->filename));
 
@@ -414,6 +529,7 @@ static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double
 
     if (hls->max_nb_segments && hls->nb_entries >= hls->max_nb_segments) {
         en = hls->segments;
+        hls->initial_prog_date_time += en->duration;
         hls->segments = en->next;
         if (en && hls->flags & HLS_DELETE_SEGMENTS &&
                 !(hls->flags & HLS_SINGLE_FILE || hls->wrap)) {
@@ -685,7 +801,53 @@ static int hls_start(AVFormatContext *s)
                 av_log(oc, AV_LOG_ERROR, "Could not get segment filename with use_localtime\n");
                 return AVERROR(EINVAL);
             }
-
+            if (c->flags & HLS_SECOND_LEVEL_SEGMENT_INDEX) {
+                char * filename = av_strdup(oc->filename);  // %%d will be %d after strftime
+                if (!filename)
+                    return AVERROR(ENOMEM);
+                if (replace_int_data_in_filename(oc->filename, sizeof(oc->filename),
+                    filename, 'd', c->wrap ? c->sequence % c->wrap : c->sequence) < 1) {
+                    av_log(c, AV_LOG_ERROR,
+                           "Invalid second level segment filename template '%s', "
+                            "you can try to remove second_level_segment_index flag\n",
+                           filename);
+                    av_free(filename);
+                    return AVERROR(EINVAL);
+                }
+                av_free(filename);
+            }
+            if (c->flags & (HLS_SECOND_LEVEL_SEGMENT_SIZE | HLS_SECOND_LEVEL_SEGMENT_DURATION)) {
+                av_strlcpy(c->current_segment_final_filename_fmt, oc->filename,
+                           sizeof(c->current_segment_final_filename_fmt));
+                if (c->flags & HLS_SECOND_LEVEL_SEGMENT_SIZE) {
+                    char * filename = av_strdup(oc->filename);  // %%s will be %s after strftime
+                    if (!filename)
+                        return AVERROR(ENOMEM);
+                    if (replace_int_data_in_filename(oc->filename, sizeof(oc->filename), filename, 's', 0) < 1) {
+                        av_log(c, AV_LOG_ERROR,
+                               "Invalid second level segment filename template '%s', "
+                                "you can try to remove second_level_segment_size flag\n",
+                               filename);
+                        av_free(filename);
+                        return AVERROR(EINVAL);
+                    }
+                    av_free(filename);
+                }
+                if (c->flags & HLS_SECOND_LEVEL_SEGMENT_DURATION) {
+                    char * filename = av_strdup(oc->filename);  // %%t will be %t after strftime
+                    if (!filename)
+                        return AVERROR(ENOMEM);
+                    if (replace_int_data_in_filename(oc->filename, sizeof(oc->filename), filename, 't', 0) < 1) {
+                        av_log(c, AV_LOG_ERROR,
+                               "Invalid second level segment filename template '%s', "
+                                "you can try to remove second_level_segment_time flag\n",
+                               filename);
+                        av_free(filename);
+                        return AVERROR(EINVAL);
+                    }
+                    av_free(filename);
+                }
+            }
             if (c->use_localtime_mkdir) {
                 const char *dir;
                 char *fn_copy = av_strdup(oc->filename);
@@ -775,13 +937,23 @@ fail:
     return err;
 }
 
+static const char * get_default_pattern_localtime_fmt(void)
+{
+    char b[21];
+    time_t t = time(NULL);
+    struct tm *p, tmbuf;
+    p = localtime_r(&t, &tmbuf);
+    // no %s support when strftime returned error or left format string unchanged
+    return (!strftime(b, sizeof(b), "%s", p) || !strcmp(b, "%s")) ? "-%Y%m%d%H%I%S.ts" : "-%s.ts";
+}
+
 static int hls_write_header(AVFormatContext *s)
 {
     HLSContext *hls = s->priv_data;
     int ret, i;
     char *p;
     const char *pattern = "%d.ts";
-    const char *pattern_localtime_fmt = "-%s.ts";
+    const char *pattern_localtime_fmt = get_default_pattern_localtime_fmt();
     const char *vtt_pattern = "%d.vtt";
     AVDictionary *options = NULL;
     int basename_size;
@@ -790,6 +962,7 @@ static int hls_write_header(AVFormatContext *s)
     hls->sequence       = hls->start_sequence;
     hls->recording_time = (hls->init_time ? hls->init_time : hls->time) * AV_TIME_BASE;
     hls->start_pts      = AV_NOPTS_VALUE;
+    hls->current_segment_final_filename_fmt[0] = '\0';
 
     if (hls->flags & HLS_PROGRAM_DATE_TIME) {
         time_t now0;
@@ -864,7 +1037,42 @@ static int hls_write_header(AVFormatContext *s)
             av_strlcat(hls->basename, pattern, basename_size);
         }
     }
+    if (!hls->use_localtime) {
+        if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_DURATION) {
+             av_log(hls, AV_LOG_ERROR,
+                    "second_level_segment_duration hls_flag requires use_localtime to be true\n");
+             ret = AVERROR(EINVAL);
+             goto fail;
+        }
+        if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_SIZE) {
+             av_log(hls, AV_LOG_ERROR,
+                    "second_level_segment_size hls_flag requires use_localtime to be true\n");
+             ret = AVERROR(EINVAL);
+             goto fail;
+        }
+        if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_INDEX) {
+            av_log(hls, AV_LOG_ERROR,
+                   "second_level_segment_index hls_flag requires use_localtime to be true\n");
+            ret = AVERROR(EINVAL);
+            goto fail;
+        }
+    } else {
+        const char *proto = avio_find_protocol_name(hls->basename);
+        int segment_renaming_ok = proto && !strcmp(proto, "file");
 
+        if ((hls->flags & HLS_SECOND_LEVEL_SEGMENT_DURATION) && !segment_renaming_ok) {
+             av_log(hls, AV_LOG_ERROR,
+                    "second_level_segment_duration hls_flag works only with file protocol segment names\n");
+             ret = AVERROR(EINVAL);
+             goto fail;
+        }
+        if ((hls->flags & HLS_SECOND_LEVEL_SEGMENT_SIZE) && !segment_renaming_ok) {
+             av_log(hls, AV_LOG_ERROR,
+                    "second_level_segment_size hls_flag works only with file protocol segment names\n");
+             ret = AVERROR(EINVAL);
+             goto fail;
+        }
+    }
     if(hls->has_subtitle) {
 
         if (hls->flags & HLS_SINGLE_FILE)
@@ -1120,6 +1328,9 @@ static const AVOption options[] = {
     {"split_by_time", "split the hls segment by time which user set by hls_time", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_SPLIT_BY_TIME }, 0, UINT_MAX,   E, "flags"},
     {"append_list", "append the new segments into old hls segment list", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_APPEND_LIST }, 0, UINT_MAX,   E, "flags"},
     {"program_date_time", "add EXT-X-PROGRAM-DATE-TIME", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_PROGRAM_DATE_TIME }, 0, UINT_MAX,   E, "flags"},
+    {"second_level_segment_index", "include segment index in segment filenames when use_localtime", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_SECOND_LEVEL_SEGMENT_INDEX }, 0, UINT_MAX,   E, "flags"},
+    {"second_level_segment_duration", "include segment duration in segment filenames when use_localtime", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_SECOND_LEVEL_SEGMENT_DURATION }, 0, UINT_MAX,   E, "flags"},
+    {"second_level_segment_size", "include segment size in segment filenames when use_localtime", 0, AV_OPT_TYPE_CONST, {.i64 = HLS_SECOND_LEVEL_SEGMENT_SIZE }, 0, UINT_MAX,   E, "flags"},
     {"use_localtime", "set filename expansion with strftime at segment creation", OFFSET(use_localtime), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, E },
     {"use_localtime_mkdir", "create last directory component in strftime-generated filename", OFFSET(use_localtime_mkdir), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, E },
     {"hls_playlist_type", "set the HLS playlist type", OFFSET(pl_type), AV_OPT_TYPE_INT, {.i64 = PLAYLIST_TYPE_NONE }, 0, PLAYLIST_TYPE_NB-1, E, "pl_type" },
