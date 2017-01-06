@@ -285,8 +285,8 @@ static int hls_delete_old_segments(HLSContext *hls) {
                                      path, strerror(errno));
         }
 
-        if (segment->sub_filename[0] != '\0') {
-            sub_path_size = strlen(dirname) + strlen(segment->sub_filename) + 1;
+        if ((segment->sub_filename[0] != '\0')) {
+            sub_path_size = strlen(segment->sub_filename) + 1 + (dirname ? strlen(dirname) : 0);
             sub_path = av_malloc(sub_path_size);
             if (!sub_path) {
                 ret = AVERROR(ENOMEM);
@@ -446,11 +446,18 @@ static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double
     if ((hls->flags & (HLS_SECOND_LEVEL_SEGMENT_SIZE | HLS_SECOND_LEVEL_SEGMENT_DURATION)) &&
         strlen(hls->current_segment_final_filename_fmt)) {
         char * old_filename = av_strdup(hls->avf->filename);  // %%s will be %s after strftime
+        if (!old_filename) {
+            av_free(en);
+            return AVERROR(ENOMEM);
+        }
         av_strlcpy(hls->avf->filename, hls->current_segment_final_filename_fmt, sizeof(hls->avf->filename));
         if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_SIZE) {
             char * filename = av_strdup(hls->avf->filename);  // %%s will be %s after strftime
-            if (!filename)
+            if (!filename) {
+                av_free(old_filename);
+                av_free(en);
                 return AVERROR(ENOMEM);
+            }
             if (replace_int_data_in_filename(hls->avf->filename, sizeof(hls->avf->filename),
                 filename, 's', pos + size) < 1) {
                 av_log(hls, AV_LOG_ERROR,
@@ -459,14 +466,18 @@ static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double
                        filename);
                 av_free(filename);
                 av_free(old_filename);
+                av_free(en);
                 return AVERROR(EINVAL);
             }
             av_free(filename);
         }
         if (hls->flags & HLS_SECOND_LEVEL_SEGMENT_DURATION) {
             char * filename = av_strdup(hls->avf->filename);  // %%t will be %t after strftime
-            if (!filename)
+            if (!filename) {
+                av_free(old_filename);
+                av_free(en);
                 return AVERROR(ENOMEM);
+            }
             if (replace_int_data_in_filename(hls->avf->filename, sizeof(hls->avf->filename),
                 filename, 't',  (int64_t)round(1000000 * duration)) < 1) {
                 av_log(hls, AV_LOG_ERROR,
@@ -475,6 +486,7 @@ static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double
                        filename);
                 av_free(filename);
                 av_free(old_filename);
+                av_free(en);
                 return AVERROR(EINVAL);
             }
             av_free(filename);
@@ -944,7 +956,7 @@ static const char * get_default_pattern_localtime_fmt(void)
     struct tm *p, tmbuf;
     p = localtime_r(&t, &tmbuf);
     // no %s support when strftime returned error or left format string unchanged
-    return (!strftime(b, sizeof(b), "%s", p) || !strcmp(b, "%s")) ? "-%Y%m%d%H%I%S.ts" : "-%s.ts";
+    return (!strftime(b, sizeof(b), "%s", p) || !strcmp(b, "%s")) ? "-%Y%m%d%H%M%S.ts" : "-%s.ts";
 }
 
 static int hls_write_header(AVFormatContext *s)
