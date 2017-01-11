@@ -316,9 +316,12 @@ static int decode_frame(AVCodecContext *avctx, void *data,
 
     s->pixel_size = s->channel_depth >> 3;/* in byte */
     s->line_size = s->width * s->pixel_size;
-    s->uncompressed_size = s->line_size * s->height * s->channel_count;
 
     switch (s->color_mode) {
+    case PSD_BITMAP:
+        s->line_size = s->width + 7 >> 3;
+        avctx->pix_fmt = AV_PIX_FMT_MONOWHITE;
+        break;
     case PSD_INDEXED:
         if (s->channel_depth != 8 || s->channel_count != 1) {
             av_log(s->avctx, AV_LOG_ERROR,
@@ -352,6 +355,8 @@ static int decode_frame(AVCodecContext *avctx, void *data,
             return AVERROR_PATCHWELCOME;
         }
         break;
+    case PSD_DUOTONE:
+        av_log(avctx, AV_LOG_WARNING, "ignoring unknwon duotone specification.\n");
     case PSD_GRAYSCALE:
         if (s->channel_count == 1) {
             if (s->channel_depth == 8) {
@@ -380,6 +385,8 @@ static int decode_frame(AVCodecContext *avctx, void *data,
         avpriv_report_missing_feature(avctx, "color mode %d", s->color_mode);
         return AVERROR_PATCHWELCOME;
     }
+
+    s->uncompressed_size = s->line_size * s->height * s->channel_count;
 
     if ((ret = ff_get_buffer(avctx, picture, 0)) < 0)
         return ret;
@@ -428,9 +435,9 @@ static int decode_frame(AVCodecContext *avctx, void *data,
             plane_number = eq_channel[c];
             ptr = picture->data[plane_number];/* get the right plane */
             for (y = 0; y < s->height; y++) {
-                memcpy(ptr, ptr_data, s->width * s->pixel_size);
+                memcpy(ptr, ptr_data, s->line_size);
                 ptr += picture->linesize[plane_number];
-                ptr_data += s->width * s->pixel_size;
+                ptr_data += s->line_size;
             }
         }
     }
