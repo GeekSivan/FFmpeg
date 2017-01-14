@@ -1,5 +1,9 @@
 /*
- * Copyright (c) 2009 Loren Merritt <lorenm@u.washington.edu>
+ * SIMD-optimized HuffYUV encoding functions
+ * Copyright (c) 2000, 2001 Fabrice Bellard
+ * Copyright (c) 2002-2004 Michael Niedermayer <michaelni@gmx.at>
+ *
+ * MMX optimization by Nick Kurshev <nickols_k@mail.ru>
  *
  * This file is part of FFmpeg.
  *
@@ -18,38 +22,33 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "config.h"
 #include "libavutil/attributes.h"
 #include "libavutil/cpu.h"
 #include "libavutil/pixdesc.h"
-#include "libavutil/x86/asm.h"
 #include "libavutil/x86/cpu.h"
-#include "libavcodec/huffyuvdsp.h"
+#include "libavcodec/huffyuvencdsp.h"
 
-void ff_add_int16_mmx(uint16_t *dst, const uint16_t *src, unsigned mask, int w);
-void ff_add_int16_sse2(uint16_t *dst, const uint16_t *src, unsigned mask, int w);
-void ff_add_hfyu_left_pred_bgr32_mmx(uint8_t *dst, const uint8_t *src,
-                                     intptr_t w, uint8_t *left);
-void ff_add_hfyu_left_pred_bgr32_sse2(uint8_t *dst, const uint8_t *src,
-                                      intptr_t w, uint8_t *left);
-void ff_add_hfyu_median_pred_int16_mmxext(uint16_t *dst, const uint16_t *top, const uint16_t *diff, unsigned mask, int w, int *left, int *left_top);
+void ff_diff_int16_mmx (uint16_t *dst, const uint16_t *src1, const uint16_t *src2,
+                        unsigned mask, int w);
+void ff_diff_int16_sse2(uint16_t *dst, const uint16_t *src1, const uint16_t *src2,
+                        unsigned mask, int w);
+void ff_sub_hfyu_median_pred_int16_mmxext(uint16_t *dst, const uint16_t *src1, const uint16_t *src2,
+                                          unsigned mask, int w, int *left, int *left_top);
 
-av_cold void ff_huffyuvdsp_init_x86(HuffYUVDSPContext *c, AVCodecContext *avctx)
+av_cold void ff_huffyuvencdsp_init_x86(HuffYUVEncDSPContext *c, AVCodecContext *avctx)
 {
-    int cpu_flags = av_get_cpu_flags();
+    av_unused int cpu_flags = av_get_cpu_flags();
     const AVPixFmtDescriptor *pix_desc = av_pix_fmt_desc_get(avctx->pix_fmt);
 
     if (ARCH_X86_32 && EXTERNAL_MMX(cpu_flags)) {
-        c->add_hfyu_left_pred_bgr32 = ff_add_hfyu_left_pred_bgr32_mmx;
-        c->add_int16 = ff_add_int16_mmx;
+        c->diff_int16 = ff_diff_int16_mmx;
     }
 
     if (EXTERNAL_MMXEXT(cpu_flags) && pix_desc && pix_desc->comp[0].depth<16) {
-        c->add_hfyu_median_pred_int16 = ff_add_hfyu_median_pred_int16_mmxext;
+        c->sub_hfyu_median_pred_int16 = ff_sub_hfyu_median_pred_int16_mmxext;
     }
 
     if (EXTERNAL_SSE2(cpu_flags)) {
-        c->add_int16 = ff_add_int16_sse2;
-        c->add_hfyu_left_pred_bgr32 = ff_add_hfyu_left_pred_bgr32_sse2;
+        c->diff_int16 = ff_diff_int16_sse2;
     }
 }

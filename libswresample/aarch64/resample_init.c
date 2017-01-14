@@ -25,7 +25,7 @@
 #include "libavutil/cpu.h"
 #include "libavutil/avassert.h"
 
-#include "libavutil/arm/cpu.h"
+#include "libavutil/aarch64/cpu.h"
 #include "libswresample/resample.h"
 
 #define DECLARE_RESAMPLE_COMMON_TEMPLATE(TYPE, DELEM, FELEM, FELEM2, OUT)                         \
@@ -102,7 +102,7 @@ DECLARE_RESAMPLE_COMMON_TEMPLATE(float, float, float, float, OUT)
 DECLARE_RESAMPLE_COMMON_TEMPLATE(s16, int16_t, int16_t, int32_t, OUT)
 #undef OUT
 
-av_cold void swri_resample_dsp_arm_init(ResampleContext *c)
+av_cold void swri_resample_dsp_aarch64_init(ResampleContext *c)
 {
     int cpu_flags = av_get_cpu_flags();
 
