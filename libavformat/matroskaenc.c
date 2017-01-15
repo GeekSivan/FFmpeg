@@ -1119,14 +1119,15 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
     } else {
         // look for a codec ID string specific to mkv to use,
         // if none are found, use AVI codes
-        for (j = 0; ff_mkv_codec_tags[j].id != AV_CODEC_ID_NONE; j++) {
-            if (ff_mkv_codec_tags[j].id == par->codec_id) {
-                put_ebml_string(pb, MATROSKA_ID_CODECID, ff_mkv_codec_tags[j].str);
-                native_id = 1;
-                break;
+        if (par->codec_id != AV_CODEC_ID_RAWVIDEO || par->codec_tag) {
+            for (j = 0; ff_mkv_codec_tags[j].id != AV_CODEC_ID_NONE; j++) {
+                if (ff_mkv_codec_tags[j].id == par->codec_id) {
+                    put_ebml_string(pb, MATROSKA_ID_CODECID, ff_mkv_codec_tags[j].str);
+                    native_id = 1;
+                    break;
+                }
             }
-        }
-        if (par->codec_id == AV_CODEC_ID_RAWVIDEO && !par->codec_tag) {
+        } else {
             if (mkv->allow_raw_vfw) {
                 native_id = 0;
             } else {
