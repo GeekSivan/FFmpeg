@@ -47,6 +47,7 @@ typedef enum {
 
 #define KEYSIZE 16
 #define LINE_BUFFER_SIZE 1024
+#define HLS_MICROSECOND_UNIT   1000000
 
 typedef struct HLSSegment {
     char filename[1024];
@@ -245,6 +246,8 @@ static int hls_delete_old_segments(HLSContext *hls) {
     int ret = 0, path_size, sub_path_size;
     char *dirname = NULL, *p, *sub_path;
     char *path = NULL;
+    AVDictionary *options = NULL;
+    AVIOContext *out = NULL;
 
     segment = hls->segments;
     while (segment) {
@@ -294,7 +297,12 @@ static int hls_delete_old_segments(HLSContext *hls) {
             av_strlcat(path, segment->filename, path_size);
         }
 
-        if (unlink(path) < 0) {
+        if (hls->method) {
+            av_dict_set(&options, "method", "DELETE", 0);
+            if ((ret = hls->avf->io_open(hls->avf, &out, path, AVIO_FLAG_WRITE, &options)) < 0)
+                goto fail;
+            ff_format_io_close(hls->avf, &out);
+        } else if (unlink(path) < 0) {
             av_log(hls, AV_LOG_ERROR, "failed to delete old segment %s: %s\n",
                                      path, strerror(errno));
         }
@@ -309,7 +317,15 @@ static int hls_delete_old_segments(HLSContext *hls) {
 
             av_strlcpy(sub_path, dirname, sub_path_size);
             av_strlcat(sub_path, segment->sub_filename, sub_path_size);
-            if (unlink(sub_path) < 0) {
+
+            if (hls->method) {
+                av_dict_set(&options, "method", "DELETE", 0);
+                if ((ret = hls->avf->io_open(hls->avf, &out, sub_path, AVIO_FLAG_WRITE, &options)) < 0) {
+                    av_free(sub_path);
+                    goto fail;
+                }
+                ff_format_io_close(hls->avf, &out);
+            } else if (unlink(sub_path) < 0) {
                 av_log(hls, AV_LOG_ERROR, "failed to delete old segment %s: %s\n",
                                          sub_path, strerror(errno));
             }
@@ -486,7 +502,7 @@ static int hls_append_segment(struct AVFormatContext *s, HLSContext *hls, double
                 return AVERROR(ENOMEM);
             }
             if (replace_int_data_in_filename(hls->avf->filename, sizeof(hls->avf->filename),
-                filename, 't',  (int64_t)round(1000000 * duration)) < 1) {
+                filename, 't',  (int64_t)round(duration * HLS_MICROSECOND_UNIT)) < 1) {
                 av_log(hls, AV_LOG_ERROR,
                        "Invalid second level segment filename template '%s', "
                         "you can try to remove second_level_segment_time flag\n",
@@ -644,6 +660,19 @@ static void set_http_options(AVDictionary **options, HLSContext *c)
         av_dict_set(options, "method", c->method, 0);
 }
 
+static void write_m3u8_head_block(HLSContext *hls, AVIOContext *out, int version,
+                                  int target_duration, int64_t sequence)
+{
+    avio_printf(out, "#EXTM3U\n");
+    avio_printf(out, "#EXT-X-VERSION:%d\n", version);
+    if (hls->allowcache == 0 || hls->allowcache == 1) {
+        avio_printf(out, "#EXT-X-ALLOW-CACHE:%s\n", hls->allowcache == 0 ? "NO" : "YES");
+    }
+    avio_printf(out, "#EXT-X-TARGETDURATION:%d\n", target_duration);
+    avio_printf(out, "#EXT-X-MEDIA-SEQUENCE:%"PRId64"\n", sequence);
+    av_log(hls, AV_LOG_VERBOSE, "EXT-X-MEDIA-SEQUENCE:%"PRId64"\n", sequence);
+}
+
 static int hls_window(AVFormatContext *s, int last)
 {
     HLSContext *hls = s->priv_data;
@@ -683,21 +712,13 @@ static int hls_window(AVFormatContext *s, int last)
     }
 
     hls->discontinuity_set = 0;
-    avio_printf(out, "#EXTM3U\n");
-    avio_printf(out, "#EXT-X-VERSION:%d\n", version);
-    if (hls->allowcache == 0 || hls->allowcache == 1) {
-        avio_printf(out, "#EXT-X-ALLOW-CACHE:%s\n", hls->allowcache == 0 ? "NO" : "YES");
-    }
-    avio_printf(out, "#EXT-X-TARGETDURATION:%d\n", target_duration);
-    avio_printf(out, "#EXT-X-MEDIA-SEQUENCE:%"PRId64"\n", sequence);
+    write_m3u8_head_block(hls, out, version, target_duration, sequence);
     if (hls->pl_type == PLAYLIST_TYPE_EVENT) {
         avio_printf(out, "#EXT-X-PLAYLIST-TYPE:EVENT\n");
     } else if (hls->pl_type == PLAYLIST_TYPE_VOD) {
         avio_printf(out, "#EXT-X-PLAYLIST-TYPE:VOD\n");
     }
 
-    av_log(s, AV_LOG_VERBOSE, "EXT-X-MEDIA-SEQUENCE:%"PRId64"\n",
-           sequence);
     if((hls->flags & HLS_DISCONT_START) && sequence==hls->start_sequence && hls->discontinuity_set==0 ){
         avio_printf(out, "#EXT-X-DISCONTINUITY\n");
         hls->discontinuity_set = 1;
@@ -759,16 +780,7 @@ static int hls_window(AVFormatContext *s, int last)
     if( hls->vtt_m3u8_name ) {
         if ((ret = s->io_open(s, &sub_out, hls->vtt_m3u8_name, AVIO_FLAG_WRITE, &options)) < 0)
             goto fail;
-        avio_printf(sub_out, "#EXTM3U\n");
-        avio_printf(sub_out, "#EXT-X-VERSION:%d\n", version);
-        if (hls->allowcache == 0 || hls->allowcache == 1) {
-            avio_printf(sub_out, "#EXT-X-ALLOW-CACHE:%s\n", hls->allowcache == 0 ? "NO" : "YES");
-        }
-        avio_printf(sub_out, "#EXT-X-TARGETDURATION:%d\n", target_duration);
-        avio_printf(sub_out, "#EXT-X-MEDIA-SEQUENCE:%"PRId64"\n", sequence);
-
-        av_log(s, AV_LOG_VERBOSE, "EXT-X-MEDIA-SEQUENCE:%"PRId64"\n",
-               sequence);
+        write_m3u8_head_block(hls, sub_out, version, target_duration, sequence);
 
         for (en = hls->segments; en; en = en->next) {
             avio_printf(sub_out, "#EXTINF:%f,\n", en->duration);
@@ -1248,7 +1260,6 @@ static int hls_write_packet(AVFormatContext *s, AVPacket *pkt)
             hls->duration = (double)(pkt->pts - hls->end_pts)
                                        * st->time_base.num / st->time_base.den;
             hls->dpp = (double)(pkt->duration) * st->time_base.num / st->time_base.den;
-            av_log(s, AV_LOG_ERROR, "hls->dpp = [%lf]\n", hls->dpp);
         } else {
             hls->duration += (double)(pkt->duration) * st->time_base.num / st->time_base.den;
         }
