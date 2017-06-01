@@ -523,8 +523,9 @@ static int h264_frame_start(H264Context *h)
     if(h->avctx->internal->pkt->el_available==1 && h->avctx->active_thread_type & FF_THREAD_FRAME){
         for (i = 0; i < FF_ARRAY_ELEMS(h->Add_ref); i++) {
             H264Picture *frame = &h->Add_ref[i];
-            if (frame->f->buf[0])
+            if (frame->f && frame->f->buf[0])
                 continue;
+            if(h->cur_pic_ptr)
             ret = ff_h264_ref_picture(h, &h->Add_ref[i], h->cur_pic_ptr);
             if (ret < 0)
                 return ret;

@@ -28,8 +28,6 @@
 #include "libavcodec/hevc.h"
 #include "libavcodec/x86/hevcdsp.h"
 
-#pragma GCC target("sse4")
-
 #if HAVE_SSE2
 #include <emmintrin.h>
 #endif

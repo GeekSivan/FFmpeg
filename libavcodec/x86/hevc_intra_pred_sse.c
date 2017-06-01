@@ -5,8 +5,6 @@
 #include "libavcodec/hevc.h"
 #include "libavcodec/x86/hevcpred.h"
 
-#pragma GCC target("sse4")
-
 #if HAVE_SSE2
 #include <emmintrin.h>
 #endif
@@ -23,7 +21,7 @@
 #if HAVE_SSE42
 #define _MM_PACKUS_EPI32 _mm_packus_epi32
 #else
-#if HAVE_SSE2
+#if HAVE_SSSE2
 static av_always_inline __m128i _MM_PACKUS_EPI32( __m128i a, __m128i b )
 {
      a = _mm_slli_epi32 (a, 16);

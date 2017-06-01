@@ -4,8 +4,6 @@
 #include "libavcodec/hevc.h"
 #include "libavcodec/x86/hevcdsp.h"
 
-#pragma GCC target("sse2")
-
 #if HAVE_SSE2
 #include <emmintrin.h>
 #endif
