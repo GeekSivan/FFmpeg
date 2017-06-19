@@ -17,10 +17,16 @@ OBJS-$(CONFIG_H264CHROMA)              += x86/h264chroma_init.o
 OBJS-$(CONFIG_H264DSP)                 += x86/h264dsp_init.o
 OBJS-$(CONFIG_H264PRED)                += x86/h264_intrapred_init.o
 OBJS-$(CONFIG_H264QPEL)                += x86/h264_qpel.o
-OBJS-$(CONFIG_HEVC_DECODER)            += x86/hevc_idct_sse.o          \
+SSE-OBJS-$(CONFIG_HEVC_DECODER)        += x86/hevc_idct_sse.o          \
                                           x86/hevc_il_pred_sse.o       \
                                           x86/hevc_intra_pred_sse.o    \
-                                          x86/hevc_sao_sse.o
+                                          x86/hevc_sao_sse.o           \
+
+ifeq (CONFIG_OH_OPTIM,0)
+SSE-OBJS-$(CONFIG_HEVC_DECODER)        += x86/hevc_mc_sse.o
+endif
+#TODO fix broken x86_mc_sse
+AVX-OBJS-$(CONFIG_HEVC_DECODER)        += x86/hevc_mc_avx2.o 
 OBJS-$(CONFIG_HPELDSP)                 += x86/hpeldsp_init.o
 OBJS-$(CONFIG_LLAUDDSP)                += x86/lossless_audiodsp_init.o
 OBJS-$(CONFIG_LLVIDDSP)                += x86/lossless_videodsp_init.o
@@ -85,6 +91,17 @@ OBJS-$(CONFIG_WEBP_DECODER)            += x86/vp8dsp_init.o
 MMX-OBJS-$(CONFIG_FDCTDSP)             += x86/fdct.o
 MMX-OBJS-$(CONFIG_IDCTDSP)             += x86/simple_idct.o
 MMX-OBJS-$(CONFIG_VC1DSP)              += x86/vc1dsp_mmx.o
+
+SSE-OBJS-$(CONFIG_HEVC_DECODER)        += x86/hevc_idct_sse.o          \
+                                          x86/hevc_il_pred_sse.o       \
+                                          x86/hevc_intra_pred_sse.o    \
+                                          x86/hevc_sao_sse.o           \
+
+ifeq (CONFIG_OH_OPTIM,0)
+SSE-OBJS-$(CONFIG_HEVC_DECODER)        += x86/hevc_mc_sse.o
+endif
+#TODO fix broken x86_mc_sse
+AVX-OBJS-$(CONFIG_HEVC_DECODER)        += x86/hevc_mc_avx2.o  
 
 # decoders/encoders
 MMX-OBJS-$(CONFIG_SNOW_DECODER)        += x86/snowdsp.o

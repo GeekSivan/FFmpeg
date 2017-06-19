@@ -253,7 +253,7 @@ static int temporal_luma_motion_vector(HEVCContext *s, int x0, int y0,
     if(ref == s->inter_layer_ref ) {
         if (s->threads_type & FF_THREAD_FRAME ){
             int bl_y = y0 + (1<<s->ps.sps->log2_ctb_size)*2 + 9;
-            bl_y = (( (bl_y  - s->ps.sps->pic_conf_win.top_offset) * s->up_filter_inf.scaleYLum + s->up_filter_inf.addYLum) >> 12) >> 4;
+            bl_y = (( (bl_y  - s->ps.sps->conf_win.top_offset) * s->up_filter_inf.scaleYLum + s->up_filter_inf.addYLum) >> 12) >> 4;
 
             if(s->ps.vps->vps_nonHEVCBaseLayerFlag)
             	ff_thread_await_progress(&((H264Picture*)s->BL_frame)->tf, bl_y, 0);
@@ -640,15 +640,15 @@ void ff_hevc_luma_mv_mvp_mode(HEVCContext *s, int x0, int y0, int nPbW,
     int min_pu_width = s->ps.sps->min_pu_width;
 
     int xA0, yA0;
-    int is_available_a0;
+    int is_available_a0=0;
     int xA1, yA1;
-    int is_available_a1;
+    int is_available_a1=0;
     int xB0, yB0;
-    int is_available_b0;
+    int is_available_b0=0;
     int xB1, yB1;
-    int is_available_b1;
+    int is_available_b1=0;
     int xB2, yB2;
-    int is_available_b2;
+    int is_available_b2=0;
 
     Mv mvpcand_list[2] = { { 0 } };
     Mv mxA;

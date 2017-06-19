@@ -348,8 +348,7 @@ static inline int parse_nal_units(AVCodecParserContext *s, const uint8_t *buf,
 
             sh->first_slice_in_pic_flag = get_bits1(gb);
             s->picture_structure = h->picture_struct;
-            s->field_order = h->picture_struct;
-
+            s->field_order = h->field_order;
             if (IS_IRAP(h)) {
                 s->key_frame = 1;
                 sh->no_output_of_prior_pics_flag = get_bits1(gb);
